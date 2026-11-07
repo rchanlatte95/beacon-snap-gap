@@ -1,4 +1,6 @@
-// The sidebar. Owner: the plain-language task (T9). Moved from PlannerMock.tsx without behavior change.
+// The sidebar. Owner: the plain-language task (T9).
+// Progressive disclosure: glance (headline, summary, legend), explore (compare, layers, list),
+// detail (everything technical, inside <details className="how-we-know">). Wording is in copy.ts.
 import { useMemo, useState } from 'react'
 import {
   CLASS_LABEL,
@@ -6,16 +8,26 @@ import {
   CONF_RULES,
   GROUP_QUARTERS_PCT,
   NEAR_CUT_POINTS,
+  NO_MOE,
   SMALL_HOUSEHOLDS,
   confidence,
   fmt,
   n,
-  pct,
 } from './model'
 import type { Cls, ConfLevel, ConfRule, Coverage, Records, SortKey, Tract } from './model'
 import { COLORS } from './mapStyle'
 import { COMPARE_LAYERS } from './compare'
 import type { CompareContext, CompareLayer } from './compare/types'
+import {
+  BASE_SOURCES,
+  CIRCLE_PLAIN,
+  CLASS_PLAIN,
+  GLOSSARY,
+  UI,
+  glanceSummary,
+  tractNumber,
+  wholePct,
+} from './copy'
 
 // ---------------- Sidebar ----------------
 
@@ -50,6 +62,22 @@ function Sparkline({ series }: { series: Records['snapTrend'] }) {
     </figure>
   )
 }
+
+// Every source once: the base sources, then each Compare-with layer's sources.
+function sourceList() {
+  const seen = new Set<string>()
+  const out: { id: string; label: string; note?: string; layer?: string }[] = []
+  const add = (s: (typeof out)[number]) => {
+    if (seen.has(s.id)) return
+    seen.add(s.id)
+    out.push(s)
+  }
+  for (const s of BASE_SOURCES) add(s)
+  for (const l of COMPARE_LAYERS) for (const s of l.sources) add({ ...s, layer: l.menuLabel })
+  return out
+}
+// COMPARE_LAYERS is fixed when the module loads, so the list is built once.
+const SOURCES = sourceList()
 
 export function Sidebar(props: {
   r: Records
@@ -93,6 +121,7 @@ export function Sidebar(props: {
     return c
   }, [r.tracts])
   const notDrawn = r.tracts.filter((t) => !t.drawn)
+  const insufficient = r.tracts.filter((t) => t.cls === 'insufficient')
   const flagged = useMemo(() => {
     const key = (t: Tract) =>
       sort === 'poverty' ? (t.pctPoverty ?? 0) : sort === 'snap' ? (t.pctSnap ?? 0) : (t.standinLoad ?? 0)
@@ -103,78 +132,51 @@ export function Sidebar(props: {
   const desert = r.tracts.filter((t) => t.cls === 'desert')
   const noSiteInside = desert.filter((t) => t.sitesInTract === 0).length
   const activeCompare = COMPARE_LAYERS.find((l) => l.id === props.compareId)
+  const circle = CIRCLE_PLAIN[props.coverage]
 
   return (
     <div className="sidebar">
-      <div>
-        <h1 className="lede">Where is need high, and is a pantry in reach?</h1>
-        <p className="secondary" style={{ margin: 0 }}>
-          {r.counts.desert} of {r.tracts.length} Central Florida tracts meet the Classic Food Desert
-          rule. {noSiteInside} of them have no Second Harvest site inside the tract. Click a tract to
-          see why.
-        </p>
-      </div>
-
-      <div className="notice">
-        <strong>Mock-up.</strong> Stand-in data from the repo files ({r.generated}). This page is for
-        layout and design review only. Do not use its values for decisions.
+      {/* ---------- Glance ---------- */}
+      <div className="glance">
+        <h1 className="lede">{UI.headline}</h1>
+        {glanceSummary(r.counts.desert, r.tracts.length, noSiteInside).map((s) => (
+          <p key={s} className="glance-text">
+            {s}
+          </p>
+        ))}
+        <p className="notice">{UI.notice}</p>
       </div>
 
       <section aria-labelledby="legend-h">
-        <h2 id="legend-h">Map classes</h2>
+        <h2 id="legend-h">What the colors mean</h2>
         <ul className="legend">
           {(['desert', 'nogap', 'insufficient'] as Cls[]).map((c) => (
             <li key={c}>
               <span className={`swatch ${c}`} />
-              <span>{CLASS_LABEL[c]}</span>
+              <span>
+                {CLASS_LABEL[c]}
+                <span className="legend-plain">{CLASS_PLAIN[c]}</span>
+              </span>
               <span className="count">{drawnCounts[c]}</span>
             </li>
           ))}
-        </ul>
-        <div className="not-drawn">
-          Not drawn ({notDrawn.length}):{' '}
-          {notDrawn.map((t) => (
-            <button key={t.geoid} className="linklike" onClick={() => onSelect(t.geoid)}>
-              {t.name}, {t.county} (<span className="mono">{t.geoid}</span>)
-            </button>
-          ))}{' '}
-          is water and has no shape. It counts as Insufficient data, so all {r.tracts.length} tracts
-          are accounted for.
-        </div>
-      </section>
-
-      <section aria-labelledby="conf-h">
-        <h2 id="conf-h">
-          Confidence rule <span className="standin">not decided</span>
-        </h2>
-        <div className="rule-pick" role="radiogroup" aria-label="Confidence rule">
-          {CONF_RULES.map((c) => (
-            <label key={c.id}>
-              <input
-                type="radio"
-                name="conf"
-                checked={confRule === c.id}
-                onChange={() => props.setConfRule(c.id)}
-              />
+          {props.coverageOn && (
+            <li>
+              <span className={`swatch circle ${props.coverage}`} />
               <span>
-                <strong>{c.name}</strong>
-                <span className="secondary"> {c.summary}</span>
+                {circle.name}
+                <span className="legend-plain">{circle.plain}</span>
               </span>
-            </label>
-          ))}
-        </div>
-        <p className="rule">
-          High-need tracts ({r.counts.desert}): {levelText(confCounts.high)}
-          <br />
-          All tracts ({r.tracts.length}): {levelText(confCounts.all)}
-          <br />
-          The {SMALL_HOUSEHOLDS}-household, {GROUP_QUARTERS_PCT}% and {NEAR_CUT_POINTS}-point
-          thresholds are stand-ins.
-        </p>
+              <span className="count" />
+            </li>
+          )}
+        </ul>
+        <p className="hint">{UI.clickHint}</p>
       </section>
 
+      {/* ---------- Explore ---------- */}
       <section aria-labelledby="compare-h">
-        <h2 id="compare-h">Compare with</h2>
+        <h2 id="compare-h">{UI.compareWith}</h2>
         <select
           className="sort"
           value={props.compareId ?? ''}
@@ -182,7 +184,7 @@ export function Sidebar(props: {
           aria-label="Compare with"
           disabled={COMPARE_LAYERS.length === 0}
         >
-          <option value="">Nothing</option>
+          <option value="">{UI.compareNothing}</option>
           {COMPARE_LAYERS.map((l) => (
             <option key={l.id} value={l.id}>
               {l.menuLabel}
@@ -198,7 +200,7 @@ export function Sidebar(props: {
       </section>
 
       <section aria-labelledby="layers-h">
-        <h2 id="layers-h">Layers</h2>
+        <h2 id="layers-h">{UI.layersHeading}</h2>
         <label className="layer">
           <input
             type="checkbox"
@@ -206,7 +208,7 @@ export function Sidebar(props: {
             onChange={(e) => props.setCoverageOn(e.target.checked)}
           />
           <span>
-            Pantry coverage on high-need tracts <span className="standin">stand-in</span>
+            {UI.coverageToggle} <span className="standin">{UI.standin}</span>
           </span>
         </label>
         {props.coverageOn && (
@@ -219,7 +221,7 @@ export function Sidebar(props: {
                   checked={props.coverage === 'load'}
                   onChange={() => props.setCoverage('load')}
                 />{' '}
-                Load (Z-2e)
+                {UI.coverageLoad}
               </label>
               <label>
                 <input
@@ -228,7 +230,7 @@ export function Sidebar(props: {
                   checked={props.coverage === 'reach'}
                   onChange={() => props.setCoverage('reach')}
                 />{' '}
-                Reach
+                {UI.coverageReach}
               </label>
             </div>
             {props.coverage === 'load' ? (
@@ -242,7 +244,7 @@ export function Sidebar(props: {
                     </span>
                   )
                 })}
-                <span style={{ alignSelf: 'center' }}>residents per site in reach</span>
+                <span style={{ alignSelf: 'center' }}>people per site</span>
               </div>
             ) : (
               <div className="circle-key">
@@ -266,12 +268,12 @@ export function Sidebar(props: {
             checked={props.sitesOn}
             onChange={(e) => props.setSitesOn(e.target.checked)}
           />
-          <span>Second Harvest sites ({props.siteCount}, 7 counties)</span>
+          <span>{UI.sitesToggle(props.siteCount)}</span>
         </label>
       </section>
 
       <section aria-labelledby="list-h">
-        <h2 id="list-h">Classic Food Desert tracts ({flagged.length})</h2>
+        <h2 id="list-h">{UI.listHeading(flagged.length)}</h2>
         <div className="list-tools">
           {['All', 'Orange', 'Seminole', 'Lake', 'Osceola'].map((c) => (
             <button key={c} className="chip" aria-pressed={county === c} onClick={() => setCounty(c)}>
@@ -282,11 +284,11 @@ export function Sidebar(props: {
             className="sort"
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
-            aria-label="Sort tracts"
+            aria-label={UI.sortLabel}
           >
-            <option value="poverty">Poverty %</option>
-            <option value="snap">SNAP %</option>
-            <option value="load">Load</option>
+            <option value="poverty">{UI.sortPoverty}</option>
+            <option value="snap">{UI.sortSnap}</option>
+            <option value="load">{UI.sortLoad}</option>
           </select>
         </div>
         <ul className="tract-list">
@@ -294,15 +296,23 @@ export function Sidebar(props: {
             <li key={t.geoid}>
               <button aria-current={selected === t.geoid} onClick={() => onSelect(t.geoid)}>
                 <span className="t-name">
-                  {t.name}
-                  {t.sitesInTract === 0 && <span className="tag warn">no site inside</span>}
+                  {tractNumber(t)} · {t.county}
+                  {t.sitesInTract === 0 && (
+                    <>
+                      {' '}
+                      <span className="tag warn">{UI.noSiteInside}</span>
+                    </>
+                  )}
                 </span>
                 <span className="t-num">
-                  {sort === 'load' ? n(t.standinLoad) : pct(sort === 'snap' ? t.pctSnap : t.pctPoverty)}
+                  {sort === 'load'
+                    ? `${n(t.standinLoad)} per site`
+                    : sort === 'snap'
+                      ? `${wholePct(t.pctSnap)} SNAP`
+                      : `${wholePct(t.pctPoverty)} in poverty`}
                 </span>
                 <span className="t-meta">
-                  {t.county} · SNAP {pct(t.pctSnap)} · {n(t.households)} households ·{' '}
-                  {confidence(t, cut, confRule).level} confidence
+                  How sure we are: {confidence(t, cut, confRule).level}
                 </span>
               </button>
             </li>
@@ -310,20 +320,148 @@ export function Sidebar(props: {
         </ul>
       </section>
 
-      <section aria-labelledby="ctx-h">
-        <h2 id="ctx-h">Context</h2>
-        <Sparkline series={r.snapTrend} />
-        <p className="secondary">
-          Food insecurity, 2024 (Feeding America, DS-X9b):{' '}
-          {r.mealGap.map((m) => `${m.county[0]!.toUpperCase()}${m.county.slice(1)} ${m.rate}`).join(' · ')}
-        </p>
-      </section>
+      {/* ---------- Detail ---------- */}
+      <details className="how-we-know">
+        <summary>{UI.howWeKnow}</summary>
 
-      <div className="deferred" aria-label="Deferred scenario slider">
-        <strong>Scenario slider: deferred (Z-3, SLICE-2).</strong> Shown here only to discuss where
-        it would go. When it returns, every result carries the label "assumption-based estimate".
-        <input type="range" disabled aria-label="Scenario slider (deferred)" />
-      </div>
+        <section aria-labelledby="hw-class-h">
+          <h3 id="hw-class-h">How we color the map</h3>
+          <p>
+            Each neighborhood is a census tract (2020 tracts, ACS 2024 5-year data). There are{' '}
+            {r.tracts.length} in Orange, Seminole, Lake and Osceola counties.
+          </p>
+          <p>
+            <strong>{CLASS_LABEL.desert}</strong> needs both tests: (1) a poverty rate of{' '}
+            {cut.toFixed(3)}% or more, which is the top quartile (75th percentile) of the{' '}
+            {r.povertyCut.tracts} tracts with a poverty value ({r.povertyCut.method}, not rounded); and
+            (2) the USDA driving-distance LILA flag (low income and low access at 1/2 mile urban, 10
+            miles rural; <span className="mono">DD_SRAM_LILATracts_halfAnd10</span>).{' '}
+            <strong>{CLASS_LABEL.nogap}</strong> means the tract does not pass both tests.{' '}
+            <strong>{CLASS_LABEL.insufficient}</strong> means the poverty rate or the LILA flag is blank.
+            A blank SNAP share is listed as missing on the card, but it does not change the class.
+            Sources: DS-H2, DS-H6.
+          </p>
+          <p>
+            Tracts with insufficient data ({insufficient.length}):{' '}
+            {insufficient.map((t, i) => (
+              <span key={t.geoid}>
+                {i > 0 && '; '}
+                <button className="linklike" onClick={() => onSelect(t.geoid)}>
+                  {t.name}, {t.county} (<span className="mono">{t.geoid}</span>)
+                </button>
+                {!t.drawn && ' (water, no shape, not drawn)'}
+              </span>
+            ))}
+            . The legend counts drawn tracts only. With the {notDrawn.length} tract that is not drawn,
+            all {r.tracts.length} tracts are accounted for.
+          </p>
+        </section>
+
+        <section aria-labelledby="conf-h">
+          <h3 id="conf-h">
+            How sure are we (confidence rule) <span className="standin">not decided</span>
+          </h3>
+          <p>
+            The card shows High, Medium, Low or Not rated. A human must pick one of these candidate
+            rules before any rule goes in a contract. Compare them here:
+          </p>
+          <div className="rule-pick" role="radiogroup" aria-label="Confidence rule">
+            {CONF_RULES.map((c) => (
+              <label key={c.id}>
+                <input
+                  type="radio"
+                  name="conf"
+                  checked={confRule === c.id}
+                  onChange={() => props.setConfRule(c.id)}
+                />
+                <span>
+                  <strong>{c.name}</strong>
+                  <span className="secondary"> {c.summary}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <p>
+            High-need tracts ({r.counts.desert}): {levelText(confCounts.high)}
+            <br />
+            All tracts ({r.tracts.length}): {levelText(confCounts.all)}
+            <br />
+            The {SMALL_HOUSEHOLDS}-household, {GROUP_QUARTERS_PCT}% group quarters and{' '}
+            {NEAR_CUT_POINTS}-point thresholds are stand-ins. {NO_MOE}
+          </p>
+        </section>
+
+        <section aria-labelledby="hw-cov-h">
+          <h3 id="hw-cov-h">
+            Food site coverage <span className="standin">stand-in</span>
+          </h3>
+          <p>
+            Reach: the share of a tract's populated 2020 blocks' people within{' '}
+            {r.standinReachMiles} miles straight-line of a Second Harvest site. Load: tract 2020
+            population divided by the sites within that reach (residents per site, Z-2e). The decided
+            reach rule is a 30-minute drive (Z-2, Z-2b, Z-2d); it needs routing data that is not in the
+            repo. The circles show on the {r.counts.desert} high-need tracts only. Sites are Second
+            Harvest partner sites only ({props.siteCount} sites in 7 counties). Other pantries and stores
+            are not in the list, and hours change. Sources: DS-X12, DS-X27, DS-X24.
+          </p>
+        </section>
+
+        <section aria-labelledby="ctx-h">
+          <h3 id="ctx-h">Context (not used to color the map)</h3>
+          <Sparkline series={r.snapTrend} />
+          <p className="secondary">
+            Food insecurity, 2024 (Feeding America, DS-X9b):{' '}
+            {r.mealGap.map((m) => `${m.county[0]!.toUpperCase()}${m.county.slice(1)} ${m.rate}`).join(' · ')}
+          </p>
+        </section>
+
+        <div className="deferred" aria-label="Deferred scenario slider">
+          <strong>Scenario slider: deferred (Z-3, SLICE-2).</strong> Shown here only to discuss where it
+          would go. When it returns, every result carries the label "assumption-based estimate".
+          <input type="range" disabled aria-label="Scenario slider (deferred)" />
+        </div>
+
+        <section aria-labelledby="gloss-h">
+          <h3 id="gloss-h">Words we use</h3>
+          <dl className="glossary">
+            {GLOSSARY.map((g) => (
+              <div key={g.term}>
+                <dt>{g.term}</dt>
+                <dd>{g.plain}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <section aria-labelledby="src-h">
+          <h3 id="src-h">Sources</h3>
+          <p>
+            Stand-in data made from the repo files on {r.generated}. IDs are from{' '}
+            <span className="mono">docs/data-sources.md</span>. Tract-level values only.
+          </p>
+          <ul className="source-list">
+            {SOURCES.map((s) => (
+              <li key={s.id}>
+                <span className="mono">{s.id}</span> {s.label}
+                {s.layer && <span className="secondary"> (Compare with: {s.layer})</span>}.
+                {s.note && <span className="secondary"> {s.note}</span>}
+              </li>
+            ))}
+          </ul>
+          <p className="secondary">
+            Missing values per indicator, all tracts:{' '}
+            {Object.entries(
+              r.tracts.reduce<Record<string, number>>((acc, t) => {
+                for (const m of t.missing) acc[m] = (acc[m] ?? 0) + 1
+                return acc
+              }, {}),
+            )
+              .map(([k, v]) => `${k} ${v}`)
+              .join(' · ')}
+            .
+          </p>
+        </section>
+      </details>
     </div>
   )
 }
