@@ -1,4 +1,4 @@
-# REQ-2026-001: Beacon SNAP-cliff planner map (SLICE-1, cycle 6)
+# REQ-2026-001: Beacon SNAP-cliff planner map (SLICE-1, cycle 7)
 
 ## CCABDD Governance
 
@@ -32,12 +32,14 @@ A contract executes only when all of its predicates evaluate to TRUE.
   > "good enough to start so we can SEE what this looks and feels like. we will iterate from there. remember ccabdd-elegance."
   >
   > "for hosting just use my cloud run account. I accept the rest."
+- **Trace gap**: The idea list that "ideas 1,2,4" refers to is not in the repo. Add it, or record where it is, so that this trace is complete.
 - **Our Understanding**: SLICE-1 is the smallest working version of the Planner view. It shows Central Florida census tracts on a map, flags high-need tracts that lack a nearby pantry, and explains each flag on a tract card. The SNAP-loss slider is stashed (Z-3) until the human has seen this first deliverable. The goal of this cycle is for the human to see and feel the product, then refine. Later slices add the slider, the SBDC/CDFI officer view, saved views, approve/challenge, a policymaker summary and a flyer.
-- **Ambiguity Score**: 1 (ready for contracts). Rationale: flow, stack, scope, the high-need rule, the pantry-coverage rule and the deployment target are decided. Z-3 is deferred by both humans. Open items do not block contracts.
+- **Ambiguity Score**: 2 (small gaps). Rationale: flow, stack, scope, the high-need rule (Z-1), the pantry-coverage rule (Z-2) and the deployment target (Z-4) are decided. Z-3 is deferred by both humans. Three small decisions remain before the contract: the distance type for the 1 mile test (Z-2b), the Build output path (Z-5) and the base map tile source (Z-6).
 
 ## Known Ambiguities
 
-- None that block contracts. Z-3 (slider) is deferred.
+- Z-2b distance type for the 1 mile test, Z-5 Build output path, Z-6 base map tile source (section 5). These block the contract.
+- Z-3 (slider) is deferred.
 
 ## 2. The Actor Matrix
 
@@ -51,18 +53,22 @@ A contract executes only when all of its predicates evaluate to TRUE.
 ## 3. The State Transition
 - **Initial State ($S_0$)**: Repo holds hackathon and external data files; no app exists.
 - **Transformation**: Build produces static tract data; App renders the map and card.
-- **Terminal State ($S_1$)**: A Viewer opens the Cloud Run URL, sees 490 Central Florida tracts colored by flag status, and opens a card for any flagged tract showing evidence, a confidence label and data limitations.
+- **Terminal State ($S_1$)**: A Viewer opens the Cloud Run URL and sees 489 Central Florida tracts drawn on the map and colored by flag status. Tract `12095990000` (water, no geometry) is listed in a "not drawn" note, so all 490 ACS tracts are accounted for. Tract `12095016515` (no households) has blank rates and shows as Insufficient data (REQ-8). The Viewer opens a card for any flagged tract showing evidence, a confidence label and data limitations.
 
 ## 3.5 Integration Specification
 
 ### Dependency Graph
-Build DEPENDS ON the hackathon SNAP, poverty and no-vehicle tables for tract rates.
+Build DEPENDS ON the hackathon SNAP (S2201) and poverty (S1701) tables for tract rates.
+Build DEPENDS ON the hackathon USDA SRAM file (DS-H6) for the driving-distance LILA flag `DD_SRAM_LILATracts_halfAnd10` (Z-1).
 Build DEPENDS ON the Second Harvest site list for pantry locations.
-Build DEPENDS ON the Census block file for people-near-a-pantry counts.
-Build DEPENDS ON the FEMA tract file for polygons.
+Build DEPENDS ON the Census block file for people-near-a-pantry counts (Z-2 C).
+Build DEPENDS ON the tract GeoJSON (`data/external/geography/central_fl_tracts_2020.geojson`, 489 features) for polygons. The FEMA NRI file is a CSV with no geometry.
 App DEPENDS ON the Build output for every value it shows.
 App DEPENDS ON MapLibre GL JS for drawing the map.
+App DEPENDS ON a base map tile source (Z-6), with the REQ-10 fallback.
 Cloud Run DEPENDS ON a container image built from the App.
+
+The external ACS B08201 no-vehicle table (DS-X7b) is not a Build input in SLICE-1, because Z-1 B does not use it.
 
 ### Control Flow Requirements (Sequencing Specs)
 | ID | Caller | Must Invoke | Temporal Constraint | Breaks If Missing |
@@ -75,10 +81,11 @@ Cloud Run DEPENDS ON a container image built from the App.
 ### Integration Points Checklist
 | ID | Source | Target | Handoff Data | Contract Clause |
 |----|--------|--------|-------------|-----------------|
-| IP-1 | Hackathon tract tables | Build | SNAP household %, poverty %, no-vehicle % per tract | pending |
+| IP-1 | Hackathon tract tables | Build | SNAP household %, poverty % per tract | pending |
+| IP-1c | Hackathon USDA SRAM file | Build | Driving-distance LILA ½ mile / 10 mile flag per tract | pending |
 | IP-2 | Pantry site list | Build | Site id, lat/lng, tract id | pending |
 | IP-3 | Census block file | Build | Block population and point | pending |
-| IP-4 | Build | App | Static tract file (GeoJSON properties) | pending |
+| IP-4 | Build | App | Static tract file (GeoJSON properties) at the Z-5 path | pending |
 | IP-5 | App flagging rule | Tract card | Flag, evidence, confidence, limitations | pending |
 
 ### Lifecycle Paths
@@ -93,10 +100,14 @@ Cloud Run DEPENDS ON a container image built from the App.
 | ID | Category | Invariant | Verification | Priority | Rationale |
 |----|----------|-----------|--------------|----------|-----------|
 | INV-01 | Data integrity | REQ-1: The Build shall not alter any file under `data/hackathon/` or `data/external/`. | test | Must | Source data is the evidence base; edits would break citations |
-| INV-03 | Honesty | REQ-3: The App shall not state or imply that a tract with no pantry site has no food access. | test | Must | Sites are counted only inside tract boundaries and the list is partial |
-| INV-04 | Privacy | REQ-4: The App shall not show or store data about individual people. | test | Must | Data is tract and block aggregates only |
+| INV-03 | Honesty | REQ-3: When a tract has no Second Harvest site inside it (Z-2 A), or none of its block population is within 1 mile of a site (Z-2 C), the tract card shall show the text "No Second Harvest site found under this rule. Other food sources may exist." The App shall not show the phrases "no food access" or "no access" for any tract. | test | Must | The site list is one food bank's network only, and the coverage rule (inside-tract count or 1 mile distance) is an approximation |
+| INV-04 | Privacy | REQ-4: The App shall not show or store data about individual people. The static tract file shall contain only tract-level fields. Block values shall appear only as tract sums, and the App data shall contain no block-level record. | test | Must | Data is tract and block aggregates only. Block population has differential-privacy noise, so a single block value is not valid |
 | INV-05 | Honesty | REQ-5: The App shall not omit a missing or blank indicator from the tract card. | test | Must | Florida CDC values are blank; hiding that misleads |
 | INV-06 | Scope | REQ-6: The App shall not call an external service at runtime, except map tile servers. | test | Should | Keeps the prototype static and cheap to host |
+| INV-07 | Attribution | REQ-12: The App shall show, on every view, a credit to DataKind and Beacon with a link to www.datakind.org and the statement that Beacon content is CC BY 4.0. | test | Must | CC BY 4.0 requires attribution; repo rule in CLAUDE.md |
+| INV-08 | Brand | REQ-13: The App shall follow `docs/hackathon/resources/beacon-design-brand-guidelines.pdf`. | human review | Must | Repo rule in CLAUDE.md. Compliance needs a person to judge it |
+
+INV-02 (REQ-2, the "assumption-based estimate" label) is deferred with the slider. See "Deferred items" in section 5.
 
 ## 5. High-Entropy Zones (Adjudicated)
 | Zone | Question | Resolution | Decided By |
@@ -104,16 +115,36 @@ Cloud Run DEPENDS ON a container image built from the App.
 | Stack | Which technologies? | React, Vite, TypeScript, MapLibre, static data, Vitest, no AI first | User (CL4) |
 | Hosting | Where does it run? | User's Google Cloud Run account | User (CL4) |
 | Scope | Which views first? | Planner only in SLICE-1 | User (CL4) |
-| **Z-1** | What makes a tract "high need"? | **Option B with driving-distance LILA**: poverty rate at or above the 75th percentile of the 490 Central Florida tracts (17.0%, ACS 2024) AND the USDA driving-distance LILA flag (`DD_SRAM_LILATracts_halfAnd10`: 1/2 mile urban, 10 miles rural). This flags 97 tracts. Straight-line (Euclidean) LILA, 68 tracts, was considered | B proposed by Ryan, confirmed by Ketema; driving distance decided by Ketema and Ryan (CL4), 2026-11-07 |
-| **Z-2** | What counts as a "nearby pantry"? | **Option C shown beside A**: the share of the tract's block population within 1 mile of a Second Harvest site, shown beside whether a site lies inside the tract | Ryan proposed 2026-11-07 (issue #4); Ketema confirmed (CL4) |
+| **Z-1** | What makes a tract "high need"? | **Option B with driving-distance LILA**: poverty rate at or above the 75th percentile of the 488 Central Florida tracts that have a poverty value (ACS 2024), AND the USDA driving-distance LILA flag (`DD_SRAM_LILATracts_halfAnd10`: 1/2 mile urban, 10 miles rural). This flags 97 tracts. Straight-line (Euclidean) LILA, 68 tracts, was considered. The contract shall name the quantile method (see note below) | B proposed by Ryan, confirmed by Ketema; driving distance decided by Ketema and Ryan (CL4), 2026-11-07 |
+| **Z-2** | What counts as a "nearby pantry"? | **Option C shown beside A**: the share of the tract's block population within 1 mile of a Second Harvest site, shown beside whether a site lies inside the tract. Block population is for April 2020 and has differential-privacy noise, so the Build uses only tract sums | Ryan proposed 2026-11-07 (issue #4); Ketema confirmed (CL4) |
+| **Z-2b** | Is the 1 mile in Z-2 C straight-line or road distance? | **Unresolved** | pending |
 | **Z-3** | What does the slider change? | **Deferred** until mock-ups or proofs of concept are rendered; Ryan's option A is kept as input for that step | Ketema and Ryan (CL4), 2026-11-07 |
 | **Z-4** | Which Cloud Run project and region? | **Project `<gcp-project>`, region `us-east1`.** Cloud Run, Artifact Registry and Cloud Build APIs are enabled and the human's account is owner | Ketema (CL4), 2026-11-07 |
+| **Z-5** | Where does the Build write the static tract file? | **Unresolved** | pending |
+| **Z-6** | Which base map tile source does the App use? | **Unresolved** | pending |
+
+**Note on the Z-1 poverty cut.** The cycle 1 review gave 17.1% and cycle 3 gave 17.0%. Both are roundings of the same 75th percentile, computed two ways with Python `statistics.quantiles(n=4)` over the 488 tracts that have a poverty value: exclusive method 17.075%, inclusive method 17.025%. Both cuts give the same 97 tracts (driving-distance LILA) and 68 tracts (straight-line LILA). The only tract between the rounded and the computed cuts is `12069031107` (poverty 17.0%), and it has no LILA flag, so a literal "17.0% or more" rule also gives 97. Do not encode a rounded value. The contract shall compute the cut and name the method.
 
 ### Options and recommendations (inputs, not decisions)
-- **Z-1 high need.** A) SNAP households 20% or more OR poverty 20% or more (gives 141 tracts; simple). B) The brief's quartile rule: top-quartile poverty plus a LILA flag. C) A weighted score. Recommend A for cycle 1, because it is easy to explain and to see. B can be a second mode.
-- **Z-2 nearby.** A) A Second Harvest site inside the tract (76 of the 141 have none). B) At least one site within 1 mile of the tract's center. C) The share of the tract's block population within 1 mile of a site. Recommend C, because it is what Ryan's block data was added for, with A shown beside it.
-- **Z-3 slider (deferred).** Options kept for the later slice: A) Extra SNAP loss as a percent of current SNAP households. B) Same, scaled by tract poverty. C) A county total spread by SNAP share. The human found the slider confusing and asked to see the first deliverable before deciding; a visual mock accompanies the question when it returns.
-- **Z-4 deployment.** The active gcloud configuration points at project `ai-panel-ephemeral-org`, which looks unrelated. Options: that project; another project of yours; a new one. Region also needed. No recommendation until you name the project.
+
+Counts below come from `data/external/second-harvest-food-finder/central_fl_tract_pantry_coverage.csv` (490 tracts; 2 have blank rates), the hackathon USDA SRAM file (DS-H6; all 490 tracts join) and the ACS B08201 file. "LILA" is the ½ mile urban / 10 mile rural low-income and low-access flag. SD is the straight-line distance version and DD is the driving distance version. "No site" means no Second Harvest site inside the tract (Z-2 A).
+
+- **Z-1 high need (decided: B with DD).** Options kept for the record:
+  - A) SNAP households 20% or more OR poverty 20% or more: 141 tracts, 76 with no site. Does not use LILA.
+  - B) The brief's "Classic Food Desert" rule, top-quartile poverty AND LILA: SD 68 tracts (40 with no site), DD 97 tracts (52 with no site). Chosen, with DD.
+  - C) A weighted score.
+  - D) A AND LILA: SD 80 tracts (48 with no site), DD 111 tracts (58 with no site).
+  - E) Top-quartile poverty AND (LILA OR top-quartile no-vehicle share, cut 6.9%): SD 109 tracts (59 with no site), DD 113 tracts (61 with no site). The card would have to label no-vehicle share a proxy: it correlates about 0.52 with SNAP share and is not a validated substitute (F-1). E can be a second mode in a later slice.
+- **Z-2 nearby (decided: C beside A).** A) A Second Harvest site inside the tract. B) At least one site within 1 mile of the tract's center. C) The share of the tract's block population within 1 mile of a site.
+- **Z-2b distance type.** Straight-line distance from each populated 2020 block point to the nearest site needs no routing service. Road distance needs a routing engine at Build time (see "Deferred map alternatives"). No recommendation.
+- **Z-3 slider (deferred).** Let s be the scenario value: extra SNAP loss as a percent of current SNAP households. Let "displaced households" for a tract be `snap_households × s / 100`. This is an assumption-based estimate (REQ-2), because no tract-level SNAP-cut data exists (DS-X1 and DS-X2 are not downloaded). The human found the slider confusing and asked to see the first deliverable before deciding; a visual mock accompanies the question when it returns.
+  - A) s raises each tract's displaced households proportionally. Ryan's input for the later slice.
+  - B) Same, scaled by tract-level risk (poverty).
+  - C) A county total spread by SNAP share.
+  - D) The slider moves the Z-1 need threshold instead of SNAP loss. This is a threshold sensitivity test, which the brief suggests for Challenge 1 (`docs/hackathon/beacon-appendices.md:56`). It is not a SNAP-cut scenario.
+  - **Constraint for the later slice.** Z-1 B uses only rates. Z-3 A, B and C multiply every tract by the same factor or by a fixed tract weight. If the flag rule uses only rates, the slider changes no flags. When the slider returns, the flag rule must include the scenario value, for example F) flag a tract when it meets Z-1 AND it has no nearby site under Z-2 AND its displaced households are N or more (N is a human decision).
+- **Z-5 Build output path.** Recommend `public/data/tracts.geojson`. The taxonomy classes `public/**` as production code, Vite serves it as a static file, and the INV-01 test can check that the Build writes only under `public/data/`.
+- **Z-6 base map tiles.** Candidates are in "Deferred map alternatives" below: OpenFreeMap (hosted, no key), a Protomaps PMTiles file served from the same container, or `tile.openstreetmap.org` (local demo only). No recommendation.
 
 ### Deferred items (stashed with Z-3; written as obligations when the slider slice starts)
 - REQ-2 (deferred): every scenario result carries the label "assumption-based estimate", because no per-tract SNAP loss data exists.
@@ -125,7 +156,26 @@ Cloud Run DEPENDS ON a container image built from the App.
 |----------|----------------------|--------------|
 | Static data in the repo | A backend with a database | Adds infrastructure and a security surface for no first-pass benefit |
 | Rule-based "why flagged" | An LLM-written explanation | Cannot be verified; adds a runtime dependency |
-| GitHub Pages | Cloud Run | User chose Cloud Run |
+| Cloud Run | GitHub Pages | User chose Cloud Run |
+
+### Deferred map alternatives (not decisions; test later if needed)
+
+These are candidates for each mapping job. They are not chosen and not rejected. Test a row only when its trigger occurs. "Runs in" tells where the tool would run. Any App-side row that calls a service at runtime must be checked against INV-06 before use. Usage limits and terms in this table are from memory and are not verified; confirm them on the provider's site before a test.
+
+| Job | Current plan | Alternative | Runs in | INV-06 fit | Trigger to test it | Test to run |
+|-----|-------------|-------------|---------|------------|--------------------|-------------|
+| Map library | MapLibre GL JS | Leaflet | App | Yes (library is bundled) | MapLibre WebGL fails on a target device, or the team needs a simpler API | Render the 489 tract polygons and the tract card; compare load time and bundle size |
+| Map library | MapLibre GL JS | Google Maps JavaScript API | App | Partial: tiles only. Places, Routes and Geocoding calls would break INV-06 | A stakeholder requires Google base maps | Confirm API key, billing and Places storage terms first. The key is visible in a static app |
+| Base map tiles | Z-6 (unresolved) | OpenFreeMap (hosted OSM vector tiles, no key) | App | Yes (tile server) | Choose a tile source for REQ-10 | Load tiles; block the tile host and confirm "Base map unavailable" (REQ-10) |
+| Base map tiles | Z-6 (unresolved) | Protomaps PMTiles file served from the same Cloud Run container | App | Yes (no external service at all) | Tile host limits, outages or an offline demo | Serve one PMTiles file for the 4 counties; check file size and container size |
+| Base map tiles | Z-6 (unresolved) | `tile.openstreetmap.org` raster tiles | App | Yes (tile server) | Quick local demo only. The OSM tile usage policy forbids heavy use | Local smoke test only; not for the deployed URL |
+| Geocoding (address to tract) | Census Bureau Geocoder, already used for the 424 Second Harvest sites (DS-X27) | Nominatim (OSM geocoder; public server about 1 request per second) | Build | Yes (Build only) | A new pantry list without tract IDs, for example DS-X13 | Geocode the 424 Second Harvest addresses; compare tract IDs with the DS-X27 results |
+| Point-to-tract join | Census Geocoder tract IDs | geopandas (Python) or turf.js (TypeScript) point-in-polygon with the 2020 tract GeoJSON | Build | Yes | Join SNAP retailers (DS-H8) or other points without a geocoder call | Join the 424 sites by polygon; the result must equal the DS-X27 tract IDs |
+| Distance to pantry | Z-2b (unresolved); straight-line distance from each populated 2020 block point to the nearest site is the option that needs no routing service | OpenRouteService API (driving and walking matrix, isochrones; free key) | Build | Yes (Build only; a runtime call breaks INV-06) | Z-2b chooses road distance, or planners say straight-line distance misleads, for example across lakes or highways | Compare straight-line and road distance for the 97 Z-1 tracts; report the tracts whose flag changes |
+| Distance to pantry | Same | OSRM, Valhalla or GraphHopper on a Florida OSM extract (self-hosted) | Build | Yes | Same trigger, and ORS limits are too low | Same comparison as the row above |
+| Transit time | None (no transit data in the repo) | r5py or OpenTripPlanner with OSM streets and a LYNX GTFS feed (feed not yet confirmed) | Build | Yes | The plan must cover the 50,303 households with no vehicle (USDA `TractHUNV`, DS-H6) | Confirm that a LYNX GTFS feed exists; compute transit time from block points to sites for one county first |
+| Pantry and food-store points | Second Harvest partner sites (DS-X12) and SNAP retailers (DS-H8) | OSM via Overpass API (`amenity=food_bank`, `social_facility=food_bank`) | Build | Yes | Look for pantries that are not Second Harvest partners (data blind-spot map) | List OSM pantries in the 4 counties that are farther than 0.25 mi from every DS-X12 site |
+| Pantry and food-store points | Same | Overture Maps Places | Build | Yes | Same trigger, or OSM coverage is too thin | Same test as the row above; record the license terms |
 
 ## 6. Tool/API Interface Summary
 | Interface | Purpose | Mutates State? | Called By | Triggered When |
@@ -136,12 +186,16 @@ Cloud Run DEPENDS ON a container image built from the App.
 | buildTractCard(tractId) | Evidence, confidence, limitations | NO | App | Tract click |
 
 ## 6.5 Blocking Dependencies
-| Unresolved Zone | Blocks |
+| Zone or item | Blocks |
 |-----------------|--------|
-| Z-1 | Decided; the flagging contract defines the 97-tract rule and its quartile basis |
+| Z-1 | Decided; the flagging contract defines the 97-tract rule and names its quantile method |
 | Z-2 | Decided; the contract for pantry coverage defines the block-population radius |
+| Z-2b | Contract for pantry coverage, Build |
 | Z-3 | Deferred; blocks only the later slider slice |
 | Z-4 | Decided (`<gcp-project>`, `us-east1`); deployment can proceed after the human approves a deploy |
+| Z-5 | Contract clause for IP-4, Build, INV-01 test |
+| Z-6 | REQ-10 test, App map setup |
+| Second Harvest and Feeding America redistribution | Decided by the human in cycle 6: no permission request is needed, because the data was already public. Blocks nothing |
 
 ## 7. Failure Mode Specification (CL9)
 
@@ -152,8 +206,10 @@ Cloud Run DEPENDS ON a container image built from the App.
 | REQ-9 | Build input file is missing or has changed columns | Halt: the Build exits non-zero | The Build shall name the file and column |
 | REQ-10 | Map tiles fail to load | FALLBACK: draw tracts on a blank background | The App shall display "Base map unavailable" |
 
+REQ-11 (slider clamp) is deferred with the slider.
+
 ## 8. Completion Promise (Ralph Loop Exit)
-> "A Viewer opens the deployed URL, sees 490 tracts colored by flag status, and the flagged set equals a set a test recomputes from the source data. The Viewer opens a card whose evidence matches the source tables for that tract and names every missing indicator. A test that passes while the card omits a missing indicator, or while the flagged set differs from the recomputed set, must fail."
+> "A Viewer opens the deployed URL, sees 489 tracts drawn and colored by flag status, and sees tract 12095990000 listed as not drawn (no geometry). The flagged set equals a set a test recomputes from the source data. The Viewer opens a card whose evidence matches the source tables for that tract and names every missing indicator. A test that passes while the card omits a missing indicator, or while the flagged set differs from the recomputed set, must fail."
 
 Human acceptance remains with the human: whether the map and card are useful to a food bank planner.
 
@@ -174,8 +230,11 @@ src/
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-11-07 | Ketema, agent | Cycle 1 draft from req-elicit. Zones Z-1 to Z-4 open. |
+| 2026-11-07 | Ryan Chanlatte, agent | Cycle 1 review. Corrected tract count (489 drawn), polygon and no-vehicle sources, and the reversed Rejected Alternatives row. Made INV-03 and INV-04 testable. Added INV-07 (attribution), INV-08 (brand), Z-5 (Build output path) and the Second Harvest permission dependency. Added Z-1 options D and E with counts, revised the Z-1 recommendation to B, and added Z-3 option D and combined rule F. Zones Z-1 to Z-5 open. |
+| 2026-11-07 | Ryan Chanlatte, agent | Added "Deferred map alternatives" under 5.5: candidate map library, tile, geocoding, routing, transit and point-data tools, each with a trigger and a test. No decision changed. |
 | 2026-11-07 | Ketema, agent | Cycle 2: the human stashed the slider (Z-3 deferred) after finding it confusing. Removed from SLICE-1 scope: slider, scenario label (REQ-2), range clamp (REQ-11), the slider sequencing spec and integration point. SEQ and IP numbers renumbered. Ambiguity score 5 to 4. |
 | 2026-11-07 | Ketema, agent | Cycle 3: Z-1 option B and Z-2 option C beside A recorded (proposed by Ryan, confirmed by Ketema). Z-3 deferred by both humans. Z-1b LILA distance type remains open. Ambiguity score 4 to 3. |
 | 2026-11-07 | Ketema, agent | Cycle 4: Z-1b recorded. The human chose driving-distance LILA (97 tracts). Ambiguity score 3 to 2. Only Z-4 remains open, and it blocks deployment only. |
 | 2026-11-07 | Ketema, agent | Cycle 5: Z-4 project recorded as `<gcp-project>` (chosen by the human). Z-4b region remains open and blocks deployment only. |
 | 2026-11-07 | Ketema, agent | Cycle 6: Z-4b recorded (`us-east1`, Ketema). Z-1b recorded as decided by Ketema and Ryan. The human decided no permission request is needed for Second Harvest and Feeding America data, which were already public. Ambiguity score 2 to 1. |
+| 2026-11-07 | Ryan Chanlatte, agent | Cycle 7: merged the cycle 1 review branch with cycles 2 to 6, which had branched from the cycle 1 draft. Kept every human decision from cycles 2 to 6. Restored from the review: 489 drawn tracts and the "not drawn" note, the tract GeoJSON as polygon source, testable INV-03 and INV-04, INV-07, INV-08, Z-5, the trace gap, the Rejected Alternatives row order and the deferred map alternatives. Recorded the cycle 6 redistribution decision in 6.5 in place of the review's permission dependency. Dropped the stale "Recommend A" text. Removed the no-vehicle table from Build inputs, because Z-1 B does not use it. Added the note on the Z-1 poverty cut (17.075% and 17.025% give the same 97 tracts). Added open zones Z-2b (distance type for the 1 mile test) and Z-6 (base map tiles). Ambiguity score 1 to 2. |
