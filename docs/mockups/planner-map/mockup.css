@@ -156,7 +156,18 @@ input {
   background: var(--info-bg);
   border: 1px solid var(--info-border);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 6px 10px;
+  margin: 10px 0 0;
+}
+.glance-text {
+  font-size: 16px;
+  margin: 0 0 6px;
+  color: var(--gray-900);
+}
+.hint {
+  font-size: 14px;
+  color: var(--gray-700);
+  margin: 10px 0 0;
 }
 
 /* Legend */
@@ -170,9 +181,29 @@ input {
 .legend li {
   display: grid;
   grid-template-columns: 22px 1fr auto;
-  align-items: center;
+  align-items: start;
   gap: 10px;
   font-size: 15px;
+}
+.legend .swatch {
+  margin-top: 3px;
+}
+.legend-plain {
+  display: block;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--gray-700);
+}
+.swatch.circle {
+  width: 16px;
+  height: 16px;
+  margin-left: 3px;
+  border-radius: 50%;
+  border: 1.5px solid var(--primary-900);
+  background: rgba(30, 52, 63, 0.4);
+}
+.swatch.circle.reach {
+  background: var(--primary-700);
 }
 .swatch {
   width: 22px;
@@ -326,6 +357,53 @@ input {
   color: #8a4b0b;
 }
 
+/* "How we know this": the detail level (sidebar and card) */
+.how-we-know {
+  border-top: 1px solid var(--gray-300);
+  padding-top: 10px;
+  font-size: 14px;
+  color: var(--gray-700);
+}
+.how-we-know > summary {
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--primary-700);
+}
+.how-we-know[open] > summary {
+  margin-bottom: 8px;
+}
+.how-we-know h3 {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 14px 0 4px;
+}
+.how-we-know p {
+  margin: 4px 0;
+}
+.how-we-know section,
+.how-we-know .deferred {
+  margin-top: 12px;
+}
+.glossary {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.glossary dt {
+  font-weight: 500;
+  color: var(--primary-900);
+}
+.glossary dd {
+  margin: 0;
+}
+.source-list {
+  margin: 4px 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
 /* Context */
 .spark {
   width: 100%;
@@ -465,6 +543,27 @@ input {
   height: 14px;
 }
 .card section {
+  margin-top: 16px;
+}
+.card-plain p {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.card-plain .callout {
+  margin-top: 0;
+}
+.how-sure {
+  border-left: 3px solid var(--primary-500);
+  padding-left: 10px;
+}
+.how-sure.low,
+.how-sure.not-rated {
+  border-left-color: var(--gray-500);
+}
+.missing-note {
+  color: var(--gray-700);
+}
+.card .how-we-know {
   margin-top: 16px;
 }
 .card h4 {
