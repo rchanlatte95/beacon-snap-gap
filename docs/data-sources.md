@@ -77,6 +77,9 @@ Origin: DataKind Beacon example public datasets, shared via the challenge brief:
 | DS-X21 | Transportation and food access evidence | Food Swamps and Transportation Access: Intersecting Structural Determinants (PMC) | https://pmc.ncbi.nlm.nih.gov/articles/PMC12563320/ | Research on food swamps and transportation barriers | Linked |
 | DS-X22 | Local SBDC network (outreach target for the officer view) | Florida SBDC Network | https://floridasbdc.org/ | Network of advising centers | Search-listed |
 | DS-X23 | Health measures (non-social-needs) for Florida | CDC PLACES | https://www.cdc.gov/places/ | Tract-level health estimates; social-needs measures are blank for FL (see F-1) | Search-listed |
+| DS-X24 | Population near a landmark or latitude/longitude (finer than tract) | Census TIGER/Line 2020 blocks, Florida (`tl_2020_12_tabblock20.zip`) | https://www2.census.gov/geo/tiger/TIGER2020/TABBLOCK20/tl_2020_12_tabblock20.zip | Block polygons with 2020 population, housing units and an interior latitude/longitude point | Downloaded 2026-11-07; 353 MB zip not committed. Extract for the 4 hackathon counties (Orange, Seminole, Lake, Osceola) in `data/external/census-2020-blocks/` (see its README) |
+| DS-X25 | Verification of DS-X24 county sums | Census 2020 redistricting data (PL 94-171), Florida (`fl2020.pl.zip`) | https://www2.census.gov/programs-surveys/decennial/2020/data/01-Redistricting_File--PL_94-171/Florida/fl2020.pl.zip | Official 2020 counts (P1 population, H1 housing units) for all Florida geographies | Downloaded 2026-11-07; used for verification only, not committed |
+| DS-X26 | 2020 to 2025 county growth factors for DS-X24 | Census Vintage 2025 county population estimates (`co-est2025-alldata.csv`) | https://www2.census.gov/programs-surveys/popest/datasets/2020-2025/counties/totals/co-est2025-alldata.csv | July 1 estimates 2020 to 2025 for each county, with the April 1, 2020 estimates base | Downloaded 2026-11-07; values for the 4 counties copied to the DS-X24 README; not committed |
 
 ## 4. Facts retrieved for citation
 
@@ -105,3 +108,4 @@ Each fact is attributed to its source. Treat figures from search snippets as unv
 3. No dataset in sections 1 or 3 gives household-level eligibility. "Above-the-line" must stay a tract-level likelihood.
 4. Some sites blocked automated access. A human should open DS-X7, DS-X9, DS-X11, DS-X12 and DS-X16 in a browser before we depend on them.
 5. We did not download GUIDE-track data (the higher-education starter package). It is outside the Beacon track.
+6. The Census Data API (api.census.gov) returned a "Missing Key" page for a request with no key (checked 2026-11-07). Get a free API key before you use DS-X7 or other API pulls. Census QuickFacts returned HTTP 403 (Cloudflare) to automated fetches. Files on www2.census.gov downloaded without problems.
