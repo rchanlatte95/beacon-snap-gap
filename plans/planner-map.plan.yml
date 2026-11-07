@@ -2,7 +2,7 @@
   "schema_version": "1.1",
   "feature_name": "beacon-snap-cliff-planner-map",
   "manifest_path": "requirements/REQUIREMENT_MANIFEST.md",
-  "manifest_hash": "sha256:1759ccd2f209d0a9fabf18f2b79f4333fe8e3bb7635b67a75bbdfe1c92402183",
+  "manifest_hash": "sha256:3753d3d0f1c497f40280e5aabd68e1fc1570f14d0c38c5b7db80b447c2afff4b",
   "created": "2026-11-07",
   "last_updated": "2026-11-07",
   "status": "DRAFT",
@@ -20,7 +20,9 @@
         "REQ-9",
         "REQ-10",
         "REQ-12",
-        "REQ-13"
+        "REQ-13",
+        "REQ-14",
+        "REQ-15"
       ],
       "clauses_in_scope": [],
       "clauses_deferred": [],
