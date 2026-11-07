@@ -1,0 +1,5 @@
+# Raw downloads that are referenced, not committed (see docs/data-references.md)
+data/cache/
+node_modules/
+dist/
+.DS_Store
