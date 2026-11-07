@@ -1,0 +1,566 @@
+{
+ "type": "FeatureCollection",
+ "name": "SAMPLE - Second Harvest site locations (subset)",
+ "description": "SAMPLE, not partner data. Every 10th public Second Harvest food finder site (DS-X12) from docs/mockups/planner-map/data/sites.standin.geojson. Redistribution permission was not obtained.",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "4C Bithlo"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.1054701,
+     28.560392
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "4C West Orange"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.5662838,
+     28.5683738
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "All Saints Lutheran Church"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.3977176,
+     28.3829428
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Astatula Foursquare Church dba The Warehouse"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.7399288,
+     28.720657
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Beyond the Walls"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.9046195,
+     28.8791562
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Casa San Pablo"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.0263356,
+     29.2184595
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Christ Lutheran Church"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -80.6063687,
+     28.3842111
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Church of God Prophecy of DeLeon Springs"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.3476116,
+     29.1113373
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Comite Civico Ecuatoriano"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.3278652,
+     28.6892544
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Cor Jesu, St. Teresa Church"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -80.806785,
+     28.588523
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Deltona Christian Church"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.2497752,
+     28.8944304
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Edna W Jackson Pantry and Clothing Pantry"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -80.6055537,
+     28.0715772
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Faith Outreach Ministry COGOP (Lake)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.741411,
+     28.569111
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "First Baptist Church of Eustis"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.64608,
+     28.85462
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "First United Church of Christ"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.3287248,
+     28.5253203
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Gifts of Love"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -80.9199312,
+     28.9864815
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Grace Fellowship of Brevard, Inc."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -80.7228891,
+     28.3018203
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Helping Hands Food Pantry of St. John The Baptist Church"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -82.4473903,
+     29.1108546
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "HOPE Vision Inc"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.9176723,
+     28.8056757
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "If You Foundation"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.4252234,
+     28.5208622
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Iglesia De Dios Pentecostal M.I. Kissimmee"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.34015,
+     28.305316
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Illuminate Church"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.600811,
+     28.2974943
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Jesus Loves You Outreach/Winter Garden"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.566564,
+     28.54463
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "La Nueva Jerusalem"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.4478978,
+     28.1372986
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Living Water Fellowship"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.4388,
+     28.1699302
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Mars Hill SDA"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.260098,
+     28.8104481
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Mount Zion SDA Church"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.3985764,
+     28.3104227
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "New Covenant Church of God 7th Day"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -80.6106992,
+     28.035672
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "North Brevard Church of Christ Food Pantry"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -80.8444681,
+     28.5737907
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Our Lady of The Lakes/St. Vincent de Paul"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.2385669,
+     28.8976496
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Pentecostal Church of the Living God"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -80.5969997,
+     28.0554719
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Prince Of Peace Lutheran Church"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.3095945,
+     28.5239449
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Rhema Breath of Life Ministry"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.3975887,
+     28.5328317
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Salvation Army Daytona Beach"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.0726628,
+     29.231943
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Seniors First, Inc."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.4530041,
+     28.5051541
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Society of St Gerard Mission Church"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -80.8826551,
+     28.9446307
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Spring Meadows SDA"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.2877666,
+     28.7415921
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "St. Jude Catholic Church Food Pantry"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -82.1915007,
+     28.9960495
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "St. Timothy Outreach Ministry"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.9541635,
+     28.9470744
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Tabernacle of Deliverance Outreach Ministries Inc"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -82.1483833,
+     29.1861213
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "The River Corporation"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.7442607,
+     28.5433192
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Victoria Church"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -81.4242069,
+     28.385839
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Wings of Faith Fellowship Church of God"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -82.0411186,
+     29.1404469
+    ]
+   }
+  }
+ ]
+}
