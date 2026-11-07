@@ -1,4 +1,4 @@
-# REQ-2026-001: Beacon SNAP-cliff planner map (SLICE-1, cycle 4)
+# REQ-2026-001: Beacon SNAP-cliff planner map (SLICE-1, cycle 5)
 
 ## CCABDD Governance
 
@@ -37,7 +37,7 @@ A contract executes only when all of its predicates evaluate to TRUE.
 
 ## Known Ambiguities
 
-- Z-4 Cloud Run project and region (section 5). Z-3 (slider) is deferred.
+- Z-4b Cloud Run region (section 5); the project is decided. Z-3 (slider) is deferred.
 
 ## 2. The Actor Matrix
 
@@ -107,7 +107,7 @@ Cloud Run DEPENDS ON a container image built from the App.
 | **Z-1** | What makes a tract "high need"? | **Option B with driving-distance LILA**: poverty rate at or above the 75th percentile of the 490 Central Florida tracts (17.0%, ACS 2024) AND the USDA driving-distance LILA flag (`DD_SRAM_LILATracts_halfAnd10`: 1/2 mile urban, 10 miles rural). This flags 97 tracts. Straight-line (Euclidean) LILA, 68 tracts, was considered | B proposed by Ryan, confirmed by Ketema; driving distance chosen by Ketema (CL4), 2026-11-07 |
 | **Z-2** | What counts as a "nearby pantry"? | **Option C shown beside A**: the share of the tract's block population within 1 mile of a Second Harvest site, shown beside whether a site lies inside the tract | Ryan proposed 2026-11-07 (issue #4); Ketema confirmed (CL4) |
 | **Z-3** | What does the slider change? | **Deferred** until mock-ups or proofs of concept are rendered; Ryan's option A is kept as input for that step | Ketema and Ryan (CL4), 2026-11-07 |
-| **Z-4** | Which Cloud Run project and region? | **Unresolved** | pending |
+| **Z-4** | Which Cloud Run project and region? | **Project: `<gcp-project>`** (Ketema's Google Cloud project; Cloud Run, Artifact Registry and Cloud Build APIs are enabled and the human's account is owner). Sub-choice **Z-4b region** is **pending**; existing services in that project run in `us-east1` | Ketema (CL4), 2026-11-07 |
 
 ### Options and recommendations (inputs, not decisions)
 - **Z-1 high need.** A) SNAP households 20% or more OR poverty 20% or more (gives 141 tracts; simple). B) The brief's quartile rule: top-quartile poverty plus a LILA flag. C) A weighted score. Recommend A for cycle 1, because it is easy to explain and to see. B can be a second mode.
@@ -141,7 +141,7 @@ Cloud Run DEPENDS ON a container image built from the App.
 | Z-1 | Decided; the flagging contract defines the 97-tract rule and its quartile basis |
 | Z-2 | Decided; the contract for pantry coverage defines the block-population radius |
 | Z-3 | Deferred; blocks only the later slider slice |
-| Z-4 | Deployment only (not contracts) |
+| Z-4b | Deployment only (not contracts) |
 
 ## 7. Failure Mode Specification (CL9)
 
@@ -177,3 +177,4 @@ src/
 | 2026-11-07 | Ketema, agent | Cycle 2: the human stashed the slider (Z-3 deferred) after finding it confusing. Removed from SLICE-1 scope: slider, scenario label (REQ-2), range clamp (REQ-11), the slider sequencing spec and integration point. SEQ and IP numbers renumbered. Ambiguity score 5 to 4. |
 | 2026-11-07 | Ketema, agent | Cycle 3: Z-1 option B and Z-2 option C beside A recorded (proposed by Ryan, confirmed by Ketema). Z-3 deferred by both humans. Z-1b LILA distance type remains open. Ambiguity score 4 to 3. |
 | 2026-11-07 | Ketema, agent | Cycle 4: Z-1b recorded. The human chose driving-distance LILA (97 tracts). Ambiguity score 3 to 2. Only Z-4 remains open, and it blocks deployment only. |
+| 2026-11-07 | Ketema, agent | Cycle 5: Z-4 project recorded as `<gcp-project>` (chosen by the human). Z-4b region remains open and blocks deployment only. |
