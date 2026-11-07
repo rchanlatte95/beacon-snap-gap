@@ -109,7 +109,7 @@ describe('SLICE-1 batch 3: Opportunities to Serve AI Wizard & App UI', () => {
     // POST-APP-1: 3 persona lenses & 5 KPI cohort cards rendered
     for (const lens of appContract.PERSONA_LENSES) {
       expect(
-        screen.getByRole('button', { name: new RegExp(lens.label, 'i') }),
+        screen.getByRole('button', { name: lens.label }),
         `POST-APP-1 violation: missing persona lens button ${lens.label}`,
       ).toBeInTheDocument()
     }
@@ -126,6 +126,9 @@ describe('SLICE-1 batch 3: Opportunities to Serve AI Wizard & App UI', () => {
     expect(pinnedLegend).toHaveTextContent(appContract.CLASS_NO_GAP)
     expect(pinnedLegend).toHaveTextContent(appContract.CLASS_INSUFFICIENT)
     expect(pinnedLegend).toHaveTextContent('12095990000')
+
+    // POST-APP-1: clicking the high_need KPI card filters the shortlist to Classic Food Deserts
+    fireEvent.click(screen.getByTestId('kpi-card-high_need'))
 
     // POST-APP-4: select tract 12095016510 and verify evidence, SBA contrast, no-vehicle %, income+MOE, confidence, REQ-3 text
     const tractBtn = screen.getByTestId('tract-row-12095016510')
