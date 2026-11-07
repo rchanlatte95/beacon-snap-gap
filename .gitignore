@@ -16,6 +16,8 @@ node_modules/
 !.yarn/versions
 
 # Build output
+# Z-5: the Build writes the static tract file under public/data/ (standard Vite static dir); generated, never committed
+public/data/
 dist/
 build/
 out/
