@@ -139,3 +139,12 @@ Details, methods and limits: `docs/hackathon/external-data-retrieved.md`. Full p
 | FACT-17 | The earlier "45 percent" decline in a CBPP snippet refers to Arizona (July 2025 to September 2026), not Florida. Florida's decline is in FACT-14. | DS-X3b page text | Page read |
 | FACT-18 | Orange County has 225,170 food insecure people (15.3%); 40% are above the SNAP threshold. Osceola 77,700 (18.2%, 30% above). Seminole 63,100 (13.1%, 49% above). Lake 54,010 (13.1%, 43% above). | DS-X9b | County pages read |
 | FACT-19 | USDA announced on 2025-09-20 that it would end future Household Food Security Reports. | DS-X10b | Primary source read |
+
+## 7. Median household income for the planner map
+
+Checked 2026-11-07. Full findings, gaps and verification: [census-tract-median-income.md](hackathon/census-tract-median-income.md).
+
+| ID | Source | URL | Result | Repo location |
+|---|---|---|---|---|
+| DS-X28 | Census ACS 2020-2024 five-year B19013, median household income | https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b19013.dat | All 490 frontend GEOIDs match DS-H3 S1901: 486 numeric estimates and margins of error agree, one lower bound, three unavailable. Four county estimates saved separately. | `data/external/census-acs/acs2024_s1901_median_household_income_central_fl_tracts.csv`; `acs2024_b19013_median_household_income_central_fl_counties.csv` in the same folder |
+| DS-X29 | Census ACS 2019-2023 five-year B19013 | https://www2.census.gov/programs-surveys/acs/summary_file/2023/table-based-SF/data/5YRData/acsdt5y2023-b19013.dat | Historical alternative for tract `12095018901`: $39,873 with 90% margin of error $17,904, in 2023 dollars. Stored in separate fields, without filling the unavailable 2020-2024 median. | Historical fields in the tract CSV above |
