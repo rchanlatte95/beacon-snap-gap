@@ -1,4 +1,4 @@
-# REQ-2026-001: Beacon SNAP-cliff planner map (SLICE-1, cycle 10)
+# REQ-2026-001: Beacon SNAP-cliff planner map (SLICE-1, cycle 11)
 
 ## CCABDD Governance
 
@@ -34,7 +34,7 @@ A contract executes only when all of its predicates evaluate to TRUE.
   > "for hosting just use my cloud run account. I accept the rest."
 - **Trace gap**: The idea list that "ideas 1,2,4" refers to is not in the repo. Add it, or record where it is, so that this trace is complete.
 - **Our Understanding**: SLICE-1 is the smallest working version of the Planner view. It shows Central Florida census tracts on a map, flags high-need tracts that lack a nearby pantry, and explains each flag on a tract card. The SNAP-loss slider is stashed (Z-3) until the human has seen this first deliverable. The goal of this cycle is for the human to see and feel the product, then refine. Later slices add the slider, the SBDC/CDFI officer view, saved views, approve/challenge, a policymaker summary and a flyer.
-- **Ambiguity Score**: 2 (small gaps). Rationale: flow, stack, scope, the high-need rule (Z-1), the pantry-coverage rule (Z-2, drive time, N = 30), the map classes (D-1) and the deployment target (Z-4) are decided. Z-3 is deferred by both humans. One decision remains: the base map tile source (Z-6). It blocks only the map-tile clause (REQ-10 test and App map setup). Ryan has not yet accepted Z-2e.
+- **Ambiguity Score**: 1 (one small gap). Rationale: flow, stack, scope, the high-need rule (Z-1), the pantry-coverage rule (Z-2, drive time, N = 30), the map classes (D-1) and the deployment target (Z-4) are decided. Z-3 is deferred by both humans. One decision remains: the base map tile source (Z-6). It blocks only the map-tile clause (REQ-10 test and App map setup). 
 
 ## Known Ambiguities
 
@@ -116,7 +116,7 @@ When the slider slice starts, the App shall carry INV-02 (REQ-2, the "assumption
 ## 5. High-Entropy Zones (Adjudicated)
 | Zone | Question | Resolution | Decided By |
 |------|----------|------------|------------|
-| Stack | Which technologies? | React, Vite, TypeScript, MapLibre, static data, Vitest, no AI first | User (CL4) |
+| Stack | Which technologies? | React, Vite, TypeScript 7, MapLibre, static data, Vitest, no AI first. The compiler is TypeScript 7 (PR #8); `typescript-eslint` runs on the TypeScript 6 legacy API side by side until it supports 7 | User (CL4) |
 | Hosting | Where does it run? | User's Google Cloud Run account | User (CL4) |
 | Scope | Which views first? | Planner only in SLICE-1 | User (CL4) |
 | **Z-1** | What makes a tract "high need"? | **Option B with driving-distance LILA**: poverty rate at or above the 75th percentile of the 488 Central Florida tracts that have a poverty value (ACS 2024), AND the USDA driving-distance LILA flag (`DD_SRAM_LILATracts_halfAnd10`: 1/2 mile urban, 10 miles rural). This flags 97 tracts. Straight-line (Euclidean) LILA, 68 tracts, was considered. The contract names the quantile method (see note below) | B proposed by Ryan, confirmed by Ketema; driving distance decided by Ketema and Ryan (CL4), 2026-11-07 |
@@ -125,7 +125,7 @@ When the slider slice starts, the App shall carry INV-02 (REQ-2, the "assumption
 | **Z-2d** | How many minutes count as "nearby"? | **N = 30 minutes**, standard mid-day traffic (Wednesday 12:00). A 15-minute test also puts all 97 high-need tracts in reach; only 5 to 10 minutes separates them (55 and 90 of 97). N may change later | Ketema suggested; Ryan accepted (CL4), 2026-11-07 |
 | **D-1** | What does the SLICE-1 map show? | **Three classes** in the brief's vocabulary: Classic Food Desert (high need by Z-1, 97 tracts), No gap flagged (391 tracts), Insufficient data (2 tracts: `12095016515` with no households and `12095990000`, water). Pantry coverage is a separate layer on the high-need tracts, not part of the class. Ketema left the label wording to the agent as non-consequential | Ketema and Ryan (CL4), 2026-11-07 |
 | **D-2** | Keep the early merge of PR #5? | **Keep it and fix forward** | Ketema and Ryan (CL4), 2026-11-07 |
-| **Z-2e** | What does the coverage layer tell a planner? | **Option A, load**: residents per pantry site within reach, for each high-need tract. Ketema chose it (reply "4 - a") and confirmed that reading. Ryan has not yet decided | Ketema (CL4), 2026-11-07; Ryan to accept |
+| **Z-2e** | What does the coverage layer tell a planner? | **Option A, load**: residents per pantry site within reach, for each high-need tract. Ketema chose it (reply "4 - a") and confirmed that reading; Ryan accepted ("Z-2e option A is fine") | Ketema and Ryan (CL4), 2026-11-07 |
 | **Z-3** | What does the slider change? | **Deferred** until mock-ups or proofs of concept are rendered; Ryan's option A is kept as input for that step | Ketema and Ryan (CL4), 2026-11-07 |
 | **Z-4** | Which Cloud Run project and region? | **Project `<gcp-project>`, region `us-east1`.** Cloud Run, Artifact Registry and Cloud Build APIs are enabled and the human's account is owner | Ketema (CL4), 2026-11-07 |
 | **Z-5** | Where does the Build write the static tract file? | **`public/data/tracts.geojson`**, the standard Vite static directory. The Vite bundle goes to the standard `dist/`. Both paths are generated and listed in `.gitignore`, so neither is committed. Builds and test suites run in tmux offload | Ketema (CL4), 2026-11-07 |
@@ -249,3 +249,4 @@ src/
 | 2026-11-07 | Ketema, agent | Cycle 8: replaced the CLAUDE.md citations in INV-07 and INV-08 with sources a reader can check. INV-07 cites Beacon's license page. INV-08 records the human's decision (Ketema, "we follow the branding"): Must stays. CLAUDE.md is a local file of Ryan's agent and stays git-ignored (decided by Ketema). |
 | 2026-11-07 | Ketema, agent | Cycle 9: fixed the 17 IEEE 29148 lint errors (IP-1c renamed IP-6; REQ-3 and REQ-4 reworded to one SHALL each with the App as actor; passive deferred notes reworded; the blocking table column renamed; SHALL and MUST turned into statements of fact in the decision record and in Deferred map alternatives). Recorded D-1 (three classes), D-2 (keep PR #5), the legend (INV-10, REQ-15), the class requirement (INV-09, REQ-14), Z-2b drive time, Z-2d N = 30 minutes and Z-2e (option A, to confirm). Label wording chosen by the agent at Ketema's direction. |
 | 2026-11-07 | Ketema, agent | Cycle 10: applied Ryan's agent's review of cycle 9. REQ-3 split into REQ-3 (card text) and REQ-16 (the two phrases never appear anywhere). Added REQ-17 (the Build writes only tract-level fields to the static file). REQ-14 counts the 489 drawn tracts. Three "fact" rewordings became human decisions or expectations. Recorded Z-5 (`public/data/tracts.geojson`, ignored, builds in tmux offload, Ketema) and Z-2e (Ketema confirmed; Ryan to accept). Ambiguity 1: only Z-6 remains. |
+| 2026-11-07 | Ketema, agent | Cycle 11: Z-2e Decided By is now Ketema and Ryan (Ryan accepted on issue #4). Stack row records TypeScript 7 at Ketema's direction; PR #8 moves the scaffolding. |
