@@ -113,19 +113,64 @@ async function loadAll(): Promise<Loaded> {
   return { records, tracts, counties, sites }
 }
 
-function confidence(t: Tract): { label: string; why: string } {
+// Confidence: three candidate rules to compare. None is decided; a human picks one
+// before any rule goes in a contract. The thresholds below are stand-ins.
+type ConfRule = 'size' | 'near' | 'count'
+type ConfLevel = 'High' | 'Medium' | 'Low' | 'Not rated'
+const CONF_LEVELS: ConfLevel[] = ['High', 'Medium', 'Low', 'Not rated']
+const SMALL_HOUSEHOLDS = 500
+const GROUP_QUARTERS_PCT = 20
+const NEAR_CUT_POINTS = 2
+const CONF_RULES: { id: ConfRule; name: string; summary: string }[] = [
+  {
+    id: 'size',
+    name: 'A. Size and group quarters',
+    summary: `Low if under ${SMALL_HOUSEHOLDS} households or over ${GROUP_QUARTERS_PCT}% group quarters, else Medium.`,
+  },
+  {
+    id: 'near',
+    name: 'B. Near the cut',
+    summary: `Low if the tract is LILA and its poverty rate is within ${NEAR_CUT_POINTS} points of the cut, else Medium.`,
+  },
+  {
+    id: 'count',
+    name: 'C. Count of limits',
+    summary: 'Counts the A and B tests: none is High, one is Medium, two or more is Low.',
+  },
+]
+const NO_MOE =
+  'ACS 5-year margins of error are not in the repo for the poverty rate, so no rule checks them.'
+
+function limits(t: Tract, cut: number): { size: string[]; near: string[] } {
+  const size: string[] = []
+  const near: string[] = []
+  if ((t.households ?? 0) < SMALL_HOUSEHOLDS)
+    size.push(`Fewer than ${SMALL_HOUSEHOLDS} households, so ACS estimates are less stable.`)
+  if ((t.groupQuartersPct ?? 0) > GROUP_QUARTERS_PCT)
+    size.push(
+      `${t.groupQuartersPct?.toFixed(0)}% of residents live in group quarters (for example dorms), which ACS household rates leave out.`,
+    )
+  if (t.lilaDD === 1 && t.pctPoverty !== null && Math.abs(t.pctPoverty - cut) < NEAR_CUT_POINTS)
+    near.push(
+      `The poverty rate (${t.pctPoverty.toFixed(1)}%) is within ${NEAR_CUT_POINTS} points of the ${cut.toFixed(3)}% cut, so a small change in the estimate could change the class.`,
+    )
+  return { size, near }
+}
+
+function confidence(t: Tract, cut: number, rule: ConfRule): { level: ConfLevel; why: string[] } {
   if (t.cls === 'insufficient')
-    return { label: 'Not rated', why: 'A core indicator is blank, so no class is computed.' }
-  if ((t.households ?? 0) < 500)
-    return { label: 'Lower', why: 'Fewer than 500 households, so ACS estimates are less stable.' }
-  if ((t.groupQuartersPct ?? 0) > 20)
-    return {
-      label: 'Lower',
-      why: `${t.groupQuartersPct?.toFixed(0)}% of residents live in group quarters (for example dorms), which ACS household rates leave out.`,
-    }
+    return { level: 'Not rated', why: ['A core indicator is blank, so no class is computed.'] }
+  const l = limits(t, cut)
+  if (rule === 'count') {
+    const all = [...l.size, ...l.near]
+    const level = all.length === 0 ? 'High' : all.length === 1 ? 'Medium' : 'Low'
+    return { level, why: all.length ? all : ['No limit found by the A or B tests.', NO_MOE] }
+  }
+  const hits = rule === 'size' ? l.size : l.near
+  if (hits.length) return { level: 'Low', why: hits }
   return {
-    label: 'Moderate',
-    why: 'ACS 5-year estimates carry margins of error, which this mock-up does not show.',
+    level: 'Medium',
+    why: [`No limit found by this rule. ${NO_MOE} The label stays below High for that reason.`],
   }
 }
 
@@ -402,11 +447,13 @@ function MapView(props: {
 
 // ---------------- Tract card ----------------
 
-function TractCard({ t, r, onClose }: { t: Tract; r: Records; onClose: () => void }) {
+function TractCard(props: { t: Tract; r: Records; confRule: ConfRule; onClose: () => void }) {
+  const { t, r, confRule, onClose } = props
   const cut = r.povertyCut.value
   const povertyMet = t.pctPoverty !== null && t.pctPoverty >= cut
   const lilaMet = t.lilaDD === 1
-  const conf = confidence(t)
+  const conf = confidence(t, cut, confRule)
+  const ruleName = CONF_RULES.find((c) => c.id === confRule)!.name
   const noSite = t.sitesInTract === 0 || t.standinReachPct === 0
   // The two class inputs (POST-CLS-2). Other blanks are listed under Missing indicators.
   const core = t.missing.filter((m) => /S1701|SRAM/.test(m))
@@ -506,8 +553,15 @@ function TractCard({ t, r, onClose }: { t: Tract; r: Records; onClose: () => voi
 
       <section className="confidence">
         <h4>Confidence</h4>
-        <strong>{conf.label}</strong>: {conf.why}{' '}
-        <span className="standin">placeholder rule, not decided</span>
+        <div>
+          <strong>{conf.level}</strong> under rule {ruleName}{' '}
+          <span className="standin">rule not decided</span>
+        </div>
+        <ul className="conf-why">
+          {conf.why.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
+        </ul>
       </section>
 
       <section>
@@ -580,8 +634,26 @@ function Sidebar(props: {
   sitesOn: boolean
   setSitesOn: (v: boolean) => void
   siteCount: number
+  confRule: ConfRule
+  setConfRule: (v: ConfRule) => void
 }) {
-  const { r, selected, onSelect } = props
+  const { r, selected, onSelect, confRule } = props
+  const cut = r.povertyCut.value
+  const confCounts = useMemo(() => {
+    const zero = () => Object.fromEntries(CONF_LEVELS.map((l) => [l, 0])) as Record<ConfLevel, number>
+    const all = zero()
+    const high = zero()
+    for (const t of r.tracts) {
+      const { level } = confidence(t, cut, confRule)
+      all[level]++
+      if (t.cls === 'desert') high[level]++
+    }
+    return { all, high }
+  }, [r.tracts, cut, confRule])
+  const levelText = (c: Record<ConfLevel, number>) =>
+    CONF_LEVELS.filter((l) => c[l] > 0)
+      .map((l) => `${l} ${c[l]}`)
+      .join(' · ')
   const [county, setCounty] = useState<string>('All')
   const [sort, setSort] = useState<SortKey>('poverty')
   const drawnCounts = useMemo(() => {
@@ -637,6 +709,36 @@ function Sidebar(props: {
           is water and has no shape. It counts as Insufficient data, so all {r.tracts.length} tracts
           are accounted for.
         </div>
+      </section>
+
+      <section aria-labelledby="conf-h">
+        <h2 id="conf-h">
+          Confidence rule <span className="standin">not decided</span>
+        </h2>
+        <div className="rule-pick" role="radiogroup" aria-label="Confidence rule">
+          {CONF_RULES.map((c) => (
+            <label key={c.id}>
+              <input
+                type="radio"
+                name="conf"
+                checked={confRule === c.id}
+                onChange={() => props.setConfRule(c.id)}
+              />
+              <span>
+                <strong>{c.name}</strong>
+                <span className="secondary"> {c.summary}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="rule">
+          High-need tracts ({r.counts.desert}): {levelText(confCounts.high)}
+          <br />
+          All tracts ({r.tracts.length}): {levelText(confCounts.all)}
+          <br />
+          The {SMALL_HOUSEHOLDS}-household, {GROUP_QUARTERS_PCT}% and {NEAR_CUT_POINTS}-point
+          thresholds are stand-ins.
+        </p>
       </section>
 
       <section aria-labelledby="layers-h">
@@ -743,7 +845,8 @@ function Sidebar(props: {
                   {sort === 'load' ? n(t.standinLoad) : pct(sort === 'snap' ? t.pctSnap : t.pctPoverty)}
                 </span>
                 <span className="t-meta">
-                  {t.county} · SNAP {pct(t.pctSnap)} · {n(t.households)} households
+                  {t.county} · SNAP {pct(t.pctSnap)} · {n(t.households)} households ·{' '}
+                  {confidence(t, cut, confRule).level} confidence
                 </span>
               </button>
             </li>
@@ -778,6 +881,7 @@ export function MockApp() {
   const [coverageOn, setCoverageOn] = useState(true)
   const [coverage, setCoverage] = useState<Coverage>('load')
   const [sitesOn, setSitesOn] = useState(false)
+  const [confRule, setConfRule] = useState<ConfRule>('size')
 
   useEffect(() => {
     loadAll().then(setData, (e: Error) => setFailedFile(e.message))
@@ -829,6 +933,8 @@ export function MockApp() {
             sitesOn={sitesOn}
             setSitesOn={setSitesOn}
             siteCount={data.sites.features.length}
+            confRule={confRule}
+            setConfRule={setConfRule}
           />
           <div className="map-col">
             <MapView
@@ -839,7 +945,14 @@ export function MockApp() {
               coverage={coverage}
               sitesOn={sitesOn}
             />
-            {tract && <TractCard t={tract} r={data.records} onClose={() => setSelected(null)} />}
+            {tract && (
+              <TractCard
+                t={tract}
+                r={data.records}
+                confRule={confRule}
+                onClose={() => setSelected(null)}
+              />
+            )}
           </div>
         </main>
       )}

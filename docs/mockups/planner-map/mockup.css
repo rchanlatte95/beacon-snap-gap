@@ -506,6 +506,29 @@ input {
 .confidence strong {
   font-weight: 500;
 }
+.conf-why {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--gray-700);
+}
+.rule-pick {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+.rule-pick label {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+.rule-pick input {
+  margin: 3px 0 0;
+}
+.rule-pick strong {
+  font-weight: 500;
+}
 .missing {
   margin: 0;
   padding-left: 18px;
