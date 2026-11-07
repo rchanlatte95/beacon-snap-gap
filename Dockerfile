@@ -1,5 +1,5 @@
 # Static App image for Cloud Run (Z-4: project <gcp-project>, region us-east1).
-# The Build (data preparation) runs before this image build and writes under public/ (Z-5 pending).
+# The Build (data preparation) runs before this image build and writes its output under public/.
 
 FROM node:26-alpine AS build
 WORKDIR /app
