@@ -43,6 +43,12 @@ OPERATIONAL = [
     "**/tsconfig*.json",
     "**/vite.config.*",
     "**/playwright.config.*",
+    "**/eslint.config.*",
+    "**/.prettierrc*",
+    "**/.prettierignore",
+    "Dockerfile",
+    "**/.dockerignore",
+    "nginx/**",
 ]
 
 PRODUCTION_CODE = [
