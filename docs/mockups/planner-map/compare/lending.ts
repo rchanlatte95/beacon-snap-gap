@@ -135,15 +135,8 @@ const layer: CompareLayer = {
         filter: ['==', ['get', 'cls'], 'desert'],
         paint: {
           'line-color': COLORS.desert,
-          'line-width': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            8,
-            WIDTH.county * 1.5,
-            12,
-            WIDTH.county * 2.5,
-          ],
+          // Same high-need outline width as the other Compare layers.
+          'line-width': WIDTH.selected,
         },
       },
       COMPARE_BEFORE_LAYER,
