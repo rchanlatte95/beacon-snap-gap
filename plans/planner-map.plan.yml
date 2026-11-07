@@ -26,7 +26,13 @@
         "REQ-16",
         "REQ-17"
       ],
-      "clauses_in_scope": [],
+      "clauses_in_scope": [
+        "PRE-CLS-1",
+        "POST-CLS-1",
+        "POST-CLS-2",
+        "POST-CLS-3",
+        "ERRORS-CLS-1"
+      ],
       "clauses_deferred": [],
       "negative_constraints": [
         "INV-01",
@@ -37,7 +43,7 @@
       ],
       "status": "PENDING",
       "depends_on": [],
-      "issue": "TODO",
+      "issue": "ketema/beacon-snap-cliff#10",
       "pivot_note": "If work stops after SLICE-1, a Viewer can open the deployed Cloud Run URL, see the 489 drawn Central Florida tracts coloured by flag status, and read a card for each flagged tract; the slider is absent by the human's decision.",
       "deliverable": {
         "surface": "ui",
