@@ -30,6 +30,17 @@ Decisions a human must make before the next wave builds this (details in section
 | H-9 | How the summary is shared without a server (the App may not store user data on a server) | A print view and a link that holds the view state; no comments yet |
 | H-10 | Fixed wording of each suggestion (like REQ-3) | Approve the texts in section 3.2 word for word, or edit them |
 
+### 0.1 Decisions recorded (Ryan, 2026-11-07)
+
+| ID | Decision |
+|---|---|
+| H-1 | Accepted. The shared driver is candidate A, "Common ground: same places, shared facts". |
+| H-3 | Accepted. The 50 "high need, low lending" tracts (F-3) show only in the detail level ("How we know this"), always with the fixed guard sentence of rule S7. |
+| H-6 | Accepted. The no-vehicle estimate may drive a suggestion, capped at "Low" sureness and always labeled an estimate. |
+| H-7 | Accepted. Suggestions name help categories only, not named organizations. |
+| H-9 | Accepted. Sharing is a print view plus a link that holds the view state. No server storage. |
+| H-2, H-4, H-5, H-8, H-10 | Still open. H-4 (confidence rule) needs Ryan and Ketema. |
+
 ## 1. Personas
 
 Principle: **one set of facts, three lenses.** A persona changes the headline question, the order of the first numbers and the default Compare-with layer. A persona never changes the facts, the class of a tract or the text of the shared summary. If two partners open the app, they see the same map classes and the same summary. That is what makes it a shared driver.
