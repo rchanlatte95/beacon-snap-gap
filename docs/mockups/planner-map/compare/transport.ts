@@ -115,11 +115,13 @@ function addToMap(map: MapLibre, ctx: CompareContext) {
     },
     COMPARE_BEFORE_LAYER,
   )
-  // The tract picked in the panel list: a dark line on a white casing, visible on every class.
-  const focusWidth = (w: number): ExpressionSpecification => [
+  // The tract picked in the panel list: the map's selection look (white glow, dark core).
+  // MapLibre allows a zoom expression only at the top level of a property, so the focus
+  // state switches opacity and the widths come straight from WIDTH.
+  const focusOpacity: ExpressionSpecification = [
     'case',
     ['boolean', ['feature-state', FOCUS_STATE], false],
-    w,
+    1,
     0,
   ]
   map.addLayer(
@@ -128,7 +130,11 @@ function addToMap(map: MapLibre, ctx: CompareContext) {
       type: 'line',
       source: 'tracts',
       layout: hidden,
-      paint: { 'line-color': STRIPE_ON_DARK, 'line-width': focusWidth(WIDTH.selected * 2) },
+      paint: {
+        'line-color': STRIPE_ON_DARK,
+        'line-width': WIDTH.highlight,
+        'line-opacity': focusOpacity,
+      },
     },
     COMPARE_BEFORE_LAYER,
   )
@@ -138,7 +144,11 @@ function addToMap(map: MapLibre, ctx: CompareContext) {
       type: 'line',
       source: 'tracts',
       layout: hidden,
-      paint: { 'line-color': COLORS.primary900, 'line-width': focusWidth(WIDTH.selected) },
+      paint: {
+        'line-color': COLORS.primary900,
+        'line-width': WIDTH.selected,
+        'line-opacity': focusOpacity,
+      },
     },
     COMPARE_BEFORE_LAYER,
   )
