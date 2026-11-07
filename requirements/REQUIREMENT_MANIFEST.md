@@ -1,4 +1,4 @@
-# REQ-2026-001: Beacon SNAP-cliff planner map (SLICE-1, cycle 3)
+# REQ-2026-001: Beacon SNAP-cliff planner map (SLICE-1, cycle 4)
 
 ## CCABDD Governance
 
@@ -33,11 +33,11 @@ A contract executes only when all of its predicates evaluate to TRUE.
   >
   > "for hosting just use my cloud run account. I accept the rest."
 - **Our Understanding**: SLICE-1 is the smallest working version of the Planner view. It shows Central Florida census tracts on a map, flags high-need tracts that lack a nearby pantry, and explains each flag on a tract card. The SNAP-loss slider is stashed (Z-3) until the human has seen this first deliverable. The goal of this cycle is for the human to see and feel the product, then refine. Later slices add the slider, the SBDC/CDFI officer view, saved views, approve/challenge, a policymaker summary and a flyer.
-- **Ambiguity Score**: 3 (minor gaps; the LILA distance type in Z-1 blocks the flagging contract). Rationale: the flow, stack, scope, high-need rule family and pantry-coverage rule are decided; one sub-choice remains. Z-3 is deferred by both humans; Z-4 blocks deployment only.
+- **Ambiguity Score**: 2 (ready for contracts). Rationale: flow, stack, scope, the high-need rule and the pantry-coverage rule are decided. Z-3 is deferred by both humans. Z-4 (Cloud Run project and region) blocks deployment only.
 
 ## Known Ambiguities
 
-- Z-1b LILA distance type (straight-line or driving) and Z-4 Cloud Run project and region (section 5). Z-3 (slider) is deferred.
+- Z-4 Cloud Run project and region (section 5). Z-3 (slider) is deferred.
 
 ## 2. The Actor Matrix
 
@@ -104,7 +104,7 @@ Cloud Run DEPENDS ON a container image built from the App.
 | Stack | Which technologies? | React, Vite, TypeScript, MapLibre, static data, Vitest, no AI first | User (CL4) |
 | Hosting | Where does it run? | User's Google Cloud Run account | User (CL4) |
 | Scope | Which views first? | Planner only in SLICE-1 | User (CL4) |
-| **Z-1** | What makes a tract "high need"? | **Option B**: poverty rate at or above the 75th percentile of the 490 Central Florida tracts (17.0%, ACS 2024) AND the USDA LILA flag at 1/2 mile urban and 10 miles rural. Sub-choice **Z-1b** (straight-line LILA gives 68 tracts; driving-distance LILA gives 97) is **pending** | Ryan proposed 2026-11-07 (issue #4); Ketema confirmed (CL4) |
+| **Z-1** | What makes a tract "high need"? | **Option B with driving-distance LILA**: poverty rate at or above the 75th percentile of the 490 Central Florida tracts (17.0%, ACS 2024) AND the USDA driving-distance LILA flag (`DD_SRAM_LILATracts_halfAnd10`: 1/2 mile urban, 10 miles rural). This flags 97 tracts. Straight-line (Euclidean) LILA, 68 tracts, was considered | B proposed by Ryan, confirmed by Ketema; driving distance chosen by Ketema (CL4), 2026-11-07 |
 | **Z-2** | What counts as a "nearby pantry"? | **Option C shown beside A**: the share of the tract's block population within 1 mile of a Second Harvest site, shown beside whether a site lies inside the tract | Ryan proposed 2026-11-07 (issue #4); Ketema confirmed (CL4) |
 | **Z-3** | What does the slider change? | **Deferred** until mock-ups or proofs of concept are rendered; Ryan's option A is kept as input for that step | Ketema and Ryan (CL4), 2026-11-07 |
 | **Z-4** | Which Cloud Run project and region? | **Unresolved** | pending |
@@ -138,7 +138,7 @@ Cloud Run DEPENDS ON a container image built from the App.
 ## 6.5 Blocking Dependencies
 | Unresolved Zone | Blocks |
 |-----------------|--------|
-| Z-1b | Contract for the flagging rule, tests, implementation |
+| Z-1 | Decided; the flagging contract defines the 97-tract rule and its quartile basis |
 | Z-2 | Decided; the contract for pantry coverage defines the block-population radius |
 | Z-3 | Deferred; blocks only the later slider slice |
 | Z-4 | Deployment only (not contracts) |
@@ -158,7 +158,7 @@ Cloud Run DEPENDS ON a container image built from the App.
 Human acceptance remains with the human: whether the map and card are useful to a food bank planner.
 
 ## 9. Contract Authority
-**Authoritative Source**: `contracts/planner_map_contract.py` (to be authored after zone Z-1b is resolved)
+**Authoritative Source**: `contracts/planner_map_contract.py` (to be authored once the human approves the SLICE-1 plan)
 
 requirements/REQUIREMENT_MANIFEST.md (this file)
         ↓
@@ -176,3 +176,4 @@ src/
 | 2026-11-07 | Ketema, agent | Cycle 1 draft from req-elicit. Zones Z-1 to Z-4 open. |
 | 2026-11-07 | Ketema, agent | Cycle 2: the human stashed the slider (Z-3 deferred) after finding it confusing. Removed from SLICE-1 scope: slider, scenario label (REQ-2), range clamp (REQ-11), the slider sequencing spec and integration point. SEQ and IP numbers renumbered. Ambiguity score 5 to 4. |
 | 2026-11-07 | Ketema, agent | Cycle 3: Z-1 option B and Z-2 option C beside A recorded (proposed by Ryan, confirmed by Ketema). Z-3 deferred by both humans. Z-1b LILA distance type remains open. Ambiguity score 4 to 3. |
+| 2026-11-07 | Ketema, agent | Cycle 4: Z-1b recorded. The human chose driving-distance LILA (97 tracts). Ambiguity score 3 to 2. Only Z-4 remains open, and it blocks deployment only. |
