@@ -1,0 +1,16 @@
+# Hand-written specs, docs and source data are not formatted by Prettier.
+data/
+docs/
+requirements/
+contracts/
+plans/
+logs/
+.ccabdd/
+.claude/
+.serena/
+*.md
+package-lock.json
+dist/
+coverage/
+test-results/
+playwright-report/
