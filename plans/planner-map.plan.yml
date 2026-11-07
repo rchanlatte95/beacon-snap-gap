@@ -38,7 +38,14 @@
         "POST-CLS-1",
         "POST-CLS-2",
         "POST-CLS-3",
-        "ERRORS-CLS-1"
+        "ERRORS-CLS-1",
+        "POST-ALN-1",
+        "POST-ALN-2",
+        "POST-ALN-3",
+        "POST-ALN-4",
+        "POST-GEO-1",
+        "FORBIDDEN-PRIV-1",
+        "ERRORS-BLD-1"
       ],
       "clauses_deferred": [],
       "negative_constraints": [
