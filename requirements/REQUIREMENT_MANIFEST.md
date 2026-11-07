@@ -1,4 +1,4 @@
-# REQ-2026-001: Beacon SNAP-cliff planner map (SLICE-1, cycle 11)
+# REQ-2026-001: Beacon SNAP-cliff planner map (SLICE-1, cycle 12)
 
 ## CCABDD Governance
 
@@ -19,6 +19,7 @@ A contract executes only when all of its predicates evaluate to TRUE.
 | Actor | Role |
 |:------|:-----|
 | Planner | Food bank planner who decides where to send food and mobile pantries |
+| Officer | SBDC, CDFI or SBA program officer who decides where to target small-business lending and technical assistance outreach |
 | Viewer | Anyone who opens the app, including judges and teammates, with no account |
 | App | The static web application served from Cloud Run |
 | Build | The offline data-preparation script that turns repo data files into the app's static data |
@@ -32,20 +33,22 @@ A contract executes only when all of its predicates evaluate to TRUE.
   > "good enough to start so we can SEE what this looks and feels like. we will iterate from there. remember ccabdd-elegance."
   >
   > "for hosting just use my cloud run account. I accept the rest."
+  >
+  > "my take away is that the app needs to help bring together different entities like the sba and snap program managers that target the same low income population and use their data to highlight things they might have missed. OPPORTUNITIES TO SERVE. ... we need a 'wizard' and AI powered UI that help showcase those insights. ... read your analysis and yes now you are getting it. i approve. let's translate this into requirements and update the manifest and contracts via constitutional refactor then move into implmentation red green cycles."
 - **Trace gap**: The idea list that "ideas 1,2,4" refers to is not in the repo. Add it, or record where it is, so that this trace is complete.
-- **Our Understanding**: SLICE-1 is the smallest working version of the Planner view. It shows Central Florida census tracts on a map, flags high-need tracts that lack a nearby pantry, and explains each flag on a tract card. The SNAP-loss slider is stashed (Z-3) until the human has seen this first deliverable. The goal of this cycle is for the human to see and feel the product, then refine. Later slices add the slider, the SBDC/CDFI officer view, saved views, approve/challenge, a policymaker summary and a flyer.
-- **Ambiguity Score**: 1 (one small gap). Rationale: flow, stack, scope, the high-need rule (Z-1), the pantry-coverage rule (Z-2, drive time, N = 30), the map classes (D-1) and the deployment target (Z-4) are decided. Z-3 is deferred by both humans. One decision remains: the base map tile source (Z-6). It blocks only the map-tile clause (REQ-10 test and App map setup). 
+- **Our Understanding**: SLICE-1 is the "Opportunities to Serve" cross-agency alignment map and AI-guided action wizard for Central Florida (490 tracts). It brings together Food Bank / SNAP planners and SBA / SBDC / CDFI lending officers around the same low-income population, contrasts food need (97 Classic Food Desert tracts) against SBA 7(a)/504 lending (DS-X5, 50 dual-gap tracts with at or below the regional median of 10 loans), household no-vehicle transportation barriers (DS-X7b, 53 tracts in the top quartile at or above 6.90%, yielding 29 triple-gap tracts), and median household income with 90% margins of error (DS-X28, DS-X29), keeps the legend pinned on the map canvas over clean exterior county borders, and provides a Gap-Zapper-style AI briefing, natural-language query/filter wizard, and one-click Coordinated Action Brief generator. The SNAP-loss slider remains stashed in SLICE-2 (Z-3).
+- **Ambiguity Score**: 0 (ready for contracts and implementation). Rationale: flow, stack, three-persona alignment scope, the high-need rule (Z-1, 97 tracts), the SBA lending contrast rule (DS-X5, 50 dual-gap tracts), the no-vehicle transportation barrier rule (DS-X7b, 53 tracts, 29 triple-gap tracts), median household income and MOE integration (DS-X28, DS-X29), the pantry-coverage load rule (Z-2, Z-2e), the map classes and pinned legend (D-1), the deterministic confidence rule, the AI insight and coordinated action wizard, the Build output path (Z-5), the base map tile source (Z-6, OpenFreeMap Positron vector tiles with REQ-10 fallback) and the deployment target (Z-4) are all decided. Z-3 (slider) is deferred to SLICE-2. 
 
 ## Known Ambiguities
 
-- Z-6 base map tile source (section 5). It blocks only the map-tile clause of the contract; other clauses proceed.
-- Z-3 (slider) is deferred.
+- None for SLICE-1. Z-3 (slider) is deferred to SLICE-2.
 
 ## 2. The Actor Matrix
 
 | Actor | Permission Level | Prohibited Actions |
 |:------|:-----------------|:-------------------|
-| Planner | Read the map, open a tract card | Edit source data; see individual people |
+| Planner | Read the map, switch persona lenses, run the AI wizard, generate a coordinated action brief | Edit source data; see individual people |
+| Officer | Same as Planner | Same as Planner |
 | Viewer | Same as Planner | Same as Planner |
 | App | Read static data files; compute flags in the browser | Call external services at runtime; store user data on a server |
 | Build | Read `data/**`; write static app data | Alter files under `data/hackathon/` or `data/external/` |
@@ -53,7 +56,7 @@ A contract executes only when all of its predicates evaluate to TRUE.
 ## 3. The State Transition
 - **Initial State ($S_0$)**: Repo holds hackathon and external data files; no app exists.
 - **Transformation**: Build produces static tract data; App renders the map and card.
-- **Terminal State ($S_1$)**: A Viewer opens the Cloud Run URL and sees 489 Central Florida tracts drawn on the map and colored by flag status. Tract `12095990000` (water, no geometry) is listed in a "not drawn" note, so all 490 ACS tracts are accounted for. Tract `12095016515` (no households) has blank rates and shows as Insufficient data (REQ-8). The Viewer opens a card for any flagged tract showing evidence, a confidence label and data limitations.
+- **Terminal State ($S_1$)**: A Viewer opens the Cloud Run URL and sees the top KPI cohort strip (97 Classic Food Deserts, 50 Dual-Gap Food + SBA tracts, 53 Mobile-Priority Transport Gap tracts, 29 Triple-Gap Opportunities to Serve, and 2 Insufficient Data tracts), 489 Central Florida tracts drawn on the map with a pinned on-canvas legend and clean exterior county borders, and tract `12095990000` listed as not drawn. The Viewer switches persona lenses (`Food Bank Planner`, `SBA / CDFI Officer`, `Shared Alignment: Opportunities to Serve`), toggles overlays, uses the AI Insight & Coordinated Action Wizard to filter tracts or inspect a tract's evidence (including SBA loans, no-vehicle %, and median household income + 90% MOE), confidence badge and sources, and generates a Coordinated Action Brief.
 
 ## 3.5 Integration Specification
 
@@ -68,7 +71,9 @@ App DEPENDS ON MapLibre GL JS for drawing the map.
 App DEPENDS ON a base map tile source (Z-6), with the REQ-10 fallback.
 Cloud Run DEPENDS ON a container image built from the App.
 
-The external ACS B08201 no-vehicle table (DS-X7b) is not a Build input in SLICE-1, because Z-1 B does not use it.
+Build DEPENDS ON the SBA 7(a)/504 tract table (`data/external/sba-loans/sba_loans_by_tract_central_fl.csv`, DS-X5) for loan counts, gross dollars and jobs supported per tract.
+Build DEPENDS ON the ACS B08201 no-vehicle table (`data/external/census-acs/acs2024_b08201_no_vehicle_central_fl_tracts.csv`, DS-X7b) for the household no-vehicle rate per tract.
+Build DEPENDS ON the ACS S1901/B19013 median household income table (`data/external/census-acs/acs2024_s1901_median_household_income_central_fl_tracts.csv`, DS-X28, DS-X29) for median household income and 90% margins of error per tract.
 
 ### Control Flow Requirements (Sequencing Specs)
 | ID | Caller | Must Invoke | Temporal Constraint | Breaks If Missing |
@@ -87,6 +92,9 @@ The external ACS B08201 no-vehicle table (DS-X7b) is not a Build input in SLICE-
 | IP-3 | Census block file | Build | Block population and point | pending |
 | IP-4 | Build | App | Static tract file (GeoJSON properties) at the Z-5 path | pending |
 | IP-5 | App flagging rule | Tract card | Flag, evidence, confidence, limitations | pending |
+| IP-7 | SBA tract lending table (DS-X5) | Build | SBA 7(a)/504 loan count, gross dollars and jobs supported per tract | pending |
+| IP-8 | ACS B08201 no-vehicle table (DS-X7b) | Build | Household no-vehicle percentage per tract | pending |
+| IP-9 | ACS S1901/B19013 median household income table (DS-X28, DS-X29) | Build | Median household income, 90% margin of error and income status per tract | pending |
 
 ### Lifecycle Paths
 | Component | INIT (created/started by) | CLEANUP (stopped/released by) |
@@ -109,7 +117,14 @@ The external ACS B08201 no-vehicle table (DS-X7b) is not a Build input in SLICE-
 | INV-07 | Attribution | REQ-12: The App shall show, on every view, a credit to DataKind and Beacon with a link to www.datakind.org and the statement that Beacon content is CC BY 4.0. | test | Must | Beacon's license page requires CC BY 4.0 attribution to DataKind with a link to www.datakind.org (`docs/hackathon/linked-pages.md`, "Beacon license") |
 | INV-08 | Brand | REQ-13: The App shall follow `docs/hackathon/resources/beacon-design-brand-guidelines.pdf`. | human review | Must | Decided by Ketema, 2026-11-07 ("we follow the branding"): the team follows the Beacon brand guidelines that DataKind provided. Compliance needs a person to judge it |
 | INV-09 | Display | REQ-14: The App shall color each drawn tract (489 of 490) on the map as Classic Food Desert (high need), No gap flagged, or Insufficient data. | test | Must | Two of the three names are the brief's own; "No gap flagged" was proposed by Ryan's agent. The three classes cover all 490 tracts (97, 391 and 2), but tract `12095990000` (water) has no polygon, so it is listed as Insufficient data and not drawn |
-| INV-10 | Display | REQ-15: The App shall show a legend that names each map class and its color. | test | Must | Decided by Ketema and Ryan: the map is unreadable without a key |
+| INV-10 | Display | REQ-15: The App shall show a legend pinned on the map canvas that names each map class and its color and remains visible when side panels scroll. | test | Must | Visual inspection of PR #11 showed the sidebar legend scrolled off screen |
+| INV-13 | Alignment | REQ-18: The App shall provide three selectable persona lenses (Food Bank Planner, SBA / CDFI Officer, and Shared Alignment: Opportunities to Serve) and top KPI cohort cards that filter the map to the selected cohort. | test | Must | Sponsor feedback and Ketema's directive: program managers cannot decide in a silo and need a shared alignment driver |
+| INV-14 | Lending contrast | REQ-19: The Build shall join SBA 7(a) and 504 lending per tract (DS-X5) and flag the 50 dual-gap tracts that are Classic Food Deserts with SBA loan counts at or below the regional median of 10 loans. | test | Must | Sponsor feedback: population needing food aligns with population needing SBA lending |
+| INV-15 | Transport gap | REQ-20: The Build shall join the household no-vehicle rate per tract (DS-X7b), flag the 53 high-food-need tracts at or above the inclusive 75th-percentile no-vehicle threshold of 6.90% and the 29 triple-gap tracts, and recommend mobile pantry deployment for every tract that meets that threshold. | test | Must | Sponsor feedback: highlight the transportation gap for resource deployment |
+| INV-16 | Action wizard | REQ-21: The App shall provide an AI Insight and Coordinated Action Wizard with an executive briefing, natural-language query or prompt-chip cohort filtering, and a one-click Coordinated Action Brief generator that outputs a cross-agency intervention plan with counterfactual impact. | test | Must | Ketema's directive from Gap Zapper analysis: AI-led insight-driven action taking |
+| INV-17 | Confidence | REQ-22: The App shall show each tract's deterministic confidence level (Not rated when class is Insufficient data, Lower when households are under 500 or group-quarters share exceeds 20%, and Moderate otherwise), median household income with its 90% margin of error (DS-X28), and source IDs on the tract card. | test | Must | Sponsor feedback: surface sources, margins of error and confidence levels |
+| INV-18 | Map clarity | REQ-23: The Build shall emit only exterior county boundary segments with no interior water-sliver or unshared tract edges inside a county. | test | Must | Visual inspection of PR #11 showed interior unshared edges drew confusing blue lines across counties |
+| INV-19 | Map clarity | REQ-24: The App shall render tract fills at overview zoom without overlapping coverage circles obscuring the choropleth. | test | Must | Visual inspection of PR #11 showed 97 dark circles piled over urban Orange County tracts |
 
 When the slider slice starts, the App shall carry INV-02 (REQ-2, the "assumption-based estimate" label). See "Deferred items" in section 5.
 
@@ -118,7 +133,7 @@ When the slider slice starts, the App shall carry INV-02 (REQ-2, the "assumption
 |------|----------|------------|------------|
 | Stack | Which technologies? | React, Vite, TypeScript 7, MapLibre, static data, Vitest, no AI first. The compiler is TypeScript 7 (PR #8); `typescript-eslint` runs on the TypeScript 6 legacy API side by side until it supports 7 | User (CL4) |
 | Hosting | Where does it run? | User's Google Cloud Run account | User (CL4) |
-| Scope | Which views first? | Planner only in SLICE-1 | User (CL4) |
+| Scope | Which views first? | **Three persona lenses in SLICE-1**: Food Bank Planner, SBA / CDFI Officer, and Shared Alignment ("Opportunities to Serve"), guided by a Gap-Zapper-style AI Insight and Coordinated Action Wizard | Ketema (CL4), 2026-11-07 |
 | **Z-1** | What makes a tract "high need"? | **Option B with driving-distance LILA**: poverty rate at or above the 75th percentile of the 488 Central Florida tracts that have a poverty value (ACS 2024), AND the USDA driving-distance LILA flag (`DD_SRAM_LILATracts_halfAnd10`: 1/2 mile urban, 10 miles rural). This flags 97 tracts. Straight-line (Euclidean) LILA, 68 tracts, was considered. The contract names the quantile method (see note below) | B proposed by Ryan, confirmed by Ketema; driving distance decided by Ketema and Ryan (CL4), 2026-11-07 |
 | **Z-2** | What counts as a "nearby pantry"? | **Option C shown beside A**: the share of the tract's block population within 30 minutes' drive of a Second Harvest site (drive time chosen over straight-line miles; N = 30 may change later), shown beside whether a site lies inside the tract. Block population is for April 2020 and has differential-privacy noise, so the Build uses only tract sums | Ryan proposed 2026-11-07 (issue #4); Ketema confirmed (CL4) |
 | **Z-2b** | Is "nearby" in Z-2 C straight-line miles or drive time? | **Drive time.** Ketema first leaned to miles, then retracted it and accepted drive time | Ketema and Ryan (CL4), 2026-11-07 |
@@ -129,7 +144,7 @@ When the slider slice starts, the App shall carry INV-02 (REQ-2, the "assumption
 | **Z-3** | What does the slider change? | **Deferred** until mock-ups or proofs of concept are rendered; Ryan's option A is kept as input for that step | Ketema and Ryan (CL4), 2026-11-07 |
 | **Z-4** | Which Cloud Run project and region? | **Project `<gcp-project>`, region `us-east1`.** Cloud Run, Artifact Registry and Cloud Build APIs are enabled and the human's account is owner | Ketema (CL4), 2026-11-07 |
 | **Z-5** | Where does the Build write the static tract file? | **`public/data/tracts.geojson`**, the standard Vite static directory. The Vite bundle goes to the standard `dist/`. Both paths are generated and listed in `.gitignore`, so neither is committed. Builds and test suites run in tmux offload | Ketema (CL4), 2026-11-07 |
-| **Z-6** | Which base map tile source does the App use? | **Unresolved** | pending |
+| **Z-6** | Which base map tile source does the App use? | **OpenFreeMap Positron vector tiles** (`https://tiles.openfreemap.org/styles/positron`), free and keyless, with the REQ-10 blank-background fallback and "Base map unavailable" banner when tiles fail to load | Ketema (CL4), 2026-11-07 |
 
 **Note on the Z-1 poverty cut.** The cycle 1 review gave 17.1% and cycle 3 gave 17.0%. Both are roundings of the same 75th percentile, computed two ways with Python `statistics.quantiles(n=4)` over the 488 tracts that have a poverty value: exclusive method 17.075%, inclusive method 17.025%. Both cuts give the same 97 tracts (driving-distance LILA) and 68 tracts (straight-line LILA). The only tract between the rounded and the computed cuts is `12069031107` (poverty 17.0%), and it has no LILA flag, so a literal "17.0% or more" rule also gives 97. Do not encode a rounded value. The contract computes the cut and names the method.
 
@@ -202,7 +217,7 @@ These are candidates for each mapping job. They are not chosen and not rejected.
 | Z-3 | Deferred; blocks only the later slider slice |
 | Z-4 | Decided (`<gcp-project>`, `us-east1`); deployment can proceed after the human approves a deploy |
 | Z-5 | Decided (`public/data/tracts.geojson`); contract clause for IP-4, Build, INV-01 test |
-| Z-6 | REQ-10 test, App map setup |
+| Z-6 | Decided (OpenFreeMap Positron vector tiles with REQ-10 fallback); blocks nothing |
 | Second Harvest and Feeding America redistribution | Decided by the human in cycle 6: no permission request is needed, because the data was already public. Blocks nothing |
 
 ## 7. Failure Mode Specification (CL9)
@@ -222,7 +237,7 @@ When the slider slice starts, the App shall carry REQ-11 (slider clamp).
 Human acceptance remains with the human: whether the map and card are useful to a food bank planner.
 
 ## 9. Contract Authority
-**Authoritative Source**: `contracts/planner_map_contract.py` (to be authored once the human approves the SLICE-1 plan)
+**Authoritative Sources**: `contracts/planner_map_contract.py` (Build domain, Python) and `contracts/planner-map.app.contract.ts` (App domain, TypeScript, cross-referenced by clause ID per Idiomatic Per-Ecosystem Distribution)
 
 requirements/REQUIREMENT_MANIFEST.md (this file)
         ↓
@@ -250,3 +265,4 @@ src/
 | 2026-11-07 | Ketema, agent | Cycle 9: fixed the 17 IEEE 29148 lint errors (IP-1c renamed IP-6; REQ-3 and REQ-4 reworded to one SHALL each with the App as actor; passive deferred notes reworded; the blocking table column renamed; SHALL and MUST turned into statements of fact in the decision record and in Deferred map alternatives). Recorded D-1 (three classes), D-2 (keep PR #5), the legend (INV-10, REQ-15), the class requirement (INV-09, REQ-14), Z-2b drive time, Z-2d N = 30 minutes and Z-2e (option A, to confirm). Label wording chosen by the agent at Ketema's direction. |
 | 2026-11-07 | Ketema, agent | Cycle 10: applied Ryan's agent's review of cycle 9. REQ-3 split into REQ-3 (card text) and REQ-16 (the two phrases never appear anywhere). Added REQ-17 (the Build writes only tract-level fields to the static file). REQ-14 counts the 489 drawn tracts. Three "fact" rewordings became human decisions or expectations. Recorded Z-5 (`public/data/tracts.geojson`, ignored, builds in tmux offload, Ketema) and Z-2e (Ketema confirmed; Ryan to accept). Ambiguity 1: only Z-6 remains. |
 | 2026-11-07 | Ketema, agent | Cycle 11: Z-2e Decided By is now Ketema and Ryan (Ryan accepted on issue #4). Stack row records TypeScript 7 at Ketema's direction; PR #8 moves the scaffolding. |
+| 2026-11-07 | Ketema, agent | Cycle 12: constitutional refactor incorporating sponsor feedback, live visual inspection of PR #11, PR #12 median household income data (DS-X28, DS-X29), and Ketema's Gap Zapper directive. Added Actor Officer and requirements REQ-18 (three persona lenses and KPI cohort cards), REQ-19 (SBA lending contrast, DS-X5, 50 dual-gap tracts), REQ-20 (no-vehicle transport gap, DS-X7b, 53 tracts, 29 triple-gap tracts, mobile deployment recommendation), REQ-21 (AI Insight and Coordinated Action Wizard with counterfactual brief generator), REQ-22 (deterministic confidence level, median household income + 90% MOE, and sources), REQ-23 (exterior-only county boundaries), and REQ-24 (unobscured overview choropleth). Recorded Z-6 (OpenFreeMap Positron with REQ-10 fallback). Ambiguity score 1 to 0. |
