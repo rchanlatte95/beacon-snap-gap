@@ -45,7 +45,14 @@
         "POST-ALN-4",
         "POST-GEO-1",
         "FORBIDDEN-PRIV-1",
-        "ERRORS-BLD-1"
+        "ERRORS-BLD-1",
+        "POST-APP-1",
+        "POST-APP-2",
+        "POST-APP-3",
+        "POST-APP-4",
+        "POST-APP-5",
+        "FORBIDDEN-APP-1",
+        "ERRORS-APP-1"
       ],
       "clauses_deferred": [],
       "negative_constraints": [
