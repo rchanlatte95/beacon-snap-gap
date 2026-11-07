@@ -1,11 +1,12 @@
-// The map. Owner: the map-readability task (T8). Moved from PlannerMock.tsx without behavior change.
+// The map. Owner: the map-readability task (T8). Line and state rules are in mapStyle.ts.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Map as MapLibre, Marker, NavigationControl, Popup } from 'maplibre-gl'
 import type { ExpressionSpecification, LngLatBoundsLike } from 'maplibre-gl'
 import type { FeatureCollection } from 'geojson'
 import { CLASS_LABEL, featureId } from './model'
 import type { Coverage, Loaded } from './model'
-import { BLANK_STYLE, COLORS, WIDTH, hatchImage } from './mapStyle'
+import { BLANK_STYLE, COLORS, COVERAGE_RADIUS, WIDTH, hatchImage } from './mapStyle'
+import { cleanCountyLines } from './countyLines'
 import { COMPARE_LAYERS } from './compare'
 import type { CompareContext, CompareLayer } from './compare/types'
 
@@ -21,7 +22,8 @@ function bbox(fc: FeatureCollection): LngLatBoundsLike {
       nn = Math.max(nn, y)
     } else if (Array.isArray(c)) c.forEach(visit)
   }
-  for (const f of fc.features) if (f.geometry.type !== 'GeometryCollection') visit(f.geometry.coordinates)
+  for (const f of fc.features)
+    if (f.geometry.type !== 'GeometryCollection') visit(f.geometry.coordinates)
   return [
     [w, s],
     [e, nn],
@@ -54,7 +56,12 @@ export function MapView(props: {
     ctxRef.current = props.compareCtx
   }, [props.compareCtx])
   const [ready, setReady] = useState(false)
-  const [hover, setHover] = useState<{ x: number; y: number; geoid: string } | null>(null)
+  const [hover, setHover] = useState<{
+    x: number
+    y: number
+    geoid: string
+    flip: boolean
+  } | null>(null)
   const byId = useMemo(
     () => new Map(data.records.tracts.map((t) => [t.geoid, t])),
     [data.records.tracts],
@@ -80,7 +87,10 @@ export function MapView(props: {
     map.on('load', () => {
       map.addImage('hatch', hatchImage(), { pixelRatio: 2 })
       map.addSource('tracts', { type: 'geojson', data: data.tracts })
-      map.addSource('counties', { type: 'geojson', data: data.counties })
+      map.addSource('counties', {
+        type: 'geojson',
+        data: cleanCountyLines(data.counties, data.tracts),
+      })
       map.addSource('sites', { type: 'geojson', data: data.sites })
       map.addSource('coverage', {
         type: 'geojson',
@@ -90,11 +100,16 @@ export function MapView(props: {
             .filter((t) => t.cls === 'desert' && t.centroid)
             .map((t) => ({
               type: 'Feature',
-              properties: { geoid: t.geoid, load: t.standinLoad ?? 0, reach: t.standinReachPct ?? 0 },
+              properties: {
+                geoid: t.geoid,
+                load: t.standinLoad ?? 0,
+                reach: t.standinReachPct ?? 0,
+              },
               geometry: { type: 'Point', coordinates: t.centroid as [number, number] },
             })),
         },
       })
+      // Fills. Hover does not change the fill, so a class color always means one class.
       map.addLayer({
         id: 'tract-fill',
         type: 'fill',
@@ -102,7 +117,6 @@ export function MapView(props: {
         filter: ['!=', ['get', 'cls'], 'insufficient'],
         paint: {
           'fill-color': ['match', ['get', 'cls'], 'desert', COLORS.desert, COLORS.nogap],
-          'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.8, 1],
         },
       })
       map.addLayer({
@@ -112,25 +126,58 @@ export function MapView(props: {
         filter: ['==', ['get', 'cls'], 'insufficient'],
         paint: { 'fill-pattern': 'hatch' },
       })
+      // Compare-with layers go here (before 'tract-line').
+      // Borders: two styles only. Every tract, of every class, gets the same tract line.
       map.addLayer({
         id: 'tract-line',
         type: 'line',
         source: 'tracts',
-        paint: { 'line-color': '#FFFFFF', 'line-width': WIDTH.tract },
+        layout: { 'line-join': 'round' },
+        paint: { 'line-color': COLORS.tractLine, 'line-width': WIDTH.tract },
       })
       map.addLayer({
         id: 'county-line',
         type: 'line',
         source: 'counties',
-        paint: { 'line-color': COLORS.primary700, 'line-width': WIDTH.county },
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': COLORS.countyLine, 'line-width': WIDTH.county },
+      })
+      // States: one look, a white glow with a dark core line. Selected is full strength.
+      // Hover is a lighter preview of the same look, so it reads as "click to select this".
+      map.addLayer({
+        id: 'tract-highlight',
+        type: 'line',
+        source: 'tracts',
+        layout: { 'line-join': 'round' },
+        paint: {
+          'line-color': COLORS.highlight,
+          'line-width': WIDTH.highlight,
+          'line-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false],
+            1,
+            ['boolean', ['feature-state', 'hover'], false],
+            0.8,
+            0,
+          ],
+        },
       })
       map.addLayer({
         id: 'tract-selected',
         type: 'line',
         source: 'tracts',
+        layout: { 'line-join': 'round' },
         paint: {
           'line-color': COLORS.primary900,
-          'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], WIDTH.selected, 0],
+          'line-width': WIDTH.selected,
+          'line-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false],
+            1,
+            ['boolean', ['feature-state', 'hover'], false],
+            0.55,
+            0,
+          ],
         },
       })
       map.addLayer({
@@ -139,10 +186,10 @@ export function MapView(props: {
         source: 'coverage',
         paint: {
           'circle-color': COLORS.primary900,
-          'circle-radius': 6,
-          'circle-stroke-color': COLORS.primary900,
-          'circle-stroke-width': 1.5,
-          'circle-opacity': 0.4,
+          'circle-radius': COVERAGE_RADIUS.load,
+          'circle-stroke-color': COLORS.highlight,
+          'circle-stroke-width': 1,
+          'circle-opacity': 0.75,
         },
       })
       map.addLayer({
@@ -169,7 +216,8 @@ export function MapView(props: {
 
       let hovered: number | null = null
       const clearHover = () => {
-        if (hovered !== null) map.setFeatureState({ source: 'tracts', id: hovered }, { hover: false })
+        if (hovered !== null)
+          map.setFeatureState({ source: 'tracts', id: hovered }, { hover: false })
         hovered = null
       }
       for (const layer of ['tract-fill', 'tract-insufficient']) {
@@ -182,7 +230,13 @@ export function MapView(props: {
             map.setFeatureState({ source: 'tracts', id: hovered }, { hover: true })
           }
           map.getCanvas().style.cursor = 'pointer'
-          setHover({ x: e.point.x, y: e.point.y, geoid: String(f.properties.geoid) })
+          setHover({
+            x: e.point.x,
+            y: e.point.y,
+            geoid: String(f.properties.geoid),
+            // Near the right edge, show the tip on the left of the pointer.
+            flip: e.point.x > map.getCanvas().clientWidth - 280,
+          })
         })
         map.on('mouseleave', layer, () => {
           clearHover()
@@ -195,7 +249,9 @@ export function MapView(props: {
         const site = map.queryRenderedFeatures(e.point, { layers: ['sites'] })[0]
         if (site && site.geometry.type === 'Point') {
           const box = document.createElement('div')
-          const [title, addr, hours] = ['strong', 'div', 'div'].map((t) => document.createElement(t))
+          const [title, addr, hours] = ['strong', 'div', 'div'].map((t) =>
+            document.createElement(t),
+          )
           title!.textContent = String(site.properties.name)
           addr!.textContent = String(site.properties.address)
           hours!.textContent = String(site.properties.hours)
@@ -253,11 +309,18 @@ export function MapView(props: {
     if (!map || !ready) return
     map.setLayoutProperty('coverage', 'visibility', coverageOn ? 'visible' : 'none')
     map.setLayoutProperty('sites', 'visibility', sitesOn ? 'visible' : 'none')
-    const radius: ExpressionSpecification | number =
-      coverage === 'load' ? ['max', 3, ['*', 0.55, ['sqrt', ['get', 'load']]]] : 6
+    const radius = COVERAGE_RADIUS[coverage]
     const color: ExpressionSpecification | string =
       coverage === 'reach'
-        ? ['step', ['get', 'reach'], COLORS.primary500, 50, COLORS.primary700, 90, COLORS.primary900]
+        ? [
+            'step',
+            ['get', 'reach'],
+            COLORS.primary500,
+            50,
+            COLORS.primary700,
+            90,
+            COLORS.primary900,
+          ]
         : COLORS.primary900
     map.setPaintProperty('coverage', 'circle-radius', radius)
     map.setPaintProperty('coverage', 'circle-color', color)
@@ -277,10 +340,16 @@ export function MapView(props: {
     <div className="map-wrap">
       <div ref={el} className="map" aria-label="Map of Central Florida census tracts" />
       {/* REQ-10 fallback: no tile source is chosen (Z-6), so tracts sit on a blank background. */}
-      <div className="map-badge">Base map unavailable (tile source not chosen, Z-6)</div>
+      <div className="map-badge" title="No map tile source is chosen yet (decision Z-6).">
+        Base map unavailable. Streets and place names are not shown.
+      </div>
       {hover && hoverTract && (
-        <div className="hover-tip" style={{ left: hover.x, top: hover.y }}>
-          {hoverTract.name}, {hoverTract.county}: {CLASS_LABEL[hoverTract.cls]}
+        <div
+          className={`hover-tip${hover.flip ? ' flip' : ''}`}
+          style={{ left: hover.x, top: hover.y }}
+        >
+          <strong>{CLASS_LABEL[hoverTract.cls]}</strong>
+          <span>{hoverTract.county} County. Click to learn more.</span>
         </div>
       )}
     </div>
