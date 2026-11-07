@@ -104,5 +104,34 @@ Each fact is attributed to its source. Treat figures from search snippets as unv
 1. The Florida Policy Institute article is advocacy research. Its figures cite state and federal data, but we should recompute county declines from DS-X1 or DS-X2 before presenting them as facts.
 2. Eligibility rules in FACT-11 come from snippets and an explainer site, not the rule text. Confirm with the USDA FNS page before encoding thresholds.
 3. No dataset in sections 1 or 3 gives household-level eligibility. "Above-the-line" must stay a tract-level likelihood.
-4. Some sites blocked automated access. A human should open DS-X7, DS-X9, DS-X11 and DS-X16 in a browser before we depend on them. DS-X12 was retrieved with a headless browser.
+4. Sites that blocked plain fetches were retrieved with a headless browser (DS-X12 and section 6). Values from the FEMA service and the Census Reporter API should still be checked against the publishers' bulk files before we quote them in a submission.
 5. We did not download GUIDE-track data (the higher-education starter package). It is outside the Beacon track.
+
+## 6. Second pass: previously blocked sources (retrieved with a headless browser)
+
+Details, methods and limits: `docs/hackathon/external-data-retrieved.md`. Full page text: `docs/hackathon/blocked-pages-text.md`.
+
+| ID | Source | URL | Result | Repo location |
+|---|---|---|---|---|
+| DS-X3b | CBPP SNAP Tracker (data updated 2026-10-21) | https://www.cbpp.org/research/food-assistance/snap-tracker-people-are-losing-food-assistance-as-the-harmful-2025 ; workbook https://apps.cbpp.org/fa2-24-26/data/downloadable_data.xlsx | In repo. State-level monthly SNAP participation. Florida down 22.1% from July 2025 to July 2026 | `data/external/cbpp-snap-tracker/` |
+| DS-X16b | FEMA National Risk Index, census-tract layer | https://www.fema.gov/about/openfema/data-sets/national-risk-index-data ; overview https://www.fema.gov/flood-maps/products-tools/national-risk-index ; service `services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Census_Tracts/FeatureServer/0` | In repo for the four counties (489 tracts) | `data/external/fema-nri/` |
+| DS-X15b | Tract polygons (2020 tracts, from the FEMA layer above) | Same service | In repo. Fills the tract-boundary gap | `data/external/geography/` |
+| DS-X7b | ACS 2024 5-year B08201, no-vehicle households, via Census Reporter | https://censusreporter.org/tables/B08201/ ; API https://api.censusreporter.org | In repo for 490 tracts. The Census Bureau API now requires a key (not used) | `data/external/census-acs/` |
+| DS-X9b | Feeding America Map the Meal Gap, county pages | https://map.feedingamerica.org/ | In repo for four counties (2024 data year) | `data/external/feeding-america/` |
+| DS-X10b | USDA press release, 2025-09-20, "USDA Terminates Redundant Food Insecurity Survey" | https://www.usda.gov/about-usda/news/press-releases/2025/09/20/usda-terminates-redundant-food-insecurity-survey | Text read in full; confirms termination of future Household Food Security Reports | `docs/hackathon/blocked-pages-text.md` |
+| DS-X11b | Second Harvest, Map the Meal Gap page | https://feedhopenow.org/our-work/hunger-in-central-florida/map-the-meal-gap-report/ | Text read in full; regional figures in FACT-14 to FACT-16 | `docs/hackathon/blocked-pages-text.md` |
+| DS-X9c | Feeding Florida, Map the Meal Gap page | https://www.feedingflorida.org/take-action/learn/map-the-meal-gap/ | Text read; statewide figures only | `docs/hackathon/blocked-pages-text.md` |
+| DS-X23b | CDC PLACES home and current release notes | https://www.cdc.gov/places/ ; https://www.cdc.gov/places/current-release-notes/index.html | Text read. No explanation found for Florida's blank social-needs values (see F-1) | `docs/hackathon/blocked-pages-text.md` |
+| DS-X22b | Florida SBDC homepage and "Find Your SBDC" | https://floridasbdc.org/ ; https://floridasbdc.org/find/ | Text read. UCF SBDC serves Brevard, Flagler, Lake, Orange, Osceola, Seminole, Sumter and Volusia | `docs/hackathon/blocked-pages-text.md` |
+| DS-X3c | FRAC SNAP map by county, and interactive data tools | https://frac.org/research/resource-library/snap-map-snap-matters-every-community ; https://frac.org/research-resources/interactive-data-tools/ | Text read. Interactive dashboard only; no downloadable file found. Meta-analysis PDF: https://frac.org/wp-content/uploads/2026/09/SNAP-Maps-Meta-analysis.pdf | `docs/hackathon/blocked-pages-text.md` |
+
+### Additional facts
+
+| ID | Fact | Source | Basis |
+|---|---|---|---|
+| FACT-14 | Florida SNAP participation (USDA series) fell from 2,849,238 in July 2025 to 2,219,639 in July 2026, down 22.1%. | DS-X3b workbook | Computed by us from the downloaded workbook |
+| FACT-15 | SNAP participation fell in every state except Alaska between July 2025 and July 2026, down 5.5 million people (13 percent) nationally to 36.1 million. Florida is one of seven states with declines of 20 percent or more. | DS-X3b page text | Page read |
+| FACT-16 | Second Harvest's seven-county area has 649,820 food insecure people (1 in 7), including 178,020 children. The annual meal gap is 123.4 million meals. 38.9% of food insecure people may not qualify for SNAP on income alone. | DS-X11b | Page read |
+| FACT-17 | The earlier "45 percent" decline in a CBPP snippet refers to Arizona (July 2025 to September 2026), not Florida. Florida's decline is in FACT-14. | DS-X3b page text | Page read |
+| FACT-18 | Orange County has 225,170 food insecure people (15.3%); 40% are above the SNAP threshold. Osceola 77,700 (18.2%, 30% above). Seminole 63,100 (13.1%, 49% above). Lake 54,010 (13.1%, 43% above). | DS-X9b | County pages read |
+| FACT-19 | USDA announced on 2025-09-20 that it would end future Household Food Security Reports. | DS-X10b | Primary source read |
