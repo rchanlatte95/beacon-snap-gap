@@ -1,0 +1,38 @@
+{
+  "source_page": "https://data.sba.gov/dataset/7a-504-foia",
+  "license": "U.S. Government Works",
+  "publisher": "U.S. Small Business Administration",
+  "retrieved": "2026-11-07",
+  "cache_dir": "data/cache/sba/",
+  "used_by": "data/external/sba-loans/sba_loans_by_tract_central_fl.csv",
+  "files": [
+    {
+      "id": "DS-X5",
+      "name": "SBA 7(a) and 504 FOIA data dictionary",
+      "url": "https://data.sba.gov/sites/default/files/uploaded_resources/7a_504_foia_data_dictionary.xlsx",
+      "bytes": 24529,
+      "sha256": "777ba97a6f92e325f79905610816cb59d41f1971cd964c54dc30ef02730a3941"
+    },
+    {
+      "id": "DS-X5",
+      "name": "SBA FOIA 7(a), FY2020 to present, as of 2026-09-30",
+      "url": "https://data.sba.gov/sites/default/files/uploaded_resources/FOIA_7a_FY2020_Present_asof_260930.csv",
+      "bytes": 188484797,
+      "sha256": "b56194df6da2c22c318fcfc9f8f087152bc54e2be391c4cc70316514c37ef8e6"
+    },
+    {
+      "id": "DS-X5",
+      "name": "SBA FOIA 7(a), FY2010 to FY2019, as of 2026-09-30",
+      "url": "https://data.sba.gov/sites/default/files/uploaded_resources/FOIA_7a_FY2010_FY2019_asof_260930.csv",
+      "bytes": 255300948,
+      "sha256": "39aa32b71fb5dbb4bfb178c9b3d597c92bb6903622027c2f8360d13e57d0abb2"
+    },
+    {
+      "id": "DS-X5",
+      "name": "SBA FOIA 504, FY2010 to present, as of 2026-09-30",
+      "url": "https://data.sba.gov/sites/default/files/uploaded_resources/FOIA_504_FY2010_Present_asof_260930.csv",
+      "bytes": 60306987,
+      "sha256": "1cceda0eae5398576ccd45773d0f8f77d8ea528e69db0783fcee2e7697ca548e"
+    }
+  ]
+}

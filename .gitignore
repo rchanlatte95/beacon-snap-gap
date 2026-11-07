@@ -1,0 +1,76 @@
+CLAUDE.md
+.serena/project.yml
+
+# Raw downloads that are referenced, not committed (see docs/data-references.md)
+data/cache/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+
+# Build output
+dist/
+build/
+out/
+.vite/
+.cache/
+.parcel-cache/
+.tmp/
+*.tsbuildinfo
+
+# Test output
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+.vitest/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment and secrets (keep the example file)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+service-account*.json
+.gcloud/
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# Package manager caches
+.npm/
+.eslintcache
+.stylelintcache
+.pnpm-store/
+
+# Python scratch (data-prep scripts)
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
