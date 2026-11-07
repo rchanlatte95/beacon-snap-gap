@@ -1,4 +1,4 @@
-# REQ-2026-001: Beacon SNAP-cliff planner map (SLICE-1, cycle 1)
+# REQ-2026-001: Beacon SNAP-cliff planner map (SLICE-1, cycle 2)
 
 ## CCABDD Governance
 
@@ -32,18 +32,18 @@ A contract executes only when all of its predicates evaluate to TRUE.
   > "good enough to start so we can SEE what this looks and feels like. we will iterate from there. remember ccabdd-elegance."
   >
   > "for hosting just use my cloud run account. I accept the rest."
-- **Our Understanding**: SLICE-1 is the smallest working version of the Planner view. It shows Central Florida census tracts on a map, flags high-need tracts that lack a nearby pantry, lets the Planner change an assumed SNAP loss, and explains each flag. The goal of this cycle is for the human to see and feel the product, then refine. Later slices add the SBDC/CDFI officer view, saved views, approve/challenge, a policymaker summary and a flyer.
-- **Ambiguity Score**: 5 (minor gaps; three decisions below block contracts). Rationale: the flow and stack are decided, but the definitions of "high need", "nearby" and the slider's meaning are not.
+- **Our Understanding**: SLICE-1 is the smallest working version of the Planner view. It shows Central Florida census tracts on a map, flags high-need tracts that lack a nearby pantry, and explains each flag on a tract card. The SNAP-loss slider is stashed (Z-3) until the human has seen this first deliverable. The goal of this cycle is for the human to see and feel the product, then refine. Later slices add the slider, the SBDC/CDFI officer view, saved views, approve/challenge, a policymaker summary and a flyer.
+- **Ambiguity Score**: 4 (minor gaps; Z-1 and Z-2 block contracts). Rationale: the flow, stack and scope are decided, but the definitions of "high need" and "nearby" are not. Z-3 is deferred by the human; Z-4 blocks deployment only.
 
 ## Known Ambiguities
 
-- Z-1 definition of high need, Z-2 definition of nearby pantry, Z-3 meaning of the slider, Z-4 Cloud Run project and region (section 5).
+- Z-1 definition of high need, Z-2 definition of nearby pantry, Z-4 Cloud Run project and region (section 5). Z-3 (slider) is deferred.
 
 ## 2. The Actor Matrix
 
 | Actor | Permission Level | Prohibited Actions |
 |:------|:-----------------|:-------------------|
-| Planner | Read the map, change the scenario slider, open a tract card | Edit source data; see individual people |
+| Planner | Read the map, open a tract card | Edit source data; see individual people |
 | Viewer | Same as Planner | Same as Planner |
 | App | Read static data files; compute flags in the browser | Call external services at runtime; store user data on a server |
 | Build | Read `data/**`; write static app data | Alter files under `data/hackathon/` or `data/external/` |
@@ -51,7 +51,7 @@ A contract executes only when all of its predicates evaluate to TRUE.
 ## 3. The State Transition
 - **Initial State ($S_0$)**: Repo holds hackathon and external data files; no app exists.
 - **Transformation**: Build produces static tract data; App renders the map and card.
-- **Terminal State ($S_1$)**: A Viewer opens the Cloud Run URL, sees 490 Central Florida tracts, moves the slider, sees the flagged set change, and opens a card for any flagged tract showing evidence, a confidence label and data limitations.
+- **Terminal State ($S_1$)**: A Viewer opens the Cloud Run URL, sees 490 Central Florida tracts colored by flag status, and opens a card for any flagged tract showing evidence, a confidence label and data limitations.
 
 ## 3.5 Integration Specification
 
@@ -69,9 +69,8 @@ Cloud Run DEPENDS ON a container image built from the App.
 |----|--------|-------------|---------------------|-------------------|
 | SEQ-1 | Build | Join each pantry site to a tract and compute people-near-site counts | BEFORE it writes the static tract file | Map shows no pantry coverage |
 | SEQ-2 | Build | Validate every output tract has polygon and rates, or mark it Insufficient | BEFORE it writes the static tract file | A tract silently shows blank values |
-| SEQ-3 | App | Load the static tract file | BEFORE it renders the map or slider | Map draws without data |
-| SEQ-4 | App | Recompute flags from the slider value | AFTER each slider change and BEFORE the next paint | Slider and map disagree |
-| SEQ-5 | App | Read the clicked tract's record and its data-limitation list | BEFORE it opens the card | Card shows a flag without its caveats |
+| SEQ-3 | App | Load the static tract file | BEFORE it renders the map | Map draws without data |
+| SEQ-4 | App | Read the clicked tract's record and its data-limitation list | BEFORE it opens the card | Card shows a flag without its caveats |
 
 ### Integration Points Checklist
 | ID | Source | Target | Handoff Data | Contract Clause |
@@ -80,14 +79,13 @@ Cloud Run DEPENDS ON a container image built from the App.
 | IP-2 | Pantry site list | Build | Site id, lat/lng, tract id | pending |
 | IP-3 | Census block file | Build | Block population and point | pending |
 | IP-4 | Build | App | Static tract file (GeoJSON properties) | pending |
-| IP-5 | App slider | App flagging rule | Scenario value | pending |
-| IP-6 | App flagging rule | Tract card | Flag, evidence, confidence, limitations | pending |
+| IP-5 | App flagging rule | Tract card | Flag, evidence, confidence, limitations | pending |
 
 ### Lifecycle Paths
 | Component | INIT (created/started by) | CLEANUP (stopped/released by) |
 |-----------|--------------------------|-------------------------------|
 | Build | Run by a developer or CI before the image build | Exits when files are written; leaves no state |
-| App | Browser loads page from Cloud Run | Browser tab close; slider state is not stored |
+| App | Browser loads page from Cloud Run | Browser tab close; the App keeps no state |
 | Cloud Run service | Deployed by the human's account | Removed by the human; the app has no teardown |
 
 ## 4. Hard Invariants (The "Never" List)
@@ -95,7 +93,6 @@ Cloud Run DEPENDS ON a container image built from the App.
 | ID | Category | Invariant | Verification | Priority | Rationale |
 |----|----------|-----------|--------------|----------|-----------|
 | INV-01 | Data integrity | REQ-1: The Build shall not alter any file under `data/hackathon/` or `data/external/`. | test | Must | Source data is the evidence base; edits would break citations |
-| INV-02 | Honesty | REQ-2: The App shall not present a scenario result without the label "assumption-based estimate". | test | Must | No per-tract SNAP loss data exists; the slider is an assumption |
 | INV-03 | Honesty | REQ-3: The App shall not state or imply that a tract with no pantry site has no food access. | test | Must | Sites are counted only inside tract boundaries and the list is partial |
 | INV-04 | Privacy | REQ-4: The App shall not show or store data about individual people. | test | Must | Data is tract and block aggregates only |
 | INV-05 | Honesty | REQ-5: The App shall not omit a missing or blank indicator from the tract card. | test | Must | Florida CDC values are blank; hiding that misleads |
@@ -109,14 +106,19 @@ Cloud Run DEPENDS ON a container image built from the App.
 | Scope | Which views first? | Planner only in SLICE-1 | User (CL4) |
 | **Z-1** | What makes a tract "high need"? | **Unresolved** | pending |
 | **Z-2** | What counts as a "nearby pantry"? | **Unresolved** | pending |
-| **Z-3** | What does the slider change? | **Unresolved** | pending |
+| **Z-3** | What does the slider change? | **Deferred**: stashed until the first deliverable is seen | User (CL4) |
 | **Z-4** | Which Cloud Run project and region? | **Unresolved** | pending |
 
 ### Options and recommendations (inputs, not decisions)
 - **Z-1 high need.** A) SNAP households 20% or more OR poverty 20% or more (gives 141 tracts; simple). B) The brief's quartile rule: top-quartile poverty plus a LILA flag. C) A weighted score. Recommend A for cycle 1, because it is easy to explain and to see. B can be a second mode.
 - **Z-2 nearby.** A) A Second Harvest site inside the tract (76 of the 141 have none). B) At least one site within 1 mile of the tract's center. C) The share of the tract's block population within 1 mile of a site. Recommend C, because it is what Ryan's block data was added for, with A shown beside it.
-- **Z-3 slider.** A) Extra SNAP loss as a percent of current SNAP households, which raises each tract's unmet need proportionally. B) Same, scaled by tract-level risk (poverty). C) A county total spread by SNAP share. Recommend A, because it is plain arithmetic and labeled as an assumption.
+- **Z-3 slider (deferred).** Options kept for the later slice: A) Extra SNAP loss as a percent of current SNAP households. B) Same, scaled by tract poverty. C) A county total spread by SNAP share. The human found the slider confusing and asked to see the first deliverable before deciding; a visual mock accompanies the question when it returns.
 - **Z-4 deployment.** The active gcloud configuration points at project `ai-panel-ephemeral-org`, which looks unrelated. Options: that project; another project of yours; a new one. Region also needed. No recommendation until you name the project.
+
+### Deferred items (stashed with Z-3; written as obligations when the slider slice starts)
+- REQ-2 (deferred): every scenario result carries the label "assumption-based estimate", because no per-tract SNAP loss data exists.
+- REQ-11 (deferred): an out-of-range slider value is clamped to the range and the clamped value is shown.
+- SEQ-S (deferred): flags are recomputed after each slider change and before the next paint, so the slider and map agree.
 
 ## 5.5 Rejected Alternatives
 | Decision | Alternative Considered | Why Rejected |
@@ -130,7 +132,7 @@ Cloud Run DEPENDS ON a container image built from the App.
 |-----------|---------|----------------|----------|---------------|
 | build-tract-data | Produce the static tract file | YES (writes app data only) | Build | A developer or CI runs it |
 | loadTractData | Load the static file | NO | App | Page load |
-| computeFlags(scenario) | Flag high-need tracts without nearby pantries | NO | App | Slider change |
+| computeFlags() | Flag high-need tracts without nearby pantries | NO | App | Page load |
 | buildTractCard(tractId) | Evidence, confidence, limitations | NO | App | Tract click |
 
 ## 6.5 Blocking Dependencies
@@ -138,7 +140,7 @@ Cloud Run DEPENDS ON a container image built from the App.
 |-----------------|--------|
 | Z-1 | Contract for the flagging rule, tests, implementation |
 | Z-2 | Contract for pantry coverage, Build, tests |
-| Z-3 | Contract for the slider, tests |
+| Z-3 | Deferred; blocks only the later slider slice |
 | Z-4 | Deployment only (not contracts) |
 
 ## 7. Failure Mode Specification (CL9)
@@ -149,15 +151,14 @@ Cloud Run DEPENDS ON a container image built from the App.
 | REQ-8 | A tract has a missing indicator | Show the tract as Insufficient data, not as low need | Card names the missing indicator |
 | REQ-9 | Build input file is missing or has changed columns | Halt: the Build exits non-zero | The Build shall name the file and column |
 | REQ-10 | Map tiles fail to load | FALLBACK: draw tracts on a blank background | The App shall display "Base map unavailable" |
-| REQ-11 | Slider value is outside its range | Clamp to the range | The slider shows the clamped value |
 
 ## 8. Completion Promise (Ralph Loop Exit)
-> "A Viewer opens the deployed URL, sees 490 tracts, moves the slider and sees the flagged set change by an amount a test can recompute from the source data, and opens a card whose evidence matches the source tables for that tract and names every missing indicator. A test that passes while the card omits a missing indicator, or while the slider changes only the label, must fail."
+> "A Viewer opens the deployed URL, sees 490 tracts colored by flag status, and the flagged set equals a set a test recomputes from the source data. The Viewer opens a card whose evidence matches the source tables for that tract and names every missing indicator. A test that passes while the card omits a missing indicator, or while the flagged set differs from the recomputed set, must fail."
 
 Human acceptance remains with the human: whether the map and card are useful to a food bank planner.
 
 ## 9. Contract Authority
-**Authoritative Source**: `contracts/planner_map_contract.py` (to be authored after zones Z-1 to Z-3 are resolved)
+**Authoritative Source**: `contracts/planner_map_contract.py` (to be authored after zones Z-1 and Z-2 are resolved)
 
 requirements/REQUIREMENT_MANIFEST.md (this file)
         ↓
@@ -173,3 +174,4 @@ src/
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-11-07 | Ketema, agent | Cycle 1 draft from req-elicit. Zones Z-1 to Z-4 open. |
+| 2026-11-07 | Ketema, agent | Cycle 2: the human stashed the slider (Z-3 deferred) after finding it confusing. Removed from SLICE-1 scope: slider, scenario label (REQ-2), range clamp (REQ-11), the slider sequencing spec and integration point. SEQ and IP numbers renumbered. Ambiguity score 5 to 4. |
