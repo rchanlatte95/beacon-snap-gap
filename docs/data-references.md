@@ -1,6 +1,17 @@
 # Handling large data files: LFS and references
 
-Status: proposal for human review (Ketema, Ryan). Git LFS patterns are enabled in this repo (commit `3f11cee`); everything else below is a recommendation.
+Status: **decided 2026-11-07 (Ketema): tiers 1 and 2 only.** Tier 3 (LFS) and tier 4 (external snapshot) are deferred until a real file needs them. Ryan's agent proposed this smaller scheme as the efficient one; Ketema had approved the four-tier scheme on condition that it was efficient. Git LFS patterns remain enabled in this repo (commit `3f11cee`) as a safe failure; no file is tracked through LFS.
+
+## Decision record
+| Item | Decision |
+|---|---|
+| Tier 1 (derived extract, under about 10 MB) | Keep. Any new file of 50 MB or more goes to tier 2, not tier 1 (GitHub warns above 50 MB and blocks above 100 MB) |
+| Tier 2 (reference pointer) | Keep the pointer record: URL, bytes, SHA-256, as-of date, license. The fetch script is optional: write one only when a second person needs the raw files |
+| Tier 3 (LFS) | Deferred. No file needs it; Ryan has no Git LFS; Ketema's pushes need a manual step |
+| Tier 4 (external snapshot) | Deferred to the submission decision |
+| `.gitattributes` LFS patterns | Stay. They match no file today |
+
+The sections below are the original proposal. Where they disagree with this table, this table governs.
 
 ## What is enabled now
 - `.gitattributes` routes `data/large/**`, `*.parquet`, `*.gpkg` and `*.pbf` through Git LFS.
