@@ -24,7 +24,12 @@ npm run dev
 
 `make-standin.mjs` reads `data/**` and writes `data/*.json` in this folder. It does not write to `data/hackathon/` or `data/external/`. The output has tract-level fields only (REQ-4, REQ-17).
 
-The class counts are real. The script stops unless they are 97 / 391 / 2. The poverty cut is 17.075% (`statistics.quantiles(n=4)`, exclusive method, 488 tracts). SNAP and poverty rates come from the hackathon S2201 and S1701 zips, and the script checks them against `central_fl_tract_pantry_coverage.csv`.
+The class counts are real, and the script uses the class rule from `contracts/planner_map_contract.py`. It stops unless the counts are 97 / 391 / 2.
+
+- The poverty cut is 17.025%: `statistics.quantiles(n=4, method='inclusive')` over 488 tracts, not rounded (POST-CLS-3).
+- A tract is Insufficient data only when its poverty rate or its driving-distance LILA flag is blank (POST-CLS-2). A blank SNAP share goes in the card's list of missing indicators, but it does not change the class.
+
+SNAP and poverty rates come from the hackathon S2201 and S1701 zips. The script checks them against `central_fl_tract_pantry_coverage.csv`.
 
 These parts are stand-ins, and the page labels them:
 
@@ -32,11 +37,11 @@ These parts are stand-ins, and the page labels them:
 |---|---|---|
 | Reach | 10 miles straight-line from each populated 2020 block to a site | 30-minute drive (Z-2, Z-2b, Z-2d). This needs routing data that is not in the repo |
 | Load | Tract 2020 population ÷ sites within the stand-in reach | Residents per site within reach (Z-2e) |
-| Confidence label | Lower if under 500 households or over 20% group quarters, else Moderate | Not decided |
+| Confidence label | Lower if under 500 households or over 20% group quarters, else Moderate | Not decided. A human must confirm a rule before it goes in a contract |
 
 ## Questions this mock-up can help answer
 
-- **Z-2e (load or reach).** With the stand-in reach, all 97 high-need tracts are 100% in reach, but load goes from 19 to 1,050 residents per site. The manifest's drive-time test also put all 97 tracts in reach at 15 minutes. If that holds, reach does not separate the tracts, and load does.
+- **Z-2e (decided: option A, load; Ketema and Ryan, cycle 11).** The mock-up shows reach too, only to compare. With the stand-in reach, all 97 high-need tracts are 100% in reach, but load goes from 19 to 1,050 residents per site. The manifest's drive-time test also put all 97 tracts in reach at 15 minutes. This supports the decision for load.
 - **Z-3 (slider).** The sidebar has a disabled slider placeholder that shows where the slider could go.
 - **Confidence label.** A rule is needed. The placeholder shows one possible form.
 

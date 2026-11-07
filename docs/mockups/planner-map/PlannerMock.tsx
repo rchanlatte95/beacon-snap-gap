@@ -408,7 +408,8 @@ function TractCard({ t, r, onClose }: { t: Tract; r: Records; onClose: () => voi
   const lilaMet = t.lilaDD === 1
   const conf = confidence(t)
   const noSite = t.sitesInTract === 0 || t.standinReachPct === 0
-  const core = t.missing.filter((m) => /S1701|S2201|SRAM/.test(m))
+  // The two class inputs (POST-CLS-2). Other blanks are listed under Missing indicators.
+  const core = t.missing.filter((m) => /S1701|SRAM/.test(m))
   return (
     <aside className="card" aria-label={`Tract card for ${t.name}`}>
       <div className="card-head">

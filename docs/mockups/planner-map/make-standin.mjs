@@ -160,20 +160,20 @@ for (const b of blocks) {
   popSum.set(g, t)
 }
 
-// ---- Z-1 cut: Python statistics.quantiles(n=4), default exclusive method ----
+// ---- Z-1 cut (POST-CLS-3): Python statistics.quantiles(n=4, method='inclusive'), Q3 ----
 const allGeoids = [...coverage.keys()].sort()
 const povertyOf = (g) => num(s1701.get(g)?.S1701_C03_001E)
 const povVals = allGeoids
   .map(povertyOf)
   .filter((v) => v !== null)
   .sort((a, b) => a - b)
-function quantileExclusive(data, i, n) {
-  const m = data.length + 1
+function quantileInclusive(data, i, n) {
+  const m = data.length - 1
   const j = Math.floor((i * m) / n)
   const delta = i * m - j * n
-  return (data[j - 1] * (n - delta) + data[j] * delta) / n
+  return (data[j] * (n - delta) + data[j + 1] * delta) / n
 }
-const p75 = quantileExclusive(povVals, 3, 4)
+const p75 = quantileInclusive(povVals, 3, 4)
 
 // ---- per-tract records ----
 const shapeById = new Map(shapes.features.map((f) => [f.properties.TRACTFIPS, f]))
@@ -191,7 +191,9 @@ const records = allGeoids.map((g) => {
   const lilaDD = num(sramDD.get(g)?.DD_SRAM_LILATracts_halfAnd10)
   const sitesInTract = sitePts.filter((s) => s.tract === g).length
   const highNeed = pctPoverty !== null && lilaDD !== null && pctPoverty >= p75 && lilaDD === 1
-  const insufficient = pctPoverty === null || pctSnap === null || lilaDD === null
+  // POST-CLS-2: only the two class inputs decide Insufficient data. A blank SNAP share
+  // is a missing-indicator bullet on the card (REQ-5), not a class input.
+  const insufficient = pctPoverty === null || lilaDD === null
   const indicators = {
     'Poverty rate (ACS S1701)': pctPoverty,
     'SNAP households (ACS S2201)': pctSnap,
@@ -309,7 +311,7 @@ write('sites.standin.geojson', { type: 'FeatureCollection', features: sitesOut }
 write('records.standin.json', {
   note: 'Stand-in data for the planner-map mock-up. Not the Build output.',
   generated: new Date().toISOString().slice(0, 10),
-  povertyCut: { value: round(p75, 3), method: 'Python statistics.quantiles(n=4), exclusive', tracts: povVals.length },
+  povertyCut: { value: round(p75, 3), method: 'Python statistics.quantiles(n=4), inclusive', tracts: povVals.length },
   standinReachMiles: REACH_MILES,
   counts,
   countyLabels,
