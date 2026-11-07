@@ -187,11 +187,7 @@ input {
   background: var(--nogap);
 }
 .swatch.insufficient {
-  background: repeating-linear-gradient(
-    45deg,
-    #fff 0 3px,
-    var(--gray-500) 3px 4.5px
-  );
+  background: repeating-linear-gradient(45deg, #fff 0 3px, var(--gray-500) 3px 4.5px);
 }
 .count {
   font-variant-numeric: tabular-nums;
@@ -371,29 +367,45 @@ input {
   padding: 4px 10px;
   font-size: 13px;
   color: var(--gray-700);
+  cursor: help;
 }
+/* County names sit in DOM markers, above every map layer. A full white halo keeps them
+   readable on the orange fill, on lines and on coverage circles. */
 .county-label {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--primary-700);
+  color: var(--primary-900);
   text-shadow:
-    0 0 3px #fff,
-    0 0 3px #fff,
-    0 0 3px #fff;
+    -1px -1px 0 #fff,
+    1px -1px 0 #fff,
+    -1px 1px 0 #fff,
+    1px 1px 0 #fff,
+    0 0 4px #fff,
+    0 0 6px #fff;
   pointer-events: none;
 }
 .hover-tip {
   position: absolute;
   pointer-events: none;
+  display: flex;
+  flex-direction: column;
   background: var(--primary-900);
   color: #fff;
   font-size: 13px;
-  padding: 4px 8px;
+  line-height: 1.35;
+  padding: 5px 9px;
   border-radius: 4px;
   transform: translate(12px, 12px);
   white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(30, 52, 63, 0.25);
+}
+.hover-tip.flip {
+  transform: translate(calc(-100% - 12px), 12px);
+}
+.hover-tip span {
+  opacity: 0.85;
 }
 .load-error {
   margin: 40px auto;
