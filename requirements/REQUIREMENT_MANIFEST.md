@@ -1,4 +1,4 @@
-# REQ-2026-001: Beacon SNAP-cliff planner map (SLICE-1, cycle 7)
+# REQ-2026-001: Beacon SNAP-cliff planner map (SLICE-1, cycle 8)
 
 ## CCABDD Governance
 
@@ -104,8 +104,8 @@ The external ACS B08201 no-vehicle table (DS-X7b) is not a Build input in SLICE-
 | INV-04 | Privacy | REQ-4: The App shall not show or store data about individual people. The static tract file shall contain only tract-level fields. Block values shall appear only as tract sums, and the App data shall contain no block-level record. | test | Must | Data is tract and block aggregates only. Block population has differential-privacy noise, so a single block value is not valid |
 | INV-05 | Honesty | REQ-5: The App shall not omit a missing or blank indicator from the tract card. | test | Must | Florida CDC values are blank; hiding that misleads |
 | INV-06 | Scope | REQ-6: The App shall not call an external service at runtime, except map tile servers. | test | Should | Keeps the prototype static and cheap to host |
-| INV-07 | Attribution | REQ-12: The App shall show, on every view, a credit to DataKind and Beacon with a link to www.datakind.org and the statement that Beacon content is CC BY 4.0. | test | Must | CC BY 4.0 requires attribution; repo rule in CLAUDE.md |
-| INV-08 | Brand | REQ-13: The App shall follow `docs/hackathon/resources/beacon-design-brand-guidelines.pdf`. | human review | Must | Repo rule in CLAUDE.md. Compliance needs a person to judge it |
+| INV-07 | Attribution | REQ-12: The App shall show, on every view, a credit to DataKind and Beacon with a link to www.datakind.org and the statement that Beacon content is CC BY 4.0. | test | Must | Beacon's license page requires CC BY 4.0 attribution to DataKind with a link to www.datakind.org (`docs/hackathon/linked-pages.md`, "Beacon license") |
+| INV-08 | Brand | REQ-13: The App shall follow `docs/hackathon/resources/beacon-design-brand-guidelines.pdf`. | human review | Must | Decided by Ketema, 2026-11-07 ("we follow the branding"): the team follows the Beacon brand guidelines that DataKind provided. Compliance needs a person to judge it |
 
 INV-02 (REQ-2, the "assumption-based estimate" label) is deferred with the slider. See "Deferred items" in section 5.
 
@@ -238,3 +238,4 @@ src/
 | 2026-11-07 | Ketema, agent | Cycle 5: Z-4 project recorded as `<gcp-project>` (chosen by the human). Z-4b region remains open and blocks deployment only. |
 | 2026-11-07 | Ketema, agent | Cycle 6: Z-4b recorded (`us-east1`, Ketema). Z-1b recorded as decided by Ketema and Ryan. The human decided no permission request is needed for Second Harvest and Feeding America data, which were already public. Ambiguity score 2 to 1. |
 | 2026-11-07 | Ryan Chanlatte, agent | Cycle 7: merged the cycle 1 review branch with cycles 2 to 6, which had branched from the cycle 1 draft. Kept every human decision from cycles 2 to 6. Restored from the review: 489 drawn tracts and the "not drawn" note, the tract GeoJSON as polygon source, testable INV-03 and INV-04, INV-07, INV-08, Z-5, the trace gap, the Rejected Alternatives row order and the deferred map alternatives. Recorded the cycle 6 redistribution decision in 6.5 in place of the review's permission dependency. Dropped the stale "Recommend A" text. Removed the no-vehicle table from Build inputs, because Z-1 B does not use it. Added the note on the Z-1 poverty cut (17.075% and 17.025% give the same 97 tracts). Added open zones Z-2b (distance type for the 1 mile test) and Z-6 (base map tiles). Ambiguity score 1 to 2. |
+| 2026-11-07 | Ketema, agent | Cycle 8: replaced the CLAUDE.md citations in INV-07 and INV-08 with sources a reader can check. INV-07 cites Beacon's license page. INV-08 records the human's decision (Ketema, "we follow the branding"): Must stays. CLAUDE.md is a local file of Ryan's agent and stays git-ignored (decided by Ketema). |
