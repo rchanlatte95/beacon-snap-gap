@@ -1,0 +1,63 @@
+# Repo taxonomy for beacon-snap-cliff (React + Vite + TypeScript web app, static data).
+# A repo taxonomy shadows ~/.ccabdd/taxonomy.toml entirely, so every class this repo needs is listed here.
+# First match wins, in this order: TEST_CODE, SPEC_ARTIFACT, OPERATIONAL, PRODUCTION_CODE, EPHEMERAL.
+# Ponytail: only paths that exist or are planned. Add more when a real file needs them.
+
+extends = ["vitest"]
+
+[taxonomy]
+
+TEST_CODE = [
+    "tests/**",
+    "e2e/**",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+]
+
+# data/** holds committed reference inputs (hackathon datasets, retrieved external data).
+# They define what the app must handle, so they are specification inputs, not code.
+SPEC_ARTIFACT = [
+    "requirements/**",
+    "contracts/**",
+    "plans/**",
+    "docs/**",
+    "data/**",
+    "**/*.plan.yml",
+    "**/REQUIREMENT_MANIFEST*.md",
+    "**/README.md",
+    "LICENSE",
+]
+
+OPERATIONAL = [
+    ".ccabdd/**",
+    ".github/**",
+    "scripts/**",
+    "**/.gitignore",
+    "**/.gitattributes",
+    "**/*.toml",
+    "**/package.json",
+    "**/package-lock.json",
+    "**/tsconfig*.json",
+    "**/vite.config.*",
+    "**/playwright.config.*",
+]
+
+PRODUCTION_CODE = [
+    "src/**",
+    "public/**",
+    "index.html",
+]
+
+EPHEMERAL = [
+    "node_modules/**",
+    "**/node_modules/**",
+    "dist/**",
+    "coverage/**",
+    "tmp/**",
+    "scratch/**",
+    "**/*.log",
+    "**/.DS_Store",
+]

@@ -1,0 +1,9 @@
+county,demographic,year,food_insecure_population,food_insecurity_rate,pct_above_snap_threshold,pct_below_snap_threshold,avg_meal_cost,annual_food_budget_shortfall,source_url
+orange,overall,2024,225170,15.3%,40,60,$4.04,172709000,https://map.feedingamerica.org/county/2024/overall/florida/county/orange
+osceola,overall,2024,77700,18.2%,30,70,$3.80,56094000,https://map.feedingamerica.org/county/2024/overall/florida/county/osceola
+seminole,overall,2024,63100,13.1%,49,52,$4.16,49853000,https://map.feedingamerica.org/county/2024/overall/florida/county/seminole
+lake,overall,2024,54010,13.1%,43,57,$3.89,39933000,https://map.feedingamerica.org/county/2024/overall/florida/county/lake
+orange,child,2024,,20.4%,,,$4.04,172709000,https://map.feedingamerica.org/county/2024/child/florida/county/orange
+osceola,child,2024,,21.4%,,,$3.80,56094000,https://map.feedingamerica.org/county/2024/child/florida/county/osceola
+seminole,child,2024,,17.0%,,,$4.16,49853000,https://map.feedingamerica.org/county/2024/child/florida/county/seminole
+lake,child,2024,,17.9%,,,$3.89,39933000,https://map.feedingamerica.org/county/2024/child/florida/county/lake
