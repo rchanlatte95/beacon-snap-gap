@@ -13,6 +13,9 @@ Batches:
   only / unaltered retained sources (REQ-28).
 - Batch 4: glossary table from loaded data dictionaries and lookup files (REQ-30), provenance
   table write sequencing (SEQ-5, REQ-29), and canonical GCS bucket storage in <gcp-project> (REQ-31).
+- Batch 5: the data adapter's single configured warehouse location and table locations
+  relative to it (REQ-47, REQ-48).
+
 The implementation MUST NOT import this module (CL11-F). Tests import both and compare.
 """
 
@@ -20,6 +23,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
+from pathlib import PurePosixPath
 from typing import Literal
 
 # --- 1. Importable constants (specification values) --------------------------------------
@@ -75,6 +79,13 @@ PROVENANCE_TABLES: tuple[str, ...] = ("files", "catalog", "sources")
 WAREHOUSE_GCP_PROJECT = "<gcp-project>"
 WAREHOUSE_GCS_BUCKET = "<warehouse-bucket>"
 WAREHOUSE_GCS_URI = f"gs://{WAREHOUSE_GCS_BUCKET}"
+
+# Batch 5: data adapter (REQ-47, REQ-48).
+WAREHOUSE_LOCATION_ENV = "WAREHOUSE_LOCATION"  # the one configured warehouse location
+WAREHOUSE_DB_FILE = "warehouse.duckdb"
+PARQUET_DIR = "parquet"
+TABLE_NAME_PATTERN = re.compile(r"^[a-z_][a-z0-9_]*$")
+
 # --- 2. Domain exceptions (every message names its clause) --------------------------------
 
 
@@ -112,6 +123,10 @@ class InvalidGlossarySourceError(WarehouseContractError):
 
 class GlossaryViolationError(WarehouseContractError):
     """POST-GLOSS-1..2, INV-GLOSS-1, FORBIDDEN-GLOSS-1 or SEQ-5: glossary or write order wrong."""
+
+
+class WarehouseLocationError(WarehouseContractError):
+    """ERRORS-ADAPT-1..3 or FORBIDDEN-ADAPT-1: a warehouse or table location is invalid."""
 
 
 # --- 3. Immutable typed records ------------------------------------------------------------
@@ -194,6 +209,13 @@ class DictionaryTableSpec:
     term_column: str
     definition_column: str
     rows: tuple[Mapping[str, str], ...]
+
+
+@dataclass(frozen=True)
+class WarehouseLocation:
+    """Batch 5 validated warehouse location: an absolute, normalized POSIX directory path."""
+
+    root: str
 
 
 # --- 4. Callable validators ----------------------------------------------------------------
@@ -547,6 +569,46 @@ def validate_ingest_write_sequence(events: Sequence[str]) -> None:
         )
 
 
+def validate_warehouse_location(env: Mapping[str, str]) -> WarehouseLocation:
+    """POST-ADAPT-1 / ERRORS-ADAPT-1 oracle: the location comes only from WAREHOUSE_LOCATION."""
+    raw = env.get(WAREHOUSE_LOCATION_ENV)
+    if raw is None or not raw.strip():
+        raise WarehouseLocationError(
+            f"ERRORS-ADAPT-1 violation: {WAREHOUSE_LOCATION_ENV} is unset or empty"
+        )
+    path = PurePosixPath(raw.strip())
+    if not path.is_absolute():
+        raise WarehouseLocationError(
+            f"ERRORS-ADAPT-1 violation: {WAREHOUSE_LOCATION_ENV} {raw!r} is not an absolute path"
+        )
+    if ".." in path.parts:
+        raise WarehouseLocationError(
+            f"ERRORS-ADAPT-1 violation: {WAREHOUSE_LOCATION_ENV} {raw!r} contains '..'"
+        )
+    return WarehouseLocation(root=str(path))
+
+
+def expected_table_location(table_name: str) -> str:
+    """POST-ADAPT-2 / ERRORS-ADAPT-3 oracle: the relative location of one table's Parquet file."""
+    if not TABLE_NAME_PATTERN.match(table_name):
+        raise WarehouseLocationError(
+            f"ERRORS-ADAPT-3 violation: table name {table_name!r} does not match "
+            f"{TABLE_NAME_PATTERN.pattern}"
+        )
+    return f"{PARQUET_DIR}/{table_name}.parquet"
+
+
+def expected_table_path(location: WarehouseLocation, table_name: str, relative: str) -> str:
+    """POST-ADAPT-3 / FORBIDDEN-ADAPT-1 oracle: join a relative table location to the location."""
+    rel = PurePosixPath(relative)
+    if not relative or rel.is_absolute() or ".." in rel.parts or "\\" in relative:
+        raise WarehouseLocationError(
+            f"FORBIDDEN-ADAPT-1 violation: table {table_name!r} has location {relative!r}, which "
+            f"is not relative to the warehouse location {location.root!r}"
+        )
+    return str(PurePosixPath(location.root) / rel)
+
+
 # --- 5. Traceability map (every clause declares its verification method) -----------------------
 
 CONTRACT_SCOPE: Mapping[str, Clause] = {
@@ -735,5 +797,53 @@ CONTRACT_GLOSSARY: Mapping[str, Clause] = {
         "Cloud Storage bucket WAREHOUSE_GCS_BUCKET (WAREHOUSE_GCS_URI) in project "
         "WAREHOUSE_GCP_PROJECT.",
         ("REQ-31",),
+    ),
+}
+
+
+CONTRACT_ADAPTER: Mapping[str, Clause] = {
+    "POST-ADAPT-1": Clause(
+        "test",
+        "warehouse_location(env) returns the warehouse location taken only from the "
+        "WAREHOUSE_LOCATION variable, as an absolute normalized POSIX path; no other variable "
+        "and no default supplies it.",
+        ("REQ-47",),
+    ),
+    "ERRORS-ADAPT-1": Clause(
+        "test",
+        "warehouse_location raises WarehouseLocationError naming WAREHOUSE_LOCATION when it is "
+        "unset, empty or whitespace, not an absolute path, or contains '..'.",
+        ("REQ-47",),
+    ),
+    "ERRORS-ADAPT-2": Clause(
+        "test",
+        "require_warehouse(location) raises WarehouseLocationError naming the location and the "
+        "missing item when the location directory or its warehouse.duckdb file does not exist, "
+        "and returns the location unchanged when both exist.",
+        ("REQ-47",),
+    ),
+    "POST-ADAPT-2": Clause(
+        "test",
+        "table_location(table_name) returns 'parquet/<table_name>.parquet', a location relative "
+        "to the warehouse location.",
+        ("REQ-48",),
+    ),
+    "ERRORS-ADAPT-3": Clause(
+        "test",
+        "table_location raises WarehouseLocationError when table_name does not match "
+        "TABLE_NAME_PATTERN.",
+        ("REQ-48",),
+    ),
+    "POST-ADAPT-3": Clause(
+        "test",
+        "table_path(location, table_name, relative) returns the warehouse location joined with the "
+        "relative table location, so the same catalog resolves under any warehouse location.",
+        ("REQ-47", "REQ-48"),
+    ),
+    "FORBIDDEN-ADAPT-1": Clause(
+        "test",
+        "table_path never resolves an empty, absolute, backslashed or '..' table location; it "
+        "raises WarehouseLocationError naming the table and the warehouse location.",
+        ("REQ-48",),
     ),
 }

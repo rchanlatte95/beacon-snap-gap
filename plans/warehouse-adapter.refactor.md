@@ -89,3 +89,33 @@ pyproject has duckdb dep: False
 
 - **Z-18** (B03): decided by Ketema, 2026-11-08: "if a rule say once but was executed in error it is invalid. rebuild if needed." The Operator rebuilds the warehouse with Ingest code committed in this repository (REQ-51).
 - **Z-19** (B01, B04, B05, B08): decided by Ketema, 2026-11-08, option A (read-only Cloud Run bucket mount, one configured warehouse location, data adapter, DuckDB). Manifest cycle 14: REQ-47 to REQ-52.
+
+## Phase 2 bridge findings (disposable prototype `/tmp/bridge/adapter_bridge.py`, DuckDB 2.0.0, executed 2026-11-08)
+
+```
+Q5 query after relocation -> [('L1',), ('L2',)] truncated
+Q7 row limit -> [('L1',), ('L2',)] truncated
+Q3 read outside location -> ERROR PermissionException Permission Error: Cannot access file "/etc/hosts" - file system operations are disabled by configuration
+Q4 copy out -> REJECTED by parser ['StatementType.COPY']
+Q4 temp table -> REJECTED by parser ['StatementType.CREATE']
+Q4 multi -> REJECTED by parser ['StatementType.SELECT', 'StatementType.SELECT']
+Q4 with-select -> [(3,)] complete
+Q3 unlock -> ERROR InvalidInputException
+Q2 write to file -> ERROR InvalidInputException
+Q6 -> InterruptException INTERRUPT Error: Interrupted!   (timer + con.interrupt(), 0.65 s; connection usable after)
+Q8 absolute catalog path -> REJECTED
+```
+
+What the contracts take from this:
+
+- Writer (Ingest): one Parquet file per table at `parquet/<table_name>.parquet`; the `catalog` table holds that relative name; `warehouse.duckdb` holds base tables only and no views, because a view would embed a location.
+- Location (data adapter): one configured value, `WAREHOUSE_LOCATION`; every table path is the location joined with a catalog relative name; an absolute or `..` name is rejected.
+- Reader (QueryService engine, SLICE-4): open `warehouse.duckdb` read-only; create TEMP views from the catalog; then `allowed_directories` = the location, `enable_external_access = false`, `lock_configuration = true`; accept a statement only when DuckDB's parser returns exactly one `SELECT`; fetch `row_limit + 1` rows to detect truncation; a timer calls `interrupt()` at the time limit.
+- Split: the data adapter (location and relative names) is SLICE-3 (REQ-47, REQ-48, contract `CONTRACT_ADAPTER` in `contracts/warehouse_contract.py`); the DuckDB engine that reads through it is SLICE-4 (REQ-46, REQ-49, REQ-50, SEQ-6, `contracts/query_service_contract.py`).
+
+## Batch order
+
+1. SLICE-3 batch 5: data adapter location and relative table locations (B01, B02 core; REQ-47, REQ-48).
+2. SLICE-3 batch 6: Ingest writer in the repository, through the adapter (B03; REQ-48, REQ-51).
+3. SLICE-3 batch 7: rebuild, re-upload and mount-simulation check (B07; REQ-51 execution).
+4. SLICE-4 batch 1 redo: DuckDB engine over the adapter replacing the regex validator and the dictionary tests (B04 to B06; REQ-46, REQ-49, REQ-50, SEQ-6).

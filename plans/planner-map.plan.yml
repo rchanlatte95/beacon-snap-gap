@@ -142,7 +142,14 @@
         "FORBIDDEN-GLOSS-1",
         "SEQ-5",
         "ERRORS-GLOSS-1",
-        "INV-STORAGE-1"
+        "INV-STORAGE-1",
+        "POST-ADAPT-1",
+        "ERRORS-ADAPT-1",
+        "ERRORS-ADAPT-2",
+        "POST-ADAPT-2",
+        "ERRORS-ADAPT-3",
+        "POST-ADAPT-3",
+        "FORBIDDEN-ADAPT-1"
       ],
       "clauses_deferred": [],
       "negative_constraints": [
