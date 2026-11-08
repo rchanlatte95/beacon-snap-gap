@@ -7,7 +7,9 @@ contract (SLICE-4).
 
 Batches:
 - Batch 1: which files the warehouse loads and which it excludes, with the reason (REQ-25, REQ-26).
-- Later batches: state filter (REQ-27), local disk only and unaltered sources (REQ-28), provenance
+- Batch 2: the state filter for Florida, New York and Utah (REQ-27) and the source and loaded row
+  counts it records (REQ-29).
+- Later batches: local disk only and unaltered sources (REQ-28), remaining provenance fields
   (REQ-29), glossary (REQ-30), publish to the bucket (REQ-31).
 
 The implementation MUST NOT import this module (CL11-F). Tests import both and compare.
@@ -35,6 +37,24 @@ EXCLUDE_DUPLICATE_FORMAT = "duplicate_format"
 EXCLUSION_REASONS = (EXCLUDE_TIME_SCOPE, EXCLUDE_DUPLICATE_CONTENT, EXCLUDE_DUPLICATE_FORMAT)
 
 # Same release in several formats: the lowest rank is loaded, the others are duplicate_format.
+
+# Batch 2: state filter (REQ-27, REQ-29).
+# Priority order of state columns across the retained sources; the first present column governs.
+STATE_COLUMNS: tuple[str, ...] = (
+    "BorrState",
+    "BUSINESS_STATE",
+    "StateAbbr",
+    "STATEABBRV",
+    "EST_ST",
+    "State",
+)
+TARGET_STATE_VALUES: frozenset[str] = frozenset(
+    {"FL", "Florida", "12", "NY", "New York", "36", "UT", "Utah", "49"}
+)
+GEO_ID_COLUMN = "GEO_ID"
+# ACS GEO_ID: national row (0100000US...) or state/county/tract in FL (12), NY (36), UT (49).
+GEO_ID_TARGET_PATTERN = re.compile(r"^(0100000US.*|.*US(12|36|49).*)")
+FILTER_NONE = "none (no state field)"
 FORMAT_RANK: Mapping[str, int] = {"csv": 0, "xlsx": 1, "sas": 2}
 
 
@@ -51,6 +71,14 @@ class InvalidSourceFileError(WarehouseContractError):
 
 class ScopeViolationError(WarehouseContractError):
     """POST-SCOPE-1..6, INV-SCOPE-1, INV-SCOPE-2 or FORBIDDEN-SCOPE-1: decisions disagree."""
+
+
+class InvalidTableError(WarehouseContractError):
+    """ERRORS-STATE-1: a table description is outside the contracted domain."""
+
+
+class StateFilterViolationError(WarehouseContractError):
+    """POST-STATE-1..4 or INV-STATE-1: the filtered rows or recorded counts disagree."""
 
 
 # --- 3. Immutable typed records ------------------------------------------------------------
@@ -85,6 +113,16 @@ class ScopeDecision:
     path: str
     decision: str
     reason: str | None
+
+
+@dataclass(frozen=True)
+class StateFilterOutcome:
+    """Batch 2 validated result of filtering one table's rows by state."""
+
+    rows: tuple[Mapping[str, str], ...]
+    rows_in_source: int
+    rows_loaded: int
+    applied_filter: str
 
 
 # --- 4. Callable validators ----------------------------------------------------------------
@@ -206,6 +244,64 @@ def validate_scope_decisions(
             )
 
 
+def validate_table_columns(columns: Sequence[str]) -> tuple[str, ...]:
+    """ERRORS-STATE-1 gate: column names are non-empty and unique."""
+    if not columns:
+        raise InvalidTableError("ERRORS-STATE-1 violation: columns is empty")
+    seen: set[str] = set()
+    for col in columns:
+        if not col:
+            raise InvalidTableError("ERRORS-STATE-1 violation: an empty column name is not allowed")
+        if col in seen:
+            raise InvalidTableError(f"ERRORS-STATE-1 violation: duplicate column {col!r}")
+        seen.add(col)
+    return tuple(columns)
+
+
+def expected_state_filter(
+    columns: Sequence[str], rows: Sequence[Mapping[str, str]]
+) -> StateFilterOutcome:
+    """POST-STATE-1 to POST-STATE-4, INV-STATE-1 oracle."""
+    cols = validate_table_columns(columns)
+    col_set = set(cols)
+    state_col = next((c for c in STATE_COLUMNS if c in col_set), None)
+    if state_col is not None:
+        kept = tuple(r for r in rows if r.get(state_col, "") in TARGET_STATE_VALUES)
+        applied = f'state field "{state_col}" in FL, NY, UT'
+    elif GEO_ID_COLUMN in col_set:
+        kept = tuple(r for r in rows if bool(GEO_ID_TARGET_PATTERN.match(r.get(GEO_ID_COLUMN, ""))))
+        applied = "GEO_ID national row or state/county/tract in FL (12), NY (36), UT (49)"
+    else:
+        kept = tuple(rows)
+        applied = FILTER_NONE
+    return StateFilterOutcome(
+        rows=kept, rows_in_source=len(rows), rows_loaded=len(kept), applied_filter=applied
+    )
+
+
+def validate_state_filter_outcome(
+    columns: Sequence[str],
+    rows: Sequence[Mapping[str, str]],
+    outcome: StateFilterOutcome,
+) -> None:
+    """Raise StateFilterViolationError naming the clause when outcome disagrees with the oracle."""
+    want = expected_state_filter(columns, rows)
+    if outcome.rows_in_source != want.rows_in_source or outcome.rows_loaded != len(outcome.rows):
+        raise StateFilterViolationError(
+            f"POST-STATE-4 violation: counts ({outcome.rows_in_source}, {outcome.rows_loaded}) "
+            f"disagree with ({want.rows_in_source}, {len(outcome.rows)})"
+        )
+    if outcome.applied_filter != want.applied_filter:
+        raise StateFilterViolationError(
+            f"POST-STATE violation: applied_filter {outcome.applied_filter!r} != "
+            f"{want.applied_filter!r}"
+        )
+    if outcome.rows != want.rows:
+        raise StateFilterViolationError(
+            "POST-STATE / INV-STATE-1 violation: kept rows or their order disagree with the rule"
+        )
+
+
 # --- 5. Traceability map (every clause declares its verification method) -----------------------
 
 CONTRACT_SCOPE: Mapping[str, Clause] = {
@@ -266,5 +362,43 @@ CONTRACT_SCOPE: Mapping[str, Clause] = {
         "unknown file_format, a reference_end that is not a real YYYY-MM-DD date, or an empty "
         "release_id.",
         ("REQ-25",),
+    ),
+}
+
+
+CONTRACT_STATE_FILTER: Mapping[str, Clause] = {
+    "POST-STATE-1": Clause(
+        "test",
+        "When a table has one or more columns from STATE_COLUMNS, the first in STATE_COLUMNS "
+        "governs and only rows whose value in that column is in TARGET_STATE_VALUES are kept.",
+        ("REQ-27",),
+    ),
+    "POST-STATE-2": Clause(
+        "test",
+        "When a table has no column from STATE_COLUMNS and has GEO_ID, only rows matching "
+        "GEO_ID_TARGET_PATTERN (national row or FL 12, NY 36, UT 49) are kept.",
+        ("REQ-27",),
+    ),
+    "POST-STATE-3": Clause(
+        "test",
+        "When a table has neither a column from STATE_COLUMNS nor GEO_ID, every row is kept "
+        "and applied_filter is FILTER_NONE.",
+        ("REQ-27",),
+    ),
+    "POST-STATE-4": Clause(
+        "test",
+        "rows_in_source equals the input row count and rows_loaded equals the kept row count.",
+        ("REQ-27", "REQ-29"),
+    ),
+    "INV-STATE-1": Clause(
+        "test",
+        "Kept rows appear in their input order and each kept row is unaltered.",
+        ("REQ-27", "REQ-28"),
+    ),
+    "ERRORS-STATE-1": Clause(
+        "test",
+        "validate_table_columns raises InvalidTableError when columns is empty, contains an "
+        "empty name, or contains duplicate names.",
+        ("REQ-27",),
     ),
 }

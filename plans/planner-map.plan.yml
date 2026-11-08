@@ -120,7 +120,13 @@
         "INV-SCOPE-1",
         "INV-SCOPE-2",
         "FORBIDDEN-SCOPE-1",
-        "ERRORS-SCOPE-1"
+        "ERRORS-SCOPE-1",
+        "POST-STATE-1",
+        "POST-STATE-2",
+        "POST-STATE-3",
+        "POST-STATE-4",
+        "INV-STATE-1",
+        "ERRORS-STATE-1"
       ],
       "clauses_deferred": [],
       "negative_constraints": [
