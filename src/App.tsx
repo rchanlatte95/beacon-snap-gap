@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { CutControls } from './map/CutControls'
+import { AiAnswerCard, AiUnavailableNotice, AskPending, SessionEndedNotice } from './ai/AiAnswer'
+import { type AskAnswer, type AskService } from './ai/askClient'
 import { OpportunityMap } from './map/OpportunityMap'
 import { ProximityControls } from './map/ProximityControls'
 import {
@@ -88,6 +90,8 @@ export interface OpportunitiesAppProps {
   readonly initialBundle?: PlannerBundle
   readonly initialLoadError?: string
   readonly enableMap?: boolean
+  /** The QueryService `ask` client. Without it, questions use the built-in wizard only. */
+  readonly askService?: AskService
 }
 
 const BUNDLE_FILES = {
@@ -172,6 +176,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
     initialBundle,
     initialLoadError,
     enableMap = typeof window !== 'undefined' && !('__vitest_worker__' in globalThis),
+    askService,
   } = props
   const [bundle, setBundle] = useState<PlannerBundle | null>(initialBundle ?? null)
   const [geo, setGeo] = useState<GeoLayers | null>(null)
@@ -189,6 +194,13 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
   const [proximityMiles, setProximityMiles] = useState(DEFAULT_REACH_MILES)
   const [percentiles, setPercentiles] = useState<Percentiles>(DEFAULT_PERCENTILES)
   const [panelTab, setPanelTab] = useState<'briefing' | 'evidence'>('briefing')
+  const [asking, setAsking] = useState(false)
+  const [aiAnswer, setAiAnswer] = useState<AskAnswer | null>(null)
+  const [aiUnavailable, setAiUnavailable] = useState(false)
+  const [aiSessionEnded, setAiSessionEnded] = useState(false)
+  const askRun = useRef<AbortController | null>(null)
+
+  useEffect(() => () => askRun.current?.abort(), [])
 
   useEffect(() => {
     if (initialBundle || initialLoadError) return
@@ -239,10 +251,21 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
       bundle && cut ? applyCuts(bundle.tracts, cut, bundle.thresholds.sba_min_population) : [],
     [bundle, cut],
   )
-  const answer = useMemo(
-    () => (askedQuery.trim() ? answerWizardQuery(tracts, askedQuery, cut?.no_vehicle) : null),
-    [tracts, askedQuery, cut],
-  )
+  const knownGeoids = useMemo(() => new Set(tracts.map((t) => t.geoid)), [tracts])
+  // POST-APP-15: an AI reply's tract list focuses the map and the shortlist, like a built-in answer.
+  const answer = useMemo((): ReturnType<typeof answerWizardQuery> | null => {
+    if (aiAnswer) {
+      const geoids = new Set(aiAnswer.tracts)
+      return geoids.size > 0
+        ? {
+            matchedTracts: tracts.filter((t) => geoids.has(t.geoid)),
+            answerText: aiAnswer.answer,
+            appliedFilters: [],
+          }
+        : null
+    }
+    return askedQuery.trim() ? answerWizardQuery(tracts, askedQuery, cut?.no_vehicle) : null
+  }, [aiAnswer, tracts, askedQuery, cut])
   const briefing = useMemo(
     () =>
       tracts.length
@@ -263,7 +286,8 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
     () => splitByReach(baseCohortTracts, proximityMiles),
     [baseCohortTracts, proximityMiles],
   )
-  const proximityActive = proximityEnabled
+  // The QueryService applies the distance to an AI answer (REQ-60), so the App does not filter it again.
+  const proximityActive = proximityEnabled && !aiAnswer
   const cohortTracts = proximityActive ? proximity.beyond : baseCohortTracts
   const focusedGeoids = useMemo(
     () => cohortTracts.filter((t) => t.drawn).map((t) => t.geoid),
@@ -287,13 +311,49 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
     [tracts],
   )
 
+  const resetAsk = () => {
+    askRun.current?.abort()
+    askRun.current = null
+    setAsking(false)
+    setAiAnswer(null)
+    setAiUnavailable(false)
+    setAiSessionEnded(false)
+  }
+  const askAi = async (service: AskService, q: string) => {
+    const run = new AbortController()
+    askRun.current = run
+    setAsking(true)
+    const request = { question: q.trim(), reach_miles: proximityMiles, percentiles }
+    const outcome = await service(request, run.signal).catch(() => ({
+      ok: false as const,
+      sessionEnded: false,
+    }))
+    if (askRun.current !== run) return
+    askRun.current = null
+    setAsking(false)
+    if (outcome.ok) {
+      setAiAnswer(outcome.answer)
+    } else {
+      // REQ-39 / SEQ-9 and REQ-66: the built-in wizard answers, with the notice.
+      if (outcome.sessionEnded) setAiSessionEnded(true)
+      else setAiUnavailable(true)
+      setAskedQuery(q)
+    }
+  }
   const runQuery = (q: string) => {
+    resetAsk()
     setQuery(q)
-    setAskedQuery(q)
     setBrief(null)
     setPanelTab('briefing')
+    if (!q.trim() || !askService) {
+      setAskedQuery(q)
+      return
+    }
+    setAskedQuery('')
+    void askAi(askService, q)
   }
   const chooseCohort = (id: CohortId) => {
+    resetAsk()
     setCohort(id)
     setAskedQuery('')
     setBrief(null)
@@ -598,8 +658,18 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                       </button>
                     ))}
                   </div>
-                  {answer && (
+                  {asking && <AskPending />}
+                  {aiAnswer && (
+                    <AiAnswerCard
+                      answer={aiAnswer}
+                      knownGeoids={knownGeoids}
+                      onClear={() => runQuery('')}
+                    />
+                  )}
+                  {answer && !aiAnswer && (
                     <div className="answer" role="status">
+                      {aiUnavailable && <AiUnavailableNotice />}
+                      {aiSessionEnded && <SessionEndedNotice />}
                       <p>{answer.answerText}</p>
                       {proximityActive && (
                         <p>Of these, {cohortTracts.length} are beyond the proximity limit.</p>
@@ -628,7 +698,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                     first. Pick one to see why.
                   </p>
                   <ul>
-                    {cohortTracts.slice(0, SHORTLIST_MAX).map((t) => (
+                    {(aiAnswer ? cohortTracts : cohortTracts.slice(0, SHORTLIST_MAX)).map((t) => (
                       <li key={t.geoid}>
                         <button
                           type="button"
@@ -658,7 +728,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                       </li>
                     ))}
                   </ul>
-                  {cohortTracts.length > SHORTLIST_MAX && (
+                  {!aiAnswer && cohortTracts.length > SHORTLIST_MAX && (
                     <p className="muted small">
                       Showing the {SHORTLIST_MAX} with the most poverty, out of{' '}
                       {cohortTracts.length}.
