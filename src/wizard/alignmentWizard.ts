@@ -133,6 +133,7 @@ export interface CoordinatedActionBrief {
   readonly totalResidentsCovered: number
   readonly mobilePriorityTractCount: number
   readonly dualGapTractCount: number
+  readonly dataCheckTractCount: number
   readonly withoutCoordinationGapPct: number
   readonly withJointDeploymentGapPct: number
   readonly percentagePointReduction: number
@@ -257,6 +258,7 @@ export function generateCoordinatedActionBrief(input: {
   readonly tracts: readonly TractRecord[]
   readonly cohortId: CohortId
   readonly personaId: PersonaLensId
+  readonly selectionLabel?: string
 }): CoordinatedActionBrief {
   const target = filterTractsByCohort(input.tracts, input.cohortId)
   const totalResidents = target.reduce((s, t) => s + t.pop2020, 0)
@@ -276,31 +278,59 @@ export function generateCoordinatedActionBrief(input: {
   const reduction = Math.round((baseline - withJoint) * 10) / 10
 
   const cohortLabel =
-    COHORT_CARDS.find((c) => c.id === input.cohortId)?.label ?? 'All neighborhoods'
+    input.selectionLabel?.trim() ||
+    (COHORT_CARDS.find((c) => c.id === input.cohortId)?.label ?? 'All neighborhoods')
   const counties = Array.from(new Set(target.map((t) => t.county))).sort()
-  const rest = target.length - mobile
+  const dataChecks = target.filter((t) => t.tract_class === CLASS_INSUFFICIENT).length
+  const noGap = target.filter((t) => t.tract_class === CLASS_NO_GAP).length
+  const serviceCandidates = target.filter((t) => t.tract_class === CLASS_HIGH_NEED).length
+  const rest = serviceCandidates - mobile
   const plural = (n: number, word: string) => `${nf.format(n)} ${word}${n === 1 ? '' : 's'}`
 
-  const foodBankAction =
+  const foodBankAction = [
     mobile > 0
-      ? `Send mobile pantry stops to the ${plural(mobile, 'neighborhood')} where many homes have no car.` +
-        (rest > 0 ? ` Add pantry hours in the other ${nf.format(rest)}.` : '')
-      : `Add pantry space and hours in all ${plural(target.length, 'neighborhood')}.`
-  const sbaOfficerAction =
+      ? `Send mobile pantry stops to the ${plural(mobile, 'neighborhood')} where many homes have no car.`
+      : '',
+    rest > 0
+      ? `Check pantry capacity and hours in the ${plural(rest, 'food-desert neighborhood')} before planning added service.`
+      : '',
+    dataChecks > 0
+      ? `Verify food needs, current services and missing source values in the ${plural(dataChecks, 'neighborhood')} with insufficient data before choosing a service.`
+      : '',
+    noGap > 0 ? `Monitor the ${plural(noGap, 'neighborhood')} with no gap flagged.` : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const sbaOfficerAction = [
     dual > 0
       ? `Hold small business loan and coaching clinics in the ${plural(dual, 'neighborhood')} with few SBA loans for their population. Start with corner stores, mobile markets and food businesses.`
-      : `Plan small business help next to new pantry sites, so new food stores can follow.`
+      : serviceCandidates > 0
+        ? `Review local food business needs with food bank partners before choosing lending outreach. No lending gap is flagged in these ${plural(serviceCandidates, 'food-desert neighborhood')}.`
+        : '',
+    dataChecks > 0
+      ? `Verify local business needs and missing source values in the ${plural(dataChecks, 'neighborhood')} with insufficient data before choosing lending outreach.`
+      : '',
+    noGap > 0 ? `Monitor the ${plural(noGap, 'neighborhood')} with no gap flagged.` : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   const narrativeSummary =
     `${cohortLabel}: ${plural(target.length, 'neighborhood')} with ${nf.format(totalResidents)} people. ` +
     `Counties: ${counties.join(', ')}. ` +
     `Today ${noSite} of them (${baseline}%) have no Second Harvest site inside. ` +
-    `Suppose the food bank serves the ${mobile} with many homes that have no car, and lenders help the ${dual} with few loans. ` +
+    (dataChecks > 0
+      ? `${plural(dataChecks, 'neighborhood')} with insufficient data need verification before service or lending decisions. No service deployment is proposed for them. `
+      : '') +
+    (noGap > 0 ? `${plural(noGap, 'neighborhood')} with no gap flagged need monitoring. ` : '') +
+    (serviceCandidates > 0
+      ? `Suppose the food bank serves the ${mobile} with many homes that have no car, and lenders help the ${dual} with few loans. `
+      : '') +
     (reduction === 0
       ? NO_REACH_TEXT
       : unaddressed === 0
-        ? `Then every one of them would have a plan.`
-        : `Then ${plural(unaddressed, 'neighborhood')} (${withJoint}%) would still have no plan. That is ${reduction} points lower than today.`)
+        ? `Then every one of them would have a site or proposed service in this scenario.`
+        : `Then ${plural(unaddressed, 'neighborhood')} (${withJoint}%) would still have no site or proposed service in this scenario. That is ${reduction} points lower than today.`)
 
   return {
     title: `Action plan: ${cohortLabel}`,
@@ -310,6 +340,7 @@ export function generateCoordinatedActionBrief(input: {
     totalResidentsCovered: totalResidents,
     mobilePriorityTractCount: mobile,
     dualGapTractCount: dual,
+    dataCheckTractCount: dataChecks,
     withoutCoordinationGapPct: baseline,
     withJointDeploymentGapPct: withJoint,
     percentagePointReduction: reduction,
