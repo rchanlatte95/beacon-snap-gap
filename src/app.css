@@ -976,6 +976,37 @@ a.cite-chip:hover {
 .brief p {
   margin: 4px 0 0;
 }
+.brief-overview {
+  color: var(--ink-soft);
+}
+.action-steps {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+.action-steps li + li {
+  margin-top: 6px;
+}
+.brief-details,
+.evidence-details {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.brief-details summary,
+.evidence-details summary,
+.insight-sources summary {
+  color: var(--primary-700);
+  cursor: pointer;
+  font-size: 12px;
+}
+.brief-details[open] summary,
+.evidence-details[open] summary {
+  margin-bottom: 10px;
+}
+.insight-sources {
+  margin-top: 4px;
+}
 .counterfactual {
   display: grid;
   grid-template-columns: 1fr 1fr;

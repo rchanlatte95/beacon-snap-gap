@@ -25,15 +25,17 @@ export function CutControls({
   cuts,
   percentiles,
   onChange,
+  names = CUT_NAMES,
 }: {
   readonly cuts: Cuts
   readonly percentiles: Percentiles
   readonly onChange: (name: CutName, percentile: number) => void
+  readonly names?: readonly CutName[]
 }) {
   return (
     <fieldset className="cut-controls">
       <legend>Gap rules</legend>
-      {CUT_NAMES.map((name) => (
+      {names.map((name) => (
         <label key={name} className="cut-control">
           <span>{CUT_LABELS[name]}</span>
           <select
