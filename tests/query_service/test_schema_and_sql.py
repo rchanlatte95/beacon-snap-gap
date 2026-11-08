@@ -261,7 +261,9 @@ def test_engine_refuses_everything_but_one_select_inside_the_location(
     eng.open()
     with pytest.raises(impl.RejectedSqlError) as caught:
         eng.execute_sql(sql)
-    assert "ERRORS-SQL-1" in str(caught.value) or "FORBIDDEN-SQL-1" in str(caught.value), (
+    # FORBIDDEN-SQL-2 (cycle 22) now refuses file-reading functions before DuckDB sees them.
+    named = ("ERRORS-SQL-1", "FORBIDDEN-SQL-1", "FORBIDDEN-SQL-2")
+    assert any(clause in str(caught.value) for clause in named), (
         f"ERRORS-SQL-1 violation: {sql!r} refused without naming a clause: {caught.value}"
     )
     for bad in (
