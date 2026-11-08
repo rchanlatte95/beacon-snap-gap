@@ -92,7 +92,7 @@ def _answer(
     root = fx.build_warehouse(tmp_path / "warehouse", glossary_terms=GLOSSARY_TERMS)
     eng = engine_impl.WarehouseQueryEngine({contract.ENGINE_LOCATION_ENV: str(root)})
     eng.open()
-    script = Script([*(_call(a) for a in calls), {"text": "The sba_loans table holds them."}])
+    script = Script([*(_call(a) for a in calls), {"text": "The SBA loans table holds them."}])
     client = impl.vertex_client(
         ENV,
         credentials=Credentials(token=secrets.token_urlsafe(16)),
