@@ -644,7 +644,7 @@ GLOSSARY_PAGE_TERMS = 200
 
 TOOL_NAMES: tuple[str, ...] = ("schema_describe", "sql_query", "sites_near", "stats_correlate")
 MAX_TOOL_ROUNDS = 4  # Z-31: model calls per question; the last one answers without tools
-ANSWER_DEADLINE_SECONDS = 30.0  # Z-31: below the App's 50-second limit (Z-30)
+ANSWER_DEADLINE_SECONDS = 45.0  # Ryan's choice: 45 s with 4 rounds (below the App's 50 s)
 FINAL_CALL_MODE = "NONE"  # Z-31: function calling mode of the last model call
 FINAL_ANSWER_PROMPT = (
     "Answer the question now from the tool results above. Do not call any tool. If they do not "
@@ -658,7 +658,10 @@ SYSTEM_PREAMBLE = (
     "You answer questions about Central Florida public data for food bank planners and small "
     "business lenders. Use only the tools. Every number you state must come from a tool result, "
     "the question or the current settings. If the data does not hold the answer, say so. Name no "
-    "source that a tool did not return."
+    "source that a tool did not return. You have at most 3 tool rounds, so run a sql_query in "
+    "your first round when the table index below names a likely table, and put several "
+    "independent calls in one round. Answer in plain sentences only: no Markdown, backticks, "
+    "asterisks, headings, bullet symbols or table names; name places and figures in words."
 )
 CORRECTION_TEMPLATE = (
     "These numbers in your answer came from no tool result: {numbers}. Answer again using only "
