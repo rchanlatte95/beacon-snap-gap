@@ -18,13 +18,15 @@ export interface Clause {
 // --- 1. Importable specification constants -------------------------------------------------
 
 export const PERSONA_LENSES = [
-  { id: 'alignment', label: 'Shared Alignment: Opportunities to Serve' },
-  { id: 'planner', label: 'Food Bank Planner (SNAP & Pantries)' },
-  { id: 'officer', label: 'SBA / CDFI Lending Officer' },
+  { id: 'alignment', label: 'Both partners' },
+  { id: 'planner', label: 'Food bank' },
+  { id: 'officer', label: 'Small business lender' },
 ] as const
 
 export type PersonaLensId = (typeof PERSONA_LENSES)[number]['id']
 
+// The counts are binding (POST-APP-1). The labels are reference wording only: the screen may word
+// a card differently (Ketema, 2026-11-08).
 export const COHORT_CARDS = [
   { id: 'triple', label: 'Opportunities to Serve (Triple Gap)', expectedCount: 29 },
   { id: 'high_need', label: 'Classic Food Deserts (High Need)', expectedCount: 97 },
@@ -41,6 +43,8 @@ export const CLASS_INSUFFICIENT = 'Insufficient data'
 
 export const NO_SITE_CARD_TEXT =
   'No Second Harvest site found under this rule. Other food sources may exist.'
+// Z-21: the narrative of a Coordinated Action Brief whose reduction is zero includes this sentence.
+export const NO_REACH_TEXT = 'This plan does not reach these neighborhoods.'
 export const FORBIDDEN_PHRASES = ['no food access', 'no access'] as const
 
 export const DATAKIND_ATTRIBUTION_URL = 'http://www.datakind.org'
@@ -155,12 +159,20 @@ export function validateCoordinatedBrief(
       'POST-APP-3 violation: CoordinatedActionBrief targetTractCount must be > 0',
     )
   }
+  const expectedReduction =
+    Math.round((brief.withoutCoordinationGapPct - brief.withJointDeploymentGapPct) * 10) / 10
   if (
-    brief.withJointDeploymentGapPct >= brief.withoutCoordinationGapPct ||
-    brief.percentagePointReduction <= 0
+    brief.withJointDeploymentGapPct > brief.withoutCoordinationGapPct ||
+    brief.percentagePointReduction < 0 ||
+    brief.percentagePointReduction !== expectedReduction
   ) {
     throw new WizardBriefContractError(
-      `POST-APP-3 violation: counterfactual must show positive reduction (without=${brief.withoutCoordinationGapPct}%, with=${brief.withJointDeploymentGapPct}%)`,
+      `POST-APP-3 violation: the reduction must equal without minus with and never be negative (without=${brief.withoutCoordinationGapPct}%, with=${brief.withJointDeploymentGapPct}%, reduction=${brief.percentagePointReduction})`,
+    )
+  }
+  if (brief.percentagePointReduction === 0 && !brief.narrativeSummary.includes(NO_REACH_TEXT)) {
+    throw new WizardBriefContractError(
+      `POST-APP-3 violation: a zero reduction must say "${NO_REACH_TEXT}" (Z-21)`,
     )
   }
   if (!brief.foodBankAction.trim() || !brief.sbaOfficerAction.trim()) {
@@ -195,7 +207,7 @@ export function validateAttributionFooter(footerText: string, hrefs: readonly st
 export const CONTRACT_PLANNER_MAP_APP: Readonly<Record<string, Clause>> = {
   'POST-APP-1': {
     verification: 'test',
-    text: 'The App renders the three selectable persona lenses (Shared Alignment, Food Bank Planner, SBA/CDFI Officer) and the five KPI cohort cards with exact counts (29, 97, 50, 53, 2); clicking a cohort card filters the active shortlist to that cohort.',
+    text: 'The App renders the three selectable persona lenses labelled "Food bank", "Small business lender" and "Both partners" (PERSONA_LENSES) and the five KPI cohort cards with exact counts (29, 97, 50, 53, 2); clicking a cohort card filters the active shortlist to that cohort. The on-screen wording of a cohort card is not bound by COHORT_CARDS.label; its count is.',
     requirements: ['REQ-18', 'REQ-19', 'REQ-20'],
   },
   'POST-APP-2': {
@@ -205,7 +217,7 @@ export const CONTRACT_PLANNER_MAP_APP: Readonly<Record<string, Clause>> = {
   },
   'POST-APP-3': {
     verification: 'test',
-    text: 'The AI Insight & Coordinated Action Wizard answers natural-language queries or prompt chips by filtering matching tracts and generates a CoordinatedActionBrief with partner roles (Food Bank + SBA/CDFI), counterfactual gap reduction, and DS-* citations.',
+    text: 'The AI Insight & Coordinated Action Wizard answers natural-language queries or prompt chips by filtering matching tracts and generates a CoordinatedActionBrief with partner roles (Food Bank + SBA/CDFI), DS-* citations, and a counterfactual gap reduction that equals the without-coordination share minus the with-joint-deployment share, computed from the cohort, never adjusted and never negative; a zero reduction is shown as zero and the narrative states NO_REACH_TEXT (Z-21).',
     requirements: ['REQ-21'],
   },
   'POST-APP-4': {

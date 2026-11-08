@@ -5,6 +5,7 @@
  * - File: contracts/planner-map.app.contract.ts
  * - Authority: AUTHORITATIVE for the App (SLICE-1 Opportunities to Serve)
  * - Clauses covered: POST-APP-1, POST-APP-2, POST-APP-3, POST-APP-4, POST-APP-5, FORBIDDEN-APP-1, ERRORS-APP-1
+ * - Cycle 15 (Ketema, 2026-11-08): POST-APP-1 lens labels (Z-20) and the POST-APP-3 zero reduction (Z-21)
  *
  * FOUR-CRITERIA TEST VALIDITY GATE:
  * - C1 VALID: cites POST-APP-1..5, FORBIDDEN-APP-1, ERRORS-APP-1 in contracts/planner-map.app.contract.ts
@@ -101,6 +102,47 @@ describe('SLICE-1 batch 3: Opportunities to Serve AI Wizard & App UI', () => {
     expect(brief.targetTractCount).toBe(29)
     expect(brief.mobilePriorityTractCount).toBe(29)
     expect(brief.dualGapTractCount).toBe(29)
+  })
+
+  it('enforces POST-APP-3: a brief whose joint action reaches no more tracts shows a zero reduction and says so (Z-21)', () => {
+    /*
+     * CONTRACT TRACEABILITY:
+     * - Enforces: POST-APP-3 (reduction equals without minus with, never adjusted; zero carries NO_REACH_TEXT)
+     * - Category: boundary (the zero-reduction edge)
+     * - Risk tier: HIGH: a faked improvement tells a planner a plan helps people it does not reach
+     * - Pyramid level: Unit (pure wizard function over Build tracts)
+     */
+    const unreached = bundle.tracts.filter(
+      (t) =>
+        t.tract_class === appContract.CLASS_HIGH_NEED &&
+        t.sites_in_tract === 0 &&
+        !t.is_transport_gap &&
+        !t.is_dual_gap,
+    )
+    expect(
+      unreached.length,
+      'ARRANGE: the Build must contain food-desert tracts that the joint action does not reach',
+    ).toBeGreaterThan(0)
+
+    const brief = generateCoordinatedActionBrief({
+      tracts: unreached,
+      cohortId: 'high_need',
+      personaId: 'planner',
+    })
+    expect(
+      [
+        brief.withoutCoordinationGapPct,
+        brief.withJointDeploymentGapPct,
+        brief.percentagePointReduction,
+      ],
+      'POST-APP-3 violation: the joint action reaches none of these tracts, so without and with ' +
+        'must both be 100% and the reduction exactly 0; GUIDANCE: report the computed shares, never adjust them',
+    ).toEqual([100, 100, 0])
+    expect(
+      brief.narrativeSummary,
+      `POST-APP-3 violation: a zero reduction must say "${appContract.NO_REACH_TEXT}"`,
+    ).toContain(appContract.NO_REACH_TEXT)
+    appContract.validateCoordinatedBrief(brief)
   })
 
   it('enforces POST-APP-1, POST-APP-2, POST-APP-4, POST-APP-5, FORBIDDEN-APP-1, and ERRORS-APP-1 in OpportunitiesApp', () => {
