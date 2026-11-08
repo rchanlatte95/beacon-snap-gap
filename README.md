@@ -64,11 +64,17 @@ The Build reads repo files only and fetches nothing. It writes `planner-bundle.j
 The base map loads from OpenFreeMap (`src/map/mapConstants.ts`). When the tiles fail, the app shows
 "Base map unavailable" and keeps the tract layer.
 
+Drive-time estimates use a 24-hour openrouteservice cache. Set `ORS_API_KEY` in `.env.local`
+or the data preparation environment. Without route data, the app clearly labels its heuristic
+fallback. The time slider is replaced by an estimate for the selected neighborhood; the distance
+slider still updates the map. See [setup, refresh and deployment details](docs/drive-times.md).
+
 ### Commands
 
 | Command | Purpose |
 |:--------|:--------|
 | `npm run dev` | Vite dev server |
+| `npm run routes:refresh` | Prepare or reuse the 24-hour drive-time cache |
 | `npm run build` | Type-check and build to `dist/` |
 | `npm run typecheck` | Type-check only |
 | `npm run lint` | ESLint |

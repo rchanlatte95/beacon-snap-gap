@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "routes:refresh": "node --env-file-if-exists=.env.local scripts/cache-drive-times.ts",
+    "prebuild": "npm run routes:refresh",
     "build": "node node_modules/typescript7/bin/tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "node node_modules/typescript7/bin/tsc -b",

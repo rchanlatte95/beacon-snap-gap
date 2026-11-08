@@ -1,4 +1,5 @@
-import type { TractRecord } from '../wizard/alignmentWizard'
+import type { TractRecord } from '../wizard/alignmentWizard.ts'
+import type * as GeoJSON from 'geojson'
 
 export const DEFAULT_REACH_MILES = 10
 export const DEFAULT_REACH_MINUTES = 30
@@ -7,7 +8,7 @@ export const REACH_STEP_MILES = 0.5
 
 export type ProximityIndex = ReadonlyMap<string, number | null>
 
-function isLocation(point: readonly number[] | null): point is readonly [number, number] {
+export function isLocation(point: readonly number[] | null): point is readonly [number, number] {
   return (
     point !== null &&
     point.length >= 2 &&
