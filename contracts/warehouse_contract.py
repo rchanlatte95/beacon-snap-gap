@@ -73,6 +73,8 @@ PROVENANCE_TEXT_FIELDS: tuple[str, ...] = (
 GLOSSARY_COLUMNS: tuple[str, ...] = ("source_table", "dataset_id", "term", "definition")
 PROVENANCE_TABLES: tuple[str, ...] = ("files", "catalog", "sources")
 WAREHOUSE_GCP_PROJECT = "<gcp-project>"
+WAREHOUSE_GCS_BUCKET = "<warehouse-bucket>"
+WAREHOUSE_GCS_URI = f"gs://{WAREHOUSE_GCS_BUCKET}"
 # --- 2. Domain exceptions (every message names its clause) --------------------------------
 
 
@@ -729,8 +731,9 @@ CONTRACT_GLOSSARY: Mapping[str, Clause] = {
     ),
     "INV-STORAGE-1": Clause(
         "tool",
-        "The Operator builds the warehouse once and keeps the canonical copy in a private Google "
-        "Cloud Storage bucket in project <gcp-project> (WAREHOUSE_GCP_PROJECT).",
+        "The Operator builds the warehouse once and keeps the canonical copy in private Google "
+        "Cloud Storage bucket WAREHOUSE_GCS_BUCKET (WAREHOUSE_GCS_URI) in project "
+        "WAREHOUSE_GCP_PROJECT.",
         ("REQ-31",),
     ),
 }
