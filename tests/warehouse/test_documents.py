@@ -31,6 +31,12 @@ from src.warehouse import documents as impl
 
 # Risk tier: HIGH. Dropped or renumbered pages make every page citation point at the wrong text.
 
+# Disconnect Matrix B08: a missing tool surfaces as SKIP with the reason, never as a failure.
+NEEDS_POPPLER = pytest.mark.skipif(
+    shutil.which("pdftotext") is None or shutil.which("pdfinfo") is None,
+    reason="ARRANGE: Poppler's pdftotext and pdfinfo must be on PATH for this integration test",
+)
+
 
 def _pdf(pages: list[str]) -> bytes:
     """A minimal valid PDF with one page per string; an empty string is a blank page."""
@@ -59,6 +65,7 @@ def _pdf(pages: list[str]) -> bytes:
     return bytes(out)
 
 
+@NEEDS_POPPLER
 def test_every_pdf_page_is_returned_in_order_with_blank_pages_kept(tmp_path: Path):
     """
     CONTRACT TRACEABILITY:
@@ -112,6 +119,7 @@ def test_every_pdf_page_is_returned_in_order_with_blank_pages_kept(tmp_path: Pat
     )
 
 
+@NEEDS_POPPLER
 def test_unreadable_or_incomplete_pdfs_stop_with_the_file_named(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

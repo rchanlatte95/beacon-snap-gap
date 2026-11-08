@@ -42,13 +42,16 @@ def test_location_comes_only_from_the_configured_variable_and_must_hold_a_wareho
       unset; whitespace; relative; contains '..'. Decoy variables present in every case.
     """
     decoys = {"WAREHOUSE_DIR": "/decoy/a", "DATA_ROOT": "/decoy/b", "HOME": "/decoy/home"}
-    env = {**decoys, contract.WAREHOUSE_LOCATION_ENV: f"{tmp_path}/"}
+    # The location rule reads text only, so no directory is needed. A fixed POSIX path is
+    # absolute on every platform; a Windows tmp_path (drive letter) is never a POSIX absolute path.
+    location = "/srv/beacon/warehouse"
+    env = {**decoys, contract.WAREHOUSE_LOCATION_ENV: f"{location}/"}
     got = impl.warehouse_location(env)
     want = contract.validate_warehouse_location(env)
-    assert got.root == want.root == str(tmp_path), (
+    assert got.root == want.root == location, (
         "test_location_comes_only_from_the_configured_variable_and_must_hold_a_warehouse FAILED\n"
         "POST-ADAPT-1 violation: location not taken from WAREHOUSE_LOCATION as a normalized path\n"
-        f"EXPECTED: {str(tmp_path)!r} (contract oracle {want.root!r})\n"
+        f"EXPECTED: {location!r} (contract oracle {want.root!r})\n"
         f"ACTUAL: {got.root!r}\n"
         "GUIDANCE: only WAREHOUSE_LOCATION supplies the location; normalize it; ignore others"
     )
@@ -57,7 +60,7 @@ def test_location_comes_only_from_the_configured_variable_and_must_hold_a_wareho
         ("unset", dict(decoys)),
         ("whitespace", {**decoys, contract.WAREHOUSE_LOCATION_ENV: "   "}),
         ("relative", {**decoys, contract.WAREHOUSE_LOCATION_ENV: "data/cache/warehouse"}),
-        ("dot-dot", {**decoys, contract.WAREHOUSE_LOCATION_ENV: f"{tmp_path}/../escape"}),
+        ("dot-dot", {**decoys, contract.WAREHOUSE_LOCATION_ENV: f"{location}/../escape"}),
     ]
     for label, bad in bad_envs:
         with pytest.raises(contract.WarehouseLocationError):
@@ -76,7 +79,9 @@ def test_location_comes_only_from_the_configured_variable_and_must_hold_a_wareho
     missing_dir = impl.WarehouseLocation(root=str(tmp_path / "absent"))
     with pytest.raises(impl.WarehouseLocationError) as caught_dir:
         impl.require_warehouse(missing_dir)
-    assert missing_dir.root in str(caught_dir.value), (
+    # The adapter quotes the location with !r, which doubles each backslash of a Windows path.
+    named = (missing_dir.root, missing_dir.root.replace("\\", "\\\\"))
+    assert any(form in str(caught_dir.value) for form in named), (
         "test_location_comes_only_from_the_configured_variable_and_must_hold_a_warehouse FAILED\n"
         "ERRORS-ADAPT-2 violation: missing location not named\n"
         f"EXPECTED: message containing {missing_dir.root!r}\n"
