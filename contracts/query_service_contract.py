@@ -612,6 +612,9 @@ CORRELATION_CAVEATS: tuple[str, ...] = (
     "Correlation does not show cause.",
     "Rows with a missing or non-numeric value are left out.",
 )
+# Pagination (Ketema: "look for pagination for large result sets"): a tool reads every row of its
+# query in pages of MAX_ROW_LIMIT through execute_sql, in a total order, until a short page.
+PAGE_TEMPLATE = "SELECT * FROM ({sql}) AS page_source ORDER BY ALL LIMIT {limit} OFFSET {offset}"
 
 TOOL_NAMES: tuple[str, ...] = ("schema_describe", "sql_query", "sites_near", "stats_correlate")
 MAX_TOOL_ROUNDS = 8
@@ -845,17 +848,18 @@ CONTRACT_QUERY_TOOLS: Mapping[str, Clause] = {
         "sites_near(geoid=None, lat=None, lon=None, miles) returns a SqlQueryResult with "
         "SITES_NEAR_COLUMNS and rows equal to expected_sites_near: origins are the point, or the "
         "tract's populated blocks from the BLOCKS_SOURCE_FILE table; sites come from the "
-        "SITES_SOURCE_FILE table; truncated is False; referenced_tables are those tables and the "
-        "citations are theirs (SEQ-7).",
+        "SITES_SOURCE_FILE table. Both are read in full, page by page (PAGE_TEMPLATE, pages of "
+        "MAX_ROW_LIMIT through execute_sql), so no block or site is left out; truncated is False; "
+        "referenced_tables are those tables and the citations are theirs (SEQ-7).",
         ("REQ-35", "REQ-32"),
     ),
     "POST-TOOL-2": Clause(
         "test",
-        "stats_correlate(sql) runs sql through execute_sql (same checks and limits, row_limit "
-        "MAX_ROW_LIMIT) and requires exactly two columns; it returns a SqlQueryResult with "
-        "CORRELATION_COLUMNS and one row equal to expected_correlation over the rows, its "
-        "referenced_tables and citations from the query, plus the caveats CORRELATION_CAVEATS; "
-        "truncated is True when the query was truncated.",
+        "stats_correlate(sql) checks sql as execute_sql does and requires exactly two columns; it "
+        "reads every row of sql page by page (PAGE_TEMPLATE, pages of MAX_ROW_LIMIT) and returns a "
+        "SqlQueryResult with CORRELATION_COLUMNS and one row equal to expected_correlation over "
+        "all the rows, truncated False, referenced_tables and citations from the query; the "
+        "caveats CORRELATION_CAVEATS go to the model with the result.",
         ("REQ-35", "REQ-32"),
     ),
     "ERRORS-TOOL-1": Clause(

@@ -17,6 +17,7 @@ from src.warehouse.writer import WarehouseWriter
 TRACT_A = "12095016510"
 TRACT_B = "12095016600"
 TRACT_EMPTY = "12095990000"  # a tract with no populated block
+TRACT_C = "12095016700"  # a tract with more blocks than one page
 SITES = (
     ("S1", "Pantry One", "1 Main St", "28.5400", "-81.3800", TRACT_A, "Orange"),
     ("S2", "Pantry Two", "2 Oak Ave", "28.6000", "-81.2000", TRACT_B, "Orange"),
@@ -27,8 +28,11 @@ BLOCKS = (
     (f"{TRACT_A}1002", "0", "28.9000", "-81.9000"),
     (f"{TRACT_B}2001", "300", "28.5900", "-81.2100"),
     (f"{TRACT_EMPTY}0001", "0", "28.4000", "-81.4000"),
+    # Pagination (POST-TOOL-1): TRACT_C has more blocks than one page. Every block is far from every
+    # site except the last in total order, which sits beside S3; a one-page read misses S3.
+    *((f"{TRACT_C}{i:04d}", "10", "25.0000", "-80.0000") for i in range(1200)),
+    (f"{TRACT_C}1200", "10", "29.9001", "-82.9001"),
 )
-TRACT_C = "12095016700"  # a tract with values but no blocks in this fixture
 TRACTS = (
     (TRACT_A, "12.5", "4"),
     (TRACT_B, "30.1", "9"),

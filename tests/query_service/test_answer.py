@@ -147,13 +147,14 @@ def test_loop_sends_taxonomy_and_settings_runs_tools_itself_and_returns_a_cited_
         assert instruction == want_instruction, "POST-ANS-1 violation: system instruction"
         declared = {d["name"] for t in body["tools"] for d in t["functionDeclarations"]}
         assert declared == set(contract.TOOL_NAMES), f"POST-ANS-1 violation: tools {declared}"
+    # Each request carries the whole conversation, so the last one holds every tool response once.
     responses = [
         p["functionResponse"]
-        for _, body in script.requests
-        for c in body["contents"]
+        for c in script.requests[-1][1]["contents"]
         for p in c["parts"]
         if "functionResponse" in p
     ]
+    assert [r["name"] for r in responses] == ["sql_query", "sql_query", "sites_near"]
     first = json.dumps(responses[0]["response"])
     assert "error" in first, f"ERRORS-TOOL-1 violation: no error result: {first}"
     assert "FORBIDDEN-SQL-1" in first, f"ERRORS-TOOL-1 violation: clause not named: {first}"
