@@ -22,6 +22,15 @@ from .ask import SourceCitation, SqlQueryResult
 DEFAULT_ROW_LIMIT: Final = 200
 MAX_ROW_LIMIT: Final = 1_000
 DEFAULT_TIMEOUT_SECONDS: Final = 5.0
+# FORBIDDEN-SQL-2: no metadata, base tables, file, environment, settings or nested-query calls.
+METADATA_SQL_PATTERN: Final = re.compile(
+    r"\b(?:information_schema|pg_catalog|sqlite_master|duckdb_[a-z_]+)\b"
+    r"|\b(?:from|join)\s+(?:main\.)?\"?(?:catalog|columns|sources|glossary|files|ingest_log|"
+    r"documents)\"?(?![\w.])"
+    r"|\b(?:read_[a-z_]+|[a-z_]*_scan|glob|getenv|current_setting|load|install|attach|detach|"
+    r"export|import|copy|pragma[a-z_]*|query|query_table|sql_auto_complete|which_secret)\s*\(",
+    re.IGNORECASE,
+)
 MAX_TIMEOUT_SECONDS: Final = 15.0
 NOT_RECORDED: Final = "not recorded"
 KEY_GRAINS: Final[Mapping[str, str]] = {
@@ -253,6 +262,11 @@ class WarehouseQueryEngine:
                 raise RejectedSqlError(
                     f"FORBIDDEN-SQL-1 violation: only one SELECT is allowed, got "
                     f"{[str(k).rsplit('.', 1)[-1] for k in kinds]}"
+                )
+            if METADATA_SQL_PATTERN.search(sql):
+                raise RejectedSqlError(
+                    "FORBIDDEN-SQL-2 violation: queries may read only the warehouse data tables; "
+                    "use schema_describe for the schema"
                 )
             timed_out = threading.Event()
 

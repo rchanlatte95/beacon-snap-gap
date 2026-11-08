@@ -147,15 +147,20 @@ def reply_citations(results: tuple[SqlQueryResult, ...]) -> tuple[SourceCitation
     return tuple(seen.values())
 
 
+def column_label(name: str) -> str:
+    """A result column as a reader sees it: internal field names never reach the App."""
+    return name.replace("_", " ")
+
+
 def reply_body(reply: AskReply) -> dict[str, object]:
-    """The 200 JSON body for a reply (POST-ASK-1)."""
+    """The 200 JSON body for a reply (POST-ASK-1); result columns are labels (FORBIDDEN-ANS-1)."""
     return {
         "answer": reply.answer,
         "model": reply.model,
         "results": [
             {
-                "columns": list(r.columns),
-                "rows": [dict(row) for row in r.rows],
+                "columns": [column_label(c) for c in r.columns],
+                "rows": [{column_label(k): v for k, v in row.items()} for row in r.rows],
                 "row_count": r.row_count,
                 "truncated": r.truncated,
                 "referenced_tables": list(r.referenced_tables),
