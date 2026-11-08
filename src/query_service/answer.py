@@ -8,6 +8,7 @@ contract module; tests bridge the two (CL11-F).
 """
 
 import json
+import logging
 import math
 import re
 import threading
@@ -25,10 +26,13 @@ from .ask import AppliedThresholds, AskReply, AskRequest, SqlQueryResult
 from .engine import QueryServiceError, WarehouseQueryEngine
 from .tools import CORRELATION_CAVEATS, ToolArgumentError, WarehouseTools
 
+LOG: Final = logging.getLogger("query_service")
 PROJECT_ENV: Final = "GOOGLE_CLOUD_PROJECT"
 LOCATION_ENV: Final = "GOOGLE_CLOUD_LOCATION"
 MAX_TOOL_ROUNDS: Final = 4
 ANSWER_DEADLINE_SECONDS: Final = 45.0
+CALL_TIMEOUT_SECONDS: Final = 12.0
+CALL_RETRIES: Final = 1
 MAX_DESCRIBE_TABLES: Final = 10
 GLOSSARY_PAGE_TERMS: Final = 200
 TAXONOMY_PATH: Final = "docs/taxonomy.md"
@@ -79,9 +83,7 @@ def vertex_client(
     for name in (PROJECT_ENV, LOCATION_ENV):
         if not env.get(name):
             raise KeyError(f"SEQ-11 violation: {name} is not set")
-    options = types.HttpOptions(
-        timeout=int(ANSWER_DEADLINE_SECONDS * 1000), httpx_client=http_client
-    )
+    options = types.HttpOptions(timeout=int(CALL_TIMEOUT_SECONDS * 1000), httpx_client=http_client)
     return genai.Client(
         vertexai=True,
         project=env[PROJECT_ENV],
@@ -416,7 +418,7 @@ class Answerer:
             self._answers[key] = reply
         return reply
 
-    def _answer_fresh(self, request: AskRequest) -> AskReply:
+    def _answer_fresh(self, request: AskRequest) -> AskReply:  # noqa: PLR0912, PLR0915 - one loop
         """Answer one question under its thresholds.
 
         Raises:
@@ -430,12 +432,14 @@ class Answerer:
             system_instruction=instruction,
             tools=[TOOL_DECLARATIONS],
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW),
         )
         # Z-31: the last allowed model call answers from the results it has (POST-ANS-4).
         final_config = types.GenerateContentConfig(
             system_instruction=instruction,
             tools=[TOOL_DECLARATIONS],
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW),
             tool_config=types.ToolConfig(
                 function_calling_config=types.FunctionCallingConfig(
                     mode=types.FunctionCallingConfigMode.NONE
@@ -462,14 +466,23 @@ class Answerer:
                 contents.append(
                     types.Content(role="user", parts=[types.Part(text=FINAL_ANSWER_PROMPT)])
                 )
-            try:
-                response = self._client.models.generate_content(
-                    model=self._model, contents=contents, config=final_config if final else config
-                )
-            except (errors.APIError, httpx2.HTTPError) as exc:
-                raise ModelUnavailableError(
-                    f"ERRORS-ASK-2 violation: Vertex AI failed: {exc}"
-                ) from exc
+            response = None
+            for attempt in range(CALL_RETRIES + 1):
+                try:
+                    response = self._client.models.generate_content(
+                        model=self._model,
+                        contents=contents,
+                        config=final_config if final else config,
+                    )
+                    break
+                except (errors.APIError, httpx2.HTTPError) as exc:
+                    if attempt == CALL_RETRIES:
+                        raise ModelUnavailableError(
+                            f"ERRORS-ASK-2 violation: Vertex AI failed: {exc}"
+                        ) from exc
+                    LOG.warning("Vertex call failed, retrying once: %s", exc)
+            if response is None:
+                raise ModelUnavailableError("ERRORS-ASK-2 violation: Vertex AI gave no reply")
             requests_made += 1
             calls = response.function_calls or []
             if calls:
