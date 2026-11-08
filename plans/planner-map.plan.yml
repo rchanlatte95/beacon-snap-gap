@@ -70,7 +70,7 @@
         "surface": "ui",
         "capability": "A Food Bank Planner or SBA/CDFI Officer opens the Cloud Run URL, sees the top KPI cohort strip (97 Classic Food Deserts, 26 Dual-Gap Food + SBA tracts, 53 Mobile-Priority Transport Gap tracts, 12 Triple-Gap Opportunities to Serve, and 2 Insufficient Data tracts), switches across the three persona lenses, views 489 Central Florida tracts with a pinned on-canvas legend and clean exterior county borders, uses the AI Insight and Coordinated Action Wizard to filter cohorts or inspect a tract's evidence (SBA lending, no-vehicle %, median household income + 90% MOE, confidence badge and sources), and generates a Coordinated Action Brief.",
         "use": "Open the Cloud Run URL, look at the tract map, and click a flagged tract to open its card.",
-        "observe": "The top KPI strip and recomputed test assertions show 97 Classic Food Deserts, 50 Dual-Gap tracts (<=10 SBA loans), 53 High No-Vehicle tracts (>=6.90%), 29 Triple-Gap tracts, and 2 Insufficient Data tracts; clicking a tract or running the AI wizard displays matching source values, confidence level, and a Coordinated Action Brief.",
+        "observe": "The top KPI strip and recomputed test assertions show 97 Classic Food Deserts, 26 Dual-Gap tracts (SBA loans per 1,000 residents in the bottom quartile), 53 High No-Vehicle tracts (>=6.90%), 12 Triple-Gap tracts, and 2 Insufficient Data tracts; clicking a tract or running the AI wizard displays matching source values, confidence level, and a Coordinated Action Brief.",
         "attested_by": null,
         "attested_at": null
       }
