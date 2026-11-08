@@ -62,7 +62,16 @@
         "POST-APP-4",
         "POST-APP-5",
         "FORBIDDEN-APP-1",
-        "ERRORS-APP-1"
+        "ERRORS-APP-1",
+        "POST-RCH-1",
+        "POST-CUT-1",
+        "POST-SRC-1",
+        "ERRORS-BLD-2",
+        "POST-APP-6",
+        "FORBIDDEN-APP-2",
+        "POST-APP-8",
+        "POST-APP-9",
+        "POST-APP-10"
       ],
       "clauses_deferred": [],
       "negative_constraints": [

@@ -1,3 +1,9 @@
+/**
+ * Gap emphasis (PR #18), mapped in cycle 17.
+ * CONTRACT AUTHORITY RECORD: contracts/planner-map.app.contract.ts, POST-APP-10 (REQ-63): the context line
+ * states "<n> on map" and "<m> without a map shape" for the chosen group, and turning emphasis off clears it.
+ * Feature states are covered by tests/emphasis-states.test.ts.
+ */
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fireEvent, render, screen, within } from '@testing-library/react'
