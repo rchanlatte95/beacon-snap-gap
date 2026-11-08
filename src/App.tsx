@@ -3,6 +3,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CutControls } from './map/CutControls'
 import { AiAnswerCard, AiUnavailableNotice, AskPending, SessionEndedNotice } from './ai/AiAnswer'
 import { type AskAnswer, type AskService } from './ai/askClient'
+import { DriveTimeEstimate } from './map/DriveTimeEstimate'
+import { routingInputs } from './map/driveTimes'
+import { nearestSiteDistances } from './map/proximity'
+import { useDriveTimes } from './map/useDriveTimes'
 import { OpportunityMap } from './map/OpportunityMap'
 import { ProximityControls } from './map/ProximityControls'
 import {
@@ -88,6 +92,7 @@ interface GeoLayers {
 
 export interface OpportunitiesAppProps {
   readonly initialBundle?: PlannerBundle
+  readonly initialSites?: GeoJSON.FeatureCollection
   readonly initialLoadError?: string
   readonly enableMap?: boolean
   /** The QueryService `ask` client. Without it, questions use the built-in wizard only. */
@@ -266,6 +271,16 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
     }
     return askedQuery.trim() ? answerWizardQuery(tracts, askedQuery, cut?.no_vehicle) : null
   }, [aiAnswer, tracts, askedQuery, cut])
+  const sites = geo?.sites ?? props.initialSites
+  const driveTimes = useDriveTimes(sites !== undefined)
+  const routingKey = useMemo(
+    () => (sites ? routingInputs(tracts, sites).inputKey : null),
+    [tracts, sites],
+  )
+  const siteDistances = useMemo(
+    () => (sites ? nearestSiteDistances(tracts, sites) : null),
+    [tracts, sites],
+  )
   const briefing = useMemo(
     () =>
       tracts.length
@@ -298,6 +313,19 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
     [tracts, selected],
   )
   const notDrawn = useMemo(() => tracts.filter((t) => !t.drawn), [tracts])
+  const selectedDriveTime = selectedTract ? (
+    <DriveTimeEstimate
+      geoid={selectedTract.geoid}
+      originLabel={`${selectedTract.name}, ${selectedTract.county} County`}
+      population={selectedTract}
+      miles={siteDistances?.get(selectedTract.geoid)}
+      cache={driveTimes.cache}
+      inputKey={routingKey}
+      now={driveTimes.now}
+    />
+  ) : (
+    <p className="proximity-note">Select a neighborhood to see its estimated drive time.</p>
+  )
 
   const counts = useMemo(
     () => ({
@@ -506,6 +534,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
               }}
               onMiles={changeProximity}
               onReset={resetRules}
+              driveTime={selectedDriveTime}
             >
               <CutControls cuts={cuts} percentiles={percentiles} onChange={changeCut} />
             </ProximityControls>
@@ -768,6 +797,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                     minPopulation={bundle.thresholds.sba_min_population}
                     cut={cut}
                     reach={reachFacts(selectedTract, proximityMiles)}
+                    driveTime={selectedDriveTime}
                   />
                 ) : (
                   <p className="muted">Pick a neighborhood on the map or in the list.</p>
@@ -942,11 +972,13 @@ function TractEvidence({
   minPopulation,
   cut,
   reach,
+  driveTime,
 }: {
   t: TractRecord
   minPopulation: number
   cut: CutValues
   reach: ReachFacts
+  driveTime: ReactNode
 }) {
   const povertyMet = t.pct_poverty !== null && t.pct_poverty >= cut.poverty
   const distance = milesText(reach.miles)
@@ -1039,6 +1071,7 @@ function TractEvidence({
             testId="reach-people-per-site"
           />
         </dl>
+        {driveTime}
         {t.sites_in_tract === 0 && <p className="callout">{NO_SITE_CARD_TEXT}</p>}
       </section>
 

@@ -14,6 +14,7 @@ export interface ProximityControlsProps {
   readonly onReset: () => void
   /** Controls shown beside the distance control (the gap cuts). */
   readonly children?: ReactNode
+  readonly driveTime?: ReactNode
 }
 
 /** REQ-57 (Z-25 A): one distance control, in straight-line miles only. */
@@ -56,6 +57,7 @@ export function ProximityControls(props: ProximityControlsProps) {
         </label>
         {props.children}
       </div>
+      {props.driveTime}
       <p className="proximity-result" data-testid="proximity-result" role="status">
         {props.enabled
           ? `Showing the ${props.beyondCount} beyond ${distance}. ${props.withinCount} within; ${props.unknownCount} with no distance data.`
