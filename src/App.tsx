@@ -372,6 +372,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
     setAsking(false)
     if (outcome.ok) {
       setAiAnswer(outcome.answer)
+      setAskedQuery(q.trim())
     } else {
       // REQ-39 / SEQ-9 and REQ-66: the built-in wizard answers, with the notice.
       if (outcome.sessionEnded) setAiSessionEnded(true)
@@ -792,6 +793,19 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                               : tracts,
                           cohortId: proximityActive || answer ? 'all' : cohort,
                           personaId: persona,
+                          selectionLabel: [
+                            answer
+                              ? `Question results: ${askedQuery}`
+                              : (COHORT_CARDS.find((c) => c.id === cohort)?.label ??
+                                'All neighborhoods'),
+                            proximityEnabled
+                              ? aiAnswer && answer
+                                ? `distance rule: ${milesText(aiAnswer.applied.reach_miles)}`
+                                : `beyond ${milesText(proximityMiles)}`
+                              : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' · '),
                         }),
                       )
                     }
@@ -907,6 +921,7 @@ function Pill({
 }
 
 function BriefCard({ brief }: { brief: CoordinatedActionBrief }) {
+  const needsAssessment = brief.dataCheckTractCount === brief.targetTractCount
   return (
     <article className="brief" data-testid="coordinated-action-brief">
       <h3>{brief.title}</h3>
@@ -928,9 +943,15 @@ function BriefCard({ brief }: { brief: CoordinatedActionBrief }) {
         <dt>People</dt>
         <dd>{nf.format(brief.totalResidentsCovered)}</dd>
         <dt>Many with no car</dt>
-        <dd>{brief.mobilePriorityTractCount}</dd>
+        <dd>{needsAssessment ? 'Not assessed' : brief.mobilePriorityTractCount}</dd>
         <dt>Few business loans</dt>
-        <dd>{brief.dualGapTractCount}</dd>
+        <dd>{needsAssessment ? 'Not assessed' : brief.dualGapTractCount}</dd>
+        {brief.dataCheckTractCount > 0 && (
+          <>
+            <dt>Need data checks</dt>
+            <dd>{brief.dataCheckTractCount}</dd>
+          </>
+        )}
       </dl>
       <h4>Food bank</h4>
       <p>{brief.foodBankAction}</p>
