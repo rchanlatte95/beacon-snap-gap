@@ -166,7 +166,10 @@
         "POST-REG-3",
         "ERRORS-REG-3",
         "POST-RET-2",
-        "ERRORS-RET-2"
+        "ERRORS-RET-2",
+        "POST-READ-2",
+        "ERRORS-READ-2",
+        "POST-READ-3"
       ],
       "clauses_deferred": [],
       "negative_constraints": [

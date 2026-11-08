@@ -22,6 +22,8 @@ Batches:
 - Batch 6c: the retained-source rule: candidate files on disk, every candidate registered as a
   source or listed as not a source with a reason, no stale entries, and cache-relative paths in
   the download manifest (REQ-25, REQ-26, REQ-48).
+- Batch 6c-ii: document reading: every PDF page and every text file becomes numbered page text,
+  read with the tools already on the build machine and never altered (REQ-25, REQ-28).
 
 The implementation MUST NOT import this module (CL11-F). Tests import both and compare.
 """
@@ -125,6 +127,12 @@ CANDIDATE_ROOTS: tuple[str, ...] = ("data", "docs")
 EXCLUDED_DIRS: tuple[str, ...] = ("data/cache", "data/warehouse", "docs/mockups")
 CACHE_PREFIX = "cache:"
 REPO_PREFIX = "repo:"
+
+# Batch 6c-ii: document reading (REQ-25, REQ-28). Poppler's tools, already on the build machine.
+PDF_TEXT_COMMAND: tuple[str, ...] = ("pdftotext", "-layout", "-enc", "UTF-8")  # then <file> -
+PDF_INFO_COMMAND: tuple[str, ...] = ("pdfinfo",)  # then <file>; its "Pages:" line is the count
+PAGE_BREAK = "\f"  # pdftotext ends every page with a form feed
+TEXT_PAGE = 1  # a text file is one page, numbered 1
 
 # --- 2. Domain exceptions (every message names its clause) --------------------------------
 
@@ -329,6 +337,14 @@ class RetainedSources:
 
     sources: tuple[str, ...]
     not_sources: tuple[NotASource, ...]
+
+
+@dataclass(frozen=True)
+class DocumentPage:
+    """Batch 6c-ii: one page of a retained document, numbered from 1."""
+
+    page: int
+    text: str
 
 
 # --- 4. Callable validators ----------------------------------------------------------------
@@ -938,6 +954,28 @@ def expected_retained(
     )
 
 
+def expected_pdf_pages(pdftotext_stdout: str, page_count: int) -> tuple[DocumentPage, ...]:
+    """POST-READ-2 / ERRORS-READ-2 oracle: one page per PDF page, blank pages kept."""
+    chunks = pdftotext_stdout.split(PAGE_BREAK)
+    if chunks and chunks[-1] == "":
+        chunks = chunks[:-1]
+    if len(chunks) != page_count:
+        raise SourceReadError(
+            f"ERRORS-READ-2 violation: pdftotext gave {len(chunks)} pages, pdfinfo {page_count}"
+        )
+    return tuple(DocumentPage(page=i, text=t) for i, t in enumerate(chunks, 1))
+
+
+def expected_text_pages(raw: bytes) -> tuple[tuple[DocumentPage, ...], str]:
+    """POST-READ-3 / ERRORS-READ-1 oracle: a text file is one page, decoded without loss."""
+    for encoding in READ_ENCODINGS:
+        try:
+            return (DocumentPage(page=TEXT_PAGE, text=raw.decode(encoding)),), encoding
+        except UnicodeDecodeError:
+            continue
+    raise SourceReadError("ERRORS-READ-1 violation: text file is not decodable")
+
+
 # --- 5. Traceability map (every clause declares its verification method) -----------------------
 
 CONTRACT_SCOPE: Mapping[str, Clause] = {
@@ -1300,5 +1338,30 @@ CONTRACT_RETAINED: Mapping[str, Clause] = {
         "registered nor listed, and RegistryError naming a registry entry or listing that names "
         "no candidate; the Ingest stops in both cases.",
         ("REQ-25", "REQ-26"),
+    ),
+}
+
+CONTRACT_DOCUMENTS: Mapping[str, Clause] = {
+    "POST-READ-2": Clause(
+        "test",
+        "read_pdf_pages(path) runs PDF_TEXT_COMMAND and returns one DocumentPage per page that "
+        "PDF_INFO_COMMAND reports, numbered from 1 in order, blank pages kept with their own "
+        "text, each page's text exactly as pdftotext wrote it between PAGE_BREAK characters.",
+        ("REQ-25", "REQ-28"),
+    ),
+    "ERRORS-READ-2": Clause(
+        "test",
+        "read_pdf_pages raises SourceReadError naming the file when the file is missing, a "
+        "command is missing or exits non-zero, or the page count from pdftotext differs from "
+        "pdfinfo's; it never returns fewer pages than the PDF has.",
+        ("REQ-25",),
+    ),
+    "POST-READ-3": Clause(
+        "test",
+        "read_text_pages(path) returns one DocumentPage numbered TEXT_PAGE with the file's text "
+        "decoded by the first of READ_ENCODINGS that decodes it without error, and that encoding; "
+        "no byte is replaced or dropped. An undecodable or missing file raises SourceReadError "
+        "(ERRORS-READ-1).",
+        ("REQ-25", "REQ-28"),
     ),
 }
