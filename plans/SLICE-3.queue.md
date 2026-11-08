@@ -46,7 +46,10 @@ Only Ketema unparks an entry. Decision-model support (jev-1.14, 2026-11-08) is a
 - **Recommendation:** A. Citations by page number stay true to the PDF.
 - **Dependent:** POST-READ-2, ERRORS-READ-2 (page-count check), and their tests.
 
-## Q-5: decode text without replacing bytes (POST-READ-3, parked)
+## Q-5: decode text without replacing bytes (POST-READ-3, unparked)
+
+- **Decided By: User** (Ketema, 2026-11-08): neither A nor B alone, "the solution is a combination of both. do not let a single row exclude an entire file. allow the placeholders, but log it so that it is surfaced."
+- **Effect on POST-READ-3:** an undecodable byte becomes a replacement character instead of stopping the file; every replacement is recorded (file, page or row, count) and surfaced. POST-READ-3 is amended accordingly and unparked; the same rule applies to delimited files, so one bad row never drops a table.
 
 - **Clause text:** "decoded by the first of READ_ENCODINGS that decodes it without error ... no byte is replaced or dropped".
 - **Conflict:** REQ-28 says "leave them unaltered". The decision model reads that as the files on disk only (support 38% that it covers the loaded text). The first build decoded with `errors="replace"`, which silently changed undecodable bytes in the loaded text.

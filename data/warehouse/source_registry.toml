@@ -2457,6 +2457,30 @@ ds = "REPO-DOC"
 group = "docs"
 file_format = "text"
 
+[[source]]
+path = "repo:docs/analysis/high_need_low_lending_tracts.csv"
+ds = "REPO-DOC"
+group = "docs_analysis"
+file_format = "csv"
+
+[[source]]
+path = "repo:docs/analysis/need-vs-sba-lending.md"
+ds = "REPO-DOC"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/analysis/shared-basis.md"
+ds = "REPO-DOC"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/analysis/tract_gap_types.csv"
+ds = "REPO-DOC"
+group = "docs_analysis"
+file_format = "csv"
+
 [[not_a_source]]
 path = "repo:data/external/census-acs/extract_median_income.py"
 reason = "project code that produced the committed ACS median income extract; the extract is the source"
