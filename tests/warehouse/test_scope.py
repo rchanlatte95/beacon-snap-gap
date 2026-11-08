@@ -6,12 +6,15 @@ CONTRACT AUTHORITY RECORD:
 - Clauses covered: POST-SCOPE-1..6, INV-SCOPE-1, INV-SCOPE-2, FORBIDDEN-SCOPE-1, ERRORS-SCOPE-1
 - Requirements: REQ-25, REQ-26
 
-The implementation is src/warehouse/scope.py. It does not import the contract (CL11-F); these tests import both.
+The implementation is src/warehouse/scope.py. It does not import the contract (CL11-F); these
+tests import both.
 
 FOUR-CRITERIA TEST VALIDITY GATE (both tests):
   C1 VALID: each cites clauses present in contracts/warehouse_contract.py.
-  C2 VALUABLE: expected decisions are exact, hand-derived values; a wrong rule changes at least one of them.
-  C3 NON-DUPLICATIVE: test 1 pins the decisions of one mixed file set; test 2 pins order independence and input rejection.
+  C2 VALUABLE: expected decisions are exact, hand-derived values; a wrong rule changes at least
+     one of them.
+  C3 NON-DUPLICATIVE: test 1 pins the decisions of one mixed file set; test 2 pins order
+     independence and input rejection.
   C4 NOT FUTURE-EDIT: every asserted behavior is a contracted clause.
 """
 
@@ -19,126 +22,60 @@ import random
 from datetime import date
 
 import pytest
-
 from contracts import warehouse_contract as contract
 from src.warehouse import scope as impl
 
-# Risk tier: HIGH. A wrong decision silently drops a source from the warehouse or loads a duplicate, and every
-# later answer cites what the warehouse holds.
+# Risk tier: HIGH. A wrong decision silently drops a source from the warehouse or loads a
+# duplicate, and every later answer cites what the warehouse holds.
 
-# (path, sha256, format, reference_end, is_base_geography, release_id) -> expected (decision, reason)
+# (path, sha256, file_format, reference_end, is_base_geography, release_id, expected)
 CASES = [
-    (
-        "recent.csv",
-        "hA",
-        "csv",
-        "2026-09-30",
-        False,
-        None,
-        ("load", None),
-    ),  # POST-SCOPE-1 interior
-    (
-        "boundary_in.csv",
-        "hB",
-        "csv",
-        "2024-01-01",
-        False,
-        None,
-        ("load", None),
-    ),  # POST-SCOPE-1 on-point
-    (
-        "boundary_out.csv",
-        "hC",
-        "csv",
-        "2023-12-31",
-        False,
-        None,
-        ("exclude", "time_scope"),
-    ),  # POST-SCOPE-3 off-point
-    (
-        "old_dup.csv",
-        "hA",
-        "csv",
-        "2019-09-30",
-        False,
-        None,
-        ("exclude", "time_scope"),
-    ),  # POST-SCOPE-3 precedence over duplicate_content
+    ("recent.csv", "hA", "csv", "2026-09-30", False, None, ("load", None)),  # POST-SCOPE-1
+    ("boundary_in.csv", "hB", "csv", "2024-01-01", False, None, ("load", None)),  # on-point
+    ("boundary_out.csv", "hC", "csv", "2023-12-31", False, None, ("exclude", "time_scope")),
+    # POST-SCOPE-3: time scope takes precedence over duplicate content (hA is loaded above)
+    ("old_dup.csv", "hA", "csv", "2019-09-30", False, None, ("exclude", "time_scope")),
     ("geo.csv", "hE", "csv", "2020-12-31", True, None, ("load", None)),  # POST-SCOPE-2
-    (
-        "geo_dup.csv",
-        "hE",
-        "csv",
-        "1999-12-31",
-        True,
-        None,
-        ("exclude", "duplicate_content"),
-    ),  # POST-SCOPE-2 + POST-SCOPE-4
-    (
-        "sram.csv",
-        "hG",
-        "csv",
-        "2025-12-31",
-        False,
-        "sram25",
-        ("load", None),
-    ),  # POST-SCOPE-5 winner
-    (
-        "sram.xlsx",
-        "hF",
-        "xlsx",
-        "2025-12-31",
-        False,
-        "sram25",
-        ("exclude", "duplicate_format"),
-    ),  # POST-SCOPE-5
-    (
-        "sram.sas",
-        "hK",
-        "sas",
-        "2025-01-01",
-        False,
-        "sram25",
-        ("exclude", "duplicate_format"),
-    ),  # POST-SCOPE-5
+    ("geo_dup.csv", "hE", "csv", "1999-12-31", True, None, ("exclude", "duplicate_content")),
+    ("sram.csv", "hG", "csv", "2025-12-31", False, "sram25", ("load", None)),  # POST-SCOPE-5
+    ("sram.xlsx", "hF", "xlsx", "2025-12-31", False, "sram25", ("exclude", "duplicate_format")),
+    ("sram.sas", "hK", "sas", "2025-01-01", False, "sram25", ("exclude", "duplicate_format")),
     ("unknown.xlsx", "hH", "xlsx", None, False, None, ("load", None)),  # POST-SCOPE-6
-    (
-        "same_as_recent.csv",
-        "hA",
-        "csv",
-        "2025-06-30",
-        False,
-        None,
-        ("exclude", "duplicate_content"),
-    ),  # POST-SCOPE-4
+    ("same.csv", "hA", "csv", "2025-06-30", False, None, ("exclude", "duplicate_content")),
 ]
 
 
+def _kwargs(case):
+    path, sha, fmt, end, geo, rel, _ = case
+    return {
+        "path": path,
+        "sha256": sha,
+        "file_format": fmt,
+        "reference_end": end,
+        "is_base_geography": geo,
+        "release_id": rel,
+    }
+
+
 def _impl_files():
-    return [
-        impl.make_source_file(p, h, f, end, geo, rel)
-        for p, h, f, end, geo, rel, _ in CASES
-    ]
+    return [impl.make_source_file(**_kwargs(c)) for c in CASES]
 
 
 def _contract_files():
-    return [
-        contract.validate_source_file(p, h, f, end, geo, rel)
-        for p, h, f, end, geo, rel, _ in CASES
-    ]
+    return [contract.validate_source_file(**_kwargs(c)) for c in CASES]
 
 
 def test_scope_decisions_for_a_mixed_file_set():
     """
     CONTRACT TRACEABILITY:
     - Contract: warehouse_contract expected_scope_decisions()
-    - Enforces: POST-SCOPE-1, POST-SCOPE-2, POST-SCOPE-3, POST-SCOPE-4, POST-SCOPE-5, POST-SCOPE-6,
-      INV-SCOPE-1, FORBIDDEN-SCOPE-1
+    - Enforces: POST-SCOPE-1, POST-SCOPE-2, POST-SCOPE-3, POST-SCOPE-4, POST-SCOPE-5,
+      POST-SCOPE-6, INV-SCOPE-1, FORBIDDEN-SCOPE-1
     - Category: positive, boundary, negative
     - Risk tier: HIGH
     - Pyramid level: Unit (pure decision over described files)
-    - Equivalence partition (reference_end): on-point 2024-01-01 loads; off-point 2023-12-31 excludes; interior
-      2026-09-30 loads; unknown loads. One representative per class.
+    - Equivalence partition (reference_end): on-point 2024-01-01 loads; off-point 2023-12-31
+      excludes; interior 2026-09-30 loads; unknown loads. One representative per class.
     """
     decisions = impl.decide_scope(_impl_files())
 
@@ -160,11 +97,12 @@ def test_scope_decisions_for_a_mixed_file_set():
         )
         assert (got.decision, got.reason) == expected, (
             "test_scope_decisions_for_a_mixed_file_set FAILED\n"
-            f"POST-SCOPE violation for {path!r} (clauses POST-SCOPE-1 to POST-SCOPE-6, FORBIDDEN-SCOPE-1)\n"
+            f"POST-SCOPE violation for {path!r} "
+            "(clauses POST-SCOPE-1 to POST-SCOPE-6, FORBIDDEN-SCOPE-1)\n"
             f"EXPECTED: {expected}\n"
             f"ACTUAL: {(got.decision, got.reason)}\n"
-            "GUIDANCE: time scope first, then duplicate content, then duplicate format; base geography skips time scope; "
-            "an unknown period loads"
+            "GUIDANCE: time scope first, then duplicate content, then duplicate format; "
+            "base geography skips time scope; an unknown period loads"
         )
 
     # The contract oracle must agree with the implementation on the same files.
@@ -174,97 +112,51 @@ def test_scope_decisions_for_a_mixed_file_set():
     contract.validate_scope_decisions(_contract_files(), contract_decisions)
 
 
+def _bad(**overrides):
+    base = {
+        "path": "a.csv",
+        "sha256": "h",
+        "file_format": "csv",
+        "reference_end": None,
+        "is_base_geography": False,
+        "release_id": None,
+    }
+    return {**base, **overrides}
+
+
 _BAD_INPUTS = [
-    (
-        "empty path",
-        {
-            "path": "",
-            "sha256": "h",
-            "format": "csv",
-            "reference_end": None,
-            "is_base_geography": False,
-            "release_id": None,
-        },
-    ),
-    (
-        "empty sha256",
-        {
-            "path": "a.csv",
-            "sha256": "",
-            "format": "csv",
-            "reference_end": None,
-            "is_base_geography": False,
-            "release_id": None,
-        },
-    ),
-    (
-        "unknown format",
-        {
-            "path": "a.parquet",
-            "sha256": "h",
-            "format": "parquet",
-            "reference_end": None,
-            "is_base_geography": False,
-            "release_id": None,
-        },
-    ),
-    (
-        "date not YYYY-MM-DD",
-        {
-            "path": "a.csv",
-            "sha256": "h",
-            "format": "csv",
-            "reference_end": "24-01-01",
-            "is_base_geography": False,
-            "release_id": None,
-        },
-    ),
-    (
-        "date not a real day",
-        {
-            "path": "a.csv",
-            "sha256": "h",
-            "format": "csv",
-            "reference_end": "2024-13-01",
-            "is_base_geography": False,
-            "release_id": None,
-        },
-    ),
-    (
-        "empty release_id",
-        {
-            "path": "a.csv",
-            "sha256": "h",
-            "format": "csv",
-            "reference_end": None,
-            "is_base_geography": False,
-            "release_id": "",
-        },
-    ),
+    ("empty path", _bad(path="")),
+    ("empty sha256", _bad(sha256="")),
+    ("unknown file_format", _bad(path="a.parquet", file_format="parquet")),
+    ("date not YYYY-MM-DD", _bad(reference_end="24-01-01")),
+    ("date not a real day", _bad(reference_end="2024-13-01")),
+    ("empty release_id", _bad(release_id="")),
 ]
 
 
 def test_order_independence_and_invalid_input_rejection():
     """
     CONTRACT TRACEABILITY:
-    - Contract: warehouse_contract expected_scope_decisions(), validate_source_file(), SCOPE_START, EXCLUSION_REASONS
+    - Contract: warehouse_contract expected_scope_decisions(), validate_source_file(),
+      SCOPE_START, EXCLUSION_REASONS, FORMAT_RANK
     - Enforces: INV-SCOPE-2, ERRORS-SCOPE-1
     - Category: invariant, error
     - Risk tier: HIGH
     - Pyramid level: Unit
-    - Equivalence partition (invalid input): one representative per rejected class (six classes in _BAD_INPUTS).
+    - Equivalence partition (invalid input): one representative per rejected class
+      (six classes in _BAD_INPUTS).
     """
     # INV-SCOPE-2: the listing order does not change any decision.
     files = _impl_files()
     baseline = {d.path: (d.decision, d.reason) for d in impl.decide_scope(files)}
-    rng = random.Random(2024)
+    rng = random.Random(2024)  # noqa: S311 - seeded shuffle of test inputs, not a secret
     for round_no in range(25):
         shuffled = files[:]
         rng.shuffle(shuffled)
         got = {d.path: (d.decision, d.reason) for d in impl.decide_scope(shuffled)}
         assert got == baseline, (
             "test_order_independence_and_invalid_input_rejection FAILED\n"
-            f"INV-SCOPE-2 violation in shuffle {round_no}: a decision changed with the listing order\n"
+            f"INV-SCOPE-2 violation in shuffle {round_no}: a decision changed with the order\n"
             f"EXPECTED: {baseline}\n"
             f"ACTUAL: {got}\n"
             "GUIDANCE: the outcome for each file depends on the file set, never on its position"
