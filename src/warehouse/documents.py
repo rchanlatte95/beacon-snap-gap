@@ -1,7 +1,7 @@
-"""Document reading: every page of a retained PDF as numbered text, with Poppler's tools.
+"""Document reading: every page of a retained PDF, and every text file, as numbered text.
 
 Specification: contracts/warehouse_contract.py, CONTRACT_DOCUMENTS (SLICE-3 batch 6c-ii).
-Requirements: REQ-25, REQ-28. Runtime declarations are independent of that module;
+Requirements: REQ-25, REQ-28, REQ-53, REQ-54. Runtime declarations are independent of that module;
 tests bridge the specification and this implementation (CL11-F).
 """
 
@@ -10,20 +10,23 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
-from .reader import SourceReadError
+from .reader import SourceReadError, whole_file_encoding
 
 PDF_TEXT_COMMAND: Final[tuple[str, ...]] = ("pdftotext", "-layout", "-enc", "UTF-8")
 PDF_INFO_COMMAND: Final[tuple[str, ...]] = ("pdfinfo",)
 PAGE_BREAK: Final = "\f"  # pdftotext ends every page with a form feed
 _PAGES_LABEL: Final = "Pages:"
+TEXT_PAGE: Final = 1  # a text file is one page, numbered 1
 
 __all__ = [
     "PAGE_BREAK",
     "PDF_INFO_COMMAND",
     "PDF_TEXT_COMMAND",
+    "TEXT_PAGE",
     "DocumentPage",
     "SourceReadError",
     "read_pdf_pages",
+    "read_text_pages",
 ]
 
 
@@ -33,6 +36,19 @@ class DocumentPage:
 
     page: int
     text: str
+
+
+def read_text_pages(path: Path) -> tuple[tuple[DocumentPage, ...], str]:
+    """Return a text file as one page numbered TEXT_PAGE, and the encoding used (POST-READ-3).
+
+    The whole file is decoded by the first of the reader's encodings that fits it, so no byte
+    is replaced or dropped (Z-22); the caller logs the encoding.
+
+    Raises:
+        SourceReadError: ERRORS-READ-1, the file is missing or cannot be read.
+    """
+    encoding = whole_file_encoding(path)
+    return (DocumentPage(page=TEXT_PAGE, text=path.read_text(encoding=encoding)),), encoding
 
 
 def _run(command: list[str], path: Path) -> str:
