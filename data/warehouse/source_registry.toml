@@ -2438,3 +2438,31 @@ path = "repo:docs/hackathon/second-harvest-food-finder-data.md"
 ds = "DS-X12"
 group = "docs"
 file_format = "text"
+
+[[source]]
+path = "repo:docs/hackathon/resources/beacon-design-brand-guidelines.pdf"
+ds = "DS-B4"
+group = "docs"
+file_format = "pdf"
+
+[[source]]
+path = "repo:docs/hackathon/resources/cdfi-fund-infographic.pdf"
+ds = "DS-B9"
+group = "docs"
+file_format = "pdf"
+
+[[source]]
+path = "repo:docs/hackathon/resources/presentation-template.pptx"
+ds = "DS-B5"
+group = "docs"
+file_format = "pptx"
+
+[[source]]
+path = "repo:docs/taxonomy.md"
+ds = "REPO-DOC"
+group = "docs"
+file_format = "text"
+
+[[not_a_source]]
+path = "repo:data/external/census-acs/extract_median_income.py"
+reason = "project code that produced the committed ACS median income extract; the extract is the source"
