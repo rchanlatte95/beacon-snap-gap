@@ -225,3 +225,17 @@ def test_invalid_glossary_specs_rejected_and_constants_align():
         f"ACTUAL: {impl.WAREHOUSE_GCP_PROJECT!r}\n"
         "GUIDANCE: canonical GCS project constant equals the contract's"
     )
+    assert impl.WAREHOUSE_GCS_BUCKET == contract.WAREHOUSE_GCS_BUCKET, (
+        "test_invalid_glossary_specs_rejected_and_constants_align FAILED\n"
+        "INV-STORAGE-1 violation: WAREHOUSE_GCS_BUCKET differs\n"
+        f"EXPECTED: {contract.WAREHOUSE_GCS_BUCKET!r}\n"
+        f"ACTUAL: {impl.WAREHOUSE_GCS_BUCKET!r}\n"
+        "GUIDANCE: canonical GCS bucket reference constant equals the contract's"
+    )
+    assert impl.WAREHOUSE_GCS_URI == contract.WAREHOUSE_GCS_URI, (
+        "test_invalid_glossary_specs_rejected_and_constants_align FAILED\n"
+        "INV-STORAGE-1 violation: WAREHOUSE_GCS_URI differs\n"
+        f"EXPECTED: {contract.WAREHOUSE_GCS_URI!r}\n"
+        f"ACTUAL: {impl.WAREHOUSE_GCS_URI!r}\n"
+        "GUIDANCE: canonical GCS URI reference constant equals the contract's"
+    )
