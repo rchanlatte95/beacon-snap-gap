@@ -156,7 +156,18 @@ input {
   background: var(--info-bg);
   border: 1px solid var(--info-border);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 6px 10px;
+  margin: 10px 0 0;
+}
+.glance-text {
+  font-size: 16px;
+  margin: 0 0 6px;
+  color: var(--gray-900);
+}
+.hint {
+  font-size: 14px;
+  color: var(--gray-700);
+  margin: 10px 0 0;
 }
 
 /* Legend */
@@ -170,9 +181,29 @@ input {
 .legend li {
   display: grid;
   grid-template-columns: 22px 1fr auto;
-  align-items: center;
+  align-items: start;
   gap: 10px;
   font-size: 15px;
+}
+.legend .swatch {
+  margin-top: 3px;
+}
+.legend-plain {
+  display: block;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--gray-700);
+}
+.swatch.circle {
+  width: 16px;
+  height: 16px;
+  margin-left: 3px;
+  border-radius: 50%;
+  border: 1.5px solid var(--primary-900);
+  background: rgba(30, 52, 63, 0.4);
+}
+.swatch.circle.reach {
+  background: var(--primary-700);
 }
 .swatch {
   width: 22px;
@@ -187,11 +218,7 @@ input {
   background: var(--nogap);
 }
 .swatch.insufficient {
-  background: repeating-linear-gradient(
-    45deg,
-    #fff 0 3px,
-    var(--gray-500) 3px 4.5px
-  );
+  background: repeating-linear-gradient(45deg, #fff 0 3px, var(--gray-500) 3px 4.5px);
 }
 .count {
   font-variant-numeric: tabular-nums;
@@ -330,6 +357,53 @@ input {
   color: #8a4b0b;
 }
 
+/* "How we know this": the detail level (sidebar and card) */
+.how-we-know {
+  border-top: 1px solid var(--gray-300);
+  padding-top: 10px;
+  font-size: 14px;
+  color: var(--gray-700);
+}
+.how-we-know > summary {
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--primary-700);
+}
+.how-we-know[open] > summary {
+  margin-bottom: 8px;
+}
+.how-we-know h3 {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 14px 0 4px;
+}
+.how-we-know p {
+  margin: 4px 0;
+}
+.how-we-know section,
+.how-we-know .deferred {
+  margin-top: 12px;
+}
+.glossary {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.glossary dt {
+  font-weight: 500;
+  color: var(--primary-900);
+}
+.glossary dd {
+  margin: 0;
+}
+.source-list {
+  margin: 4px 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
 /* Context */
 .spark {
   width: 100%;
@@ -371,29 +445,45 @@ input {
   padding: 4px 10px;
   font-size: 13px;
   color: var(--gray-700);
+  cursor: help;
 }
+/* County names sit in DOM markers, above every map layer. A full white halo keeps them
+   readable on the orange fill, on lines and on coverage circles. */
 .county-label {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--primary-700);
+  color: var(--primary-900);
   text-shadow:
-    0 0 3px #fff,
-    0 0 3px #fff,
-    0 0 3px #fff;
+    -1px -1px 0 #fff,
+    1px -1px 0 #fff,
+    -1px 1px 0 #fff,
+    1px 1px 0 #fff,
+    0 0 4px #fff,
+    0 0 6px #fff;
   pointer-events: none;
 }
 .hover-tip {
   position: absolute;
   pointer-events: none;
+  display: flex;
+  flex-direction: column;
   background: var(--primary-900);
   color: #fff;
   font-size: 13px;
-  padding: 4px 8px;
+  line-height: 1.35;
+  padding: 5px 9px;
   border-radius: 4px;
   transform: translate(12px, 12px);
   white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(30, 52, 63, 0.25);
+}
+.hover-tip.flip {
+  transform: translate(calc(-100% - 12px), 12px);
+}
+.hover-tip span {
+  opacity: 0.85;
 }
 .load-error {
   margin: 40px auto;
@@ -455,6 +545,27 @@ input {
 .card section {
   margin-top: 16px;
 }
+.card-plain p {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.card-plain .callout {
+  margin-top: 0;
+}
+.how-sure {
+  border-left: 3px solid var(--primary-500);
+  padding-left: 10px;
+}
+.how-sure.low,
+.how-sure.not-rated {
+  border-left-color: var(--gray-500);
+}
+.missing-note {
+  color: var(--gray-700);
+}
+.card .how-we-know {
+  margin-top: 16px;
+}
 .card h4 {
   margin: 0 0 6px;
   font-size: 13px;
@@ -504,6 +615,29 @@ input {
   font-size: 14px;
 }
 .confidence strong {
+  font-weight: 500;
+}
+.conf-why {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--gray-700);
+}
+.rule-pick {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+.rule-pick label {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+.rule-pick input {
+  margin: 3px 0 0;
+}
+.rule-pick strong {
   font-weight: 500;
 }
 .missing {

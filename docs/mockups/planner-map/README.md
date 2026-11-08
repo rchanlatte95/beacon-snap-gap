@@ -37,14 +37,14 @@ These parts are stand-ins, and the page labels them:
 |---|---|---|
 | Reach | 10 miles straight-line from each populated 2020 block to a site | 30-minute drive (Z-2, Z-2b, Z-2d). This needs routing data that is not in the repo |
 | Load | Tract 2020 population ÷ sites within the stand-in reach | Residents per site within reach (Z-2e) |
-| Confidence label | Lower if under 500 households or over 20% group quarters, else Moderate | Not decided. A human must confirm a rule before it goes in a contract |
+| Confidence label | Three candidate rules, picked in the sidebar, with the words High / Medium / Low / Not rated (Appendix B wording). A: Low if under 500 households or over 20% group quarters, else Medium. B: Low if the tract is LILA and its poverty rate is within 2 points of the cut, else Medium. C: counts the A and B tests (none is High, one is Medium, two or more is Low). The 500, 20% and 2-point thresholds are stand-ins | Not decided. A human must confirm a rule before it goes in a contract |
 
 ## Questions this mock-up can help answer
 
 - **Z-2e (decided: option A, load; Ketema and Ryan, cycle 11).** The mock-up shows reach too, only to compare. With the stand-in reach, all 97 high-need tracts are 100% in reach, but load goes from 19 to 1,050 residents per site. The manifest's drive-time test also put all 97 tracts in reach at 15 minutes. This supports the decision for load.
   - **Default (Ketema, 2026-11-08):** the drive-time threshold is 30 minutes by default. The 15-minute result above comes from a one-time Google Routes test (2026-11-07, Wednesday noon departure) that was not kept, because Google's terms do not allow storing Routes results. Issue #16 tracks the future dynamic capability: an adjustable threshold, with the App fetching current drive times from the Routes API on demand.
 - **Z-3 (slider).** The sidebar has a disabled slider placeholder that shows where the slider could go.
-- **Confidence label.** A rule is needed. The placeholder shows one possible form.
+- **Confidence label.** A rule is needed. The sidebar switches between three candidate rules and shows how many tracts get each level. Rules A and B never give High, because no rule can check the ACS margins of error: the repo has no poverty-rate margins of error. Rule C gives High when no test finds a limit.
 
 ## Note for the App
 
