@@ -149,7 +149,11 @@
         "POST-ADAPT-2",
         "ERRORS-ADAPT-3",
         "POST-ADAPT-3",
-        "FORBIDDEN-ADAPT-1"
+        "FORBIDDEN-ADAPT-1",
+        "POST-WRITE-1",
+        "POST-WRITE-2",
+        "INV-WRITE-1",
+        "ERRORS-WRITE-1"
       ],
       "clauses_deferred": [],
       "negative_constraints": [

@@ -15,6 +15,8 @@ Batches:
   table write sequencing (SEQ-5, REQ-29), and canonical GCS bucket storage in <gcp-project> (REQ-31).
 - Batch 5: the data adapter's single configured warehouse location and table locations
   relative to it (REQ-47, REQ-48).
+- Batch 6a: the warehouse writer: tables written through the adapter, relative catalog
+  locations, base tables only and no views in warehouse.duckdb (REQ-48, REQ-51).
 
 The implementation MUST NOT import this module (CL11-F). Tests import both and compare.
 """
@@ -86,6 +88,11 @@ WAREHOUSE_DB_FILE = "warehouse.duckdb"
 PARQUET_DIR = "parquet"
 TABLE_NAME_PATTERN = re.compile(r"^[a-z_][a-z0-9_]*$")
 
+# Batch 6a: warehouse writer (REQ-48, REQ-51). Base tables live inside warehouse.duckdb; every
+# data table lives in its own Parquet file named by table_location().
+BASE_TABLES: tuple[str, ...] = ("files", "catalog", "sources", "columns", "documents", "glossary")
+CATALOG_REQUIRED_COLUMNS: tuple[str, ...] = ("table_name", "parquet", "status")
+
 # --- 2. Domain exceptions (every message names its clause) --------------------------------
 
 
@@ -127,6 +134,10 @@ class GlossaryViolationError(WarehouseContractError):
 
 class WarehouseLocationError(WarehouseContractError):
     """ERRORS-ADAPT-1..3 or FORBIDDEN-ADAPT-1: a warehouse or table location is invalid."""
+
+
+class WarehouseWriteError(WarehouseContractError):
+    """ERRORS-WRITE-1 or POST-WRITE-1..2 / INV-WRITE-1: the written warehouse is wrong."""
 
 
 # --- 3. Immutable typed records ------------------------------------------------------------
@@ -216,6 +227,15 @@ class WarehouseLocation:
     """Batch 5 validated warehouse location: an absolute, normalized POSIX directory path."""
 
     root: str
+
+
+@dataclass(frozen=True)
+class WrittenWarehouse:
+    """Batch 6a observed shape of a written warehouse file (base tables, views, catalog)."""
+
+    base_tables: tuple[str, ...]
+    views: tuple[str, ...]
+    catalog: tuple[tuple[str, str], ...]
 
 
 # --- 4. Callable validators ----------------------------------------------------------------
@@ -609,6 +629,42 @@ def expected_table_path(location: WarehouseLocation, table_name: str, relative: 
     return str(PurePosixPath(location.root) / rel)
 
 
+def validate_written_warehouse(written: WrittenWarehouse, *, data_tables: Sequence[str]) -> None:
+    """POST-WRITE-2 oracle: base tables only, no views, every catalog location relative."""
+    if tuple(sorted(written.base_tables)) != tuple(sorted(BASE_TABLES)):
+        raise WarehouseWriteError(
+            f"POST-WRITE-2 violation: base tables {sorted(written.base_tables)} != "
+            f"{sorted(BASE_TABLES)}"
+        )
+    if written.views:
+        raise WarehouseWriteError(
+            f"POST-WRITE-2 violation: warehouse holds views {list(written.views)}; a view embeds "
+            "a location"
+        )
+    catalog = dict(written.catalog)
+    if sorted(catalog) != sorted(data_tables):
+        raise WarehouseWriteError(
+            f"POST-WRITE-2 violation: catalog lists {sorted(catalog)}, "
+            f"written {sorted(data_tables)}"
+        )
+    for name, rel in catalog.items():
+        if rel != expected_table_location(name):
+            raise WarehouseWriteError(
+                f"POST-WRITE-2 violation: catalog location {rel!r} for {name!r} is not "
+                f"{expected_table_location(name)!r}"
+            )
+
+
+def validate_no_location_in_values(values: Sequence[str], location: WarehouseLocation) -> None:
+    """INV-WRITE-1 oracle: no stored text value contains the warehouse location it was built at."""
+    for value in values:
+        if location.root in value:
+            raise WarehouseWriteError(
+                f"INV-WRITE-1 violation: stored value {value[:120]!r} contains the build location "
+                f"{location.root!r}"
+            )
+
+
 # --- 5. Traceability map (every clause declares its verification method) -----------------------
 
 CONTRACT_SCOPE: Mapping[str, Clause] = {
@@ -844,6 +900,37 @@ CONTRACT_ADAPTER: Mapping[str, Clause] = {
         "test",
         "table_path never resolves an empty, absolute, backslashed or '..' table location; it "
         "raises WarehouseLocationError naming the table and the warehouse location.",
+        ("REQ-48",),
+    ),
+}
+
+
+CONTRACT_WRITER: Mapping[str, Clause] = {
+    "POST-WRITE-1": Clause(
+        "test",
+        "WarehouseWriter.write_table(table_name, relation) writes the relation's rows to the "
+        "Parquet file at table_path(location, table_name, table_location(table_name)) and returns "
+        "table_location(table_name).",
+        ("REQ-48",),
+    ),
+    "POST-WRITE-2": Clause(
+        "test",
+        "WarehouseWriter.finalize(base_tables) writes warehouse.duckdb holding exactly BASE_TABLES "
+        "as tables and no views, with one catalog row per written data table whose parquet value "
+        "equals table_location(table_name).",
+        ("REQ-48", "REQ-51"),
+    ),
+    "INV-WRITE-1": Clause(
+        "test",
+        "No text value in any base table of the written warehouse contains the location it was "
+        "written at, so the warehouse opens unchanged when copied to another location.",
+        ("REQ-48",),
+    ),
+    "ERRORS-WRITE-1": Clause(
+        "test",
+        "WarehouseWriter raises WarehouseWriteError when a table name is written twice in one "
+        "build, when finalize is missing a BASE_TABLES table, or when the catalog base table "
+        "lacks a CATALOG_REQUIRED_COLUMNS column.",
         ("REQ-48",),
     ),
 }
