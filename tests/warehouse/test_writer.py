@@ -115,12 +115,12 @@ def test_writer_stores_relative_locations_and_the_warehouse_opens_elsewhere(tmp_
     db_b = duckdb.connect(str(moved / contract.WAREHOUSE_DB_FILE), read_only=True)
     (name, rel_b) = db_b.execute("SELECT table_name, parquet FROM catalog").fetchone() or ("", "")
     count = (
-        duckdb.read_parquet(adapter.table_path(loc_b, name, rel_b)).aggregate("count(*)").fetchone()
+        duckdb.read_parquet(adapter.table_path(loc_b, name, rel_b)).aggregate("count(*)").fetchall()
     )
-    assert count == (2,), (
+    assert count == [(2,)], (
         "test_writer_stores_relative_locations_and_the_warehouse_opens_elsewhere FAILED\n"
         "INV-WRITE-1 violation: the copied warehouse does not read its table at the new location\n"
-        "EXPECTED: (2,)\n"
+        "EXPECTED: [(2,)]\n"
         f"ACTUAL: {count!r}\n"
         "GUIDANCE: store nothing that ties the warehouse to the location it was written at"
     )
