@@ -17,7 +17,8 @@ import {
   splitByReach,
   type ReachFacts,
 } from './map/reach'
-import { plainAction, plainConfidence, plainMissing } from './plainWords'
+import { plainConfidence, plainMissing } from './plainWords'
+import { actionSteps, sourceIdsForView, viewInsights, VIEW_CONTENT } from './viewContent'
 import { DataSources, SourceLinks } from './SourceCitations'
 import { SourcesContext, type SourceEntry } from './sources'
 import {
@@ -38,7 +39,6 @@ import {
   COHORT_CARDS,
   PERSONA_LENSES,
   answerWizardQuery,
-  buildExecutiveBriefing,
   filterTractsByCohort,
   generateCoordinatedActionBrief,
   type CohortId,
@@ -121,14 +121,6 @@ const money = new Intl.NumberFormat('en-US', {
 })
 const pct = (v: number | null) => (v === null ? 'No data' : `${v.toFixed(1)}%`)
 const num = (v: number | null) => (v === null ? 'No data' : nf.format(v))
-
-const PROMPT_CHIPS = [
-  'All three gaps in Orange County',
-  'Food deserts with no pantry and few SBA loans',
-  'Where should a mobile pantry go in Osceola?',
-  'Food deserts in Seminole without a car',
-  'Places with missing data',
-] as const
 
 async function fetchJson(path: string): Promise<unknown> {
   let res: Response
@@ -281,16 +273,6 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
     () => (sites ? nearestSiteDistances(tracts, sites) : null),
     [tracts, sites],
   )
-  const briefing = useMemo(
-    () =>
-      tracts.length
-        ? buildExecutiveBriefing(tracts, {
-            snapTrend: bundle?.snap_trend,
-            mealGap: bundle?.meal_gap,
-          })
-        : [],
-    [tracts, bundle],
-  )
   const baseCohortTracts = useMemo(() => {
     const base = answer ? answer.matchedTracts : filterTractsByCohort(tracts, cohort)
     const sorted = [...base].sort((a, b) => (b.pct_poverty ?? 0) - (a.pct_poverty ?? 0))
@@ -302,8 +284,9 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
     [baseCohortTracts, proximityMiles],
   )
   // The QueryService applies the distance to an AI answer (REQ-60), so the App does not filter it again.
-  const proximityActive = proximityEnabled && !aiAnswer
+  const proximityActive = proximityEnabled && !aiAnswer && persona !== 'officer'
   const cohortTracts = proximityActive ? proximity.beyond : baseCohortTracts
+  const briefing = useMemo(() => viewInsights(cohortTracts, persona), [cohortTracts, persona])
   const focusedGeoids = useMemo(
     () => cohortTracts.filter((t) => t.drawn).map((t) => t.geoid),
     [cohortTracts],
@@ -322,21 +305,21 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
     inputKey: routingKey,
     now: driveTimes.now,
   }
-  // Under the slider: the estimate only. Its notes and the distance rule go in the map's (i) box.
   const sliderDriveTime = driveTimeProps ? (
     <DriveTimeEstimate {...driveTimeProps} showNotes={false} />
   ) : (
     <p className="proximity-note">Select a neighborhood to see its estimated drive time.</p>
   )
-  const mapNotes = (
-    <>
-      {driveTimeProps && <DriveTimeNotes {...driveTimeProps} />}
-      <p className="proximity-note">
-        A neighborhood is within the distance when any of its populated blocks is. Straight-line
-        miles, not road miles.
-      </p>
-    </>
-  )
+  const mapNotes =
+    persona !== 'officer' ? (
+      <>
+        {driveTimeProps && <DriveTimeNotes {...driveTimeProps} />}
+        <p className="proximity-note">
+          A neighborhood is within the distance when any of its populated blocks is. Straight-line
+          miles, not road miles.
+        </p>
+      </>
+    ) : undefined
 
   const counts = useMemo(
     () => ({
@@ -393,6 +376,9 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
     void askAi(askService, q)
   }
   const chooseCohort = (id: CohortId) => {
+    if (id === 'triple') setPersona('alignment')
+    else if (id === 'dual') setPersona('officer')
+    else if (id === 'high_need' || id === 'transport') setPersona('planner')
     resetAsk()
     setCohort(id)
     setAskedQuery('')
@@ -457,6 +443,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
   }
 
   const lens = PERSONA_LENSES.find((p) => p.id === persona)
+  const view = VIEW_CONTENT[persona]
   if (!lens) throw new Error(`Unknown persona lens ${persona}`)
   const cohortLabel = answer
     ? 'Your question'
@@ -474,7 +461,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
             <p>{lens.tagline}</p>
           </div>
           <div className="kpi-cards">
-            {COHORT_CARDS.map((card, i) => (
+            {COHORT_CARDS.filter((card) => view.cohorts.includes(card.id)).map((card, i) => (
               <button
                 key={card.id}
                 type="button"
@@ -533,26 +520,42 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                 Emphasize gaps
               </button>
             </div>
-            <ProximityControls
-              enabled={proximityEnabled}
-              miles={proximityMiles}
-              beyondCount={proximity.beyond.length}
-              withinCount={proximity.withinCount}
-              unknownCount={proximity.unknown.length}
-              onEnabled={(enabled) => {
-                setProximityEnabled(enabled)
-                if (enabled) setEmphasizeGaps(true)
-                setBrief(null)
-              }}
-              onMiles={changeProximity}
-              onReset={resetRules}
-              driveTime={sliderDriveTime}
-            >
-              <CutControls cuts={cuts} percentiles={percentiles} onChange={changeCut} />
-            </ProximityControls>
+            {view.pantry ? (
+              <ProximityControls
+                enabled={proximityEnabled}
+                miles={proximityMiles}
+                beyondCount={proximity.beyond.length}
+                withinCount={proximity.withinCount}
+                unknownCount={proximity.unknown.length}
+                onEnabled={(enabled) => {
+                  setProximityEnabled(enabled)
+                  if (enabled) setEmphasizeGaps(true)
+                  setBrief(null)
+                }}
+                onMiles={changeProximity}
+                onReset={resetRules}
+                driveTime={sliderDriveTime}
+              >
+                <CutControls
+                  cuts={cuts}
+                  percentiles={percentiles}
+                  onChange={changeCut}
+                  names={view.cuts}
+                />
+              </ProximityControls>
+            ) : (
+              <CutControls
+                cuts={cuts}
+                percentiles={percentiles}
+                onChange={changeCut}
+                names={view.cuts}
+              />
+            )}
             <div className="map-viewport">
               {enableMap && geo ? (
                 <OpportunityMap
+                  showOverlap={persona === 'alignment'}
+                  attributionNotes={mapNotes}
                   tractsGeojson={geo.tracts}
                   countiesGeojson={geo.counties}
                   sitesGeojson={geo.sites}
@@ -561,35 +564,44 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                   emphasizeGaps={emphasizeGaps}
                   selectedGeoid={selected}
                   onSelect={selectTract}
-                  overlays={overlays}
-                  attributionNotes={mapNotes}
+                  overlays={{
+                    sba: view.lending && overlays.sba,
+                    transport: view.pantry && overlays.transport,
+                    sites: view.pantry && overlays.sites,
+                  }}
                 />
               ) : (
                 <div className="map-placeholder" aria-hidden="true" />
               )}
 
               <div className="overlay-pills" role="group" aria-label="Add to the map">
-                <Pill
-                  on={overlays.sba}
-                  swatch="dash"
-                  onClick={() => setOverlays((o) => ({ ...o, sba: !o.sba }))}
-                >
-                  Few business loans
-                </Pill>
-                <Pill
-                  on={overlays.transport}
-                  swatch="hatch"
-                  onClick={() => setOverlays((o) => ({ ...o, transport: !o.transport }))}
-                >
-                  Many with no car
-                </Pill>
-                <Pill
-                  on={overlays.sites}
-                  swatch="dot"
-                  onClick={() => setOverlays((o) => ({ ...o, sites: !o.sites }))}
-                >
-                  Second Harvest sites
-                </Pill>
+                {view.lending && (
+                  <Pill
+                    on={overlays.sba}
+                    swatch="dash"
+                    onClick={() => setOverlays((o) => ({ ...o, sba: !o.sba }))}
+                  >
+                    Few business loans
+                  </Pill>
+                )}
+                {view.pantry && (
+                  <Pill
+                    on={overlays.transport}
+                    swatch="hatch"
+                    onClick={() => setOverlays((o) => ({ ...o, transport: !o.transport }))}
+                  >
+                    Many with no car
+                  </Pill>
+                )}
+                {view.pantry && (
+                  <Pill
+                    on={overlays.sites}
+                    swatch="dot"
+                    onClick={() => setOverlays((o) => ({ ...o, sites: !o.sites }))}
+                  >
+                    Second Harvest sites
+                  </Pill>
+                )}
               </div>
 
               <div className="pinned-legend" data-testid="pinned-map-legend" aria-label="Map key">
@@ -600,11 +612,13 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                     <b>{focusedGeoids.length}</b>
                   </div>
                 )}
-                <div className="legend-row">
-                  <i className="swatch swatch--triple" />
-                  <span>All three gaps</span>
-                  <b>{counts.triple}</b>
-                </div>
+                {persona === 'alignment' && (
+                  <div className="legend-row">
+                    <i className="swatch swatch--triple" />
+                    <span>All three gaps</span>
+                    <b>{counts.triple}</b>
+                  </div>
+                )}
                 <div className="legend-row">
                   <i className="swatch swatch--high" />
                   <span>{CLASS_HIGH_NEED}</span>
@@ -661,7 +675,8 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
             {panelTab === 'briefing' ? (
               <div className="panel-body" key="briefing">
                 <section className="briefing">
-                  <h2>What the data shows</h2>
+                  <h2>Quick takeaways</h2>
+                  {cohortTracts.length === 0 && <p>No neighborhoods match. Try fewer filters.</p>}
                   <ol className="insights">
                     {briefing.map((item, i) => (
                       <li key={i} style={{ animationDelay: `${100 + i * 80}ms` }}>
@@ -670,7 +685,10 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                         </span>
                         <div className="insight-text">
                           {item.text}
-                          <SourceLinks ids={item.sourceIds} />
+                          <details className="insight-sources">
+                            <summary>Sources</summary>
+                            <SourceLinks ids={item.sourceIds} />
+                          </details>
                         </div>
                       </li>
                     ))}
@@ -687,7 +705,13 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                   >
                     <input
                       aria-label="Ask a question about Central Florida neighborhoods"
-                      placeholder="Try a county, pantries, cars or loans"
+                      placeholder={
+                        persona === 'officer'
+                          ? 'Try a county or business loans'
+                          : persona === 'planner'
+                            ? 'Try a county, pantries or transport'
+                            : 'Try a county, pantries or loans'
+                      }
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                     />
@@ -695,7 +719,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                   </form>
                   <p className="ask-model">Powered by Gemini 3.8 Flash</p>
                   <div className="chips">
-                    {PROMPT_CHIPS.map((c) => (
+                    {view.prompts.map((c) => (
                       <button key={c} type="button" className="chip" onClick={() => runQuery(c)}>
                         {c}
                       </button>
@@ -704,7 +728,18 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                   {asking && <AskPending />}
                   {aiAnswer && (
                     <AiAnswerCard
-                      answer={aiAnswer}
+                      answer={
+                        answer && persona !== 'alignment'
+                          ? {
+                              ...aiAnswer,
+                              answer: `${nf.format(answer.matchedTracts.length)} neighborhoods match.`,
+                              citations: aiAnswer.citations.filter(
+                                (citation) =>
+                                  sourceIdsForView([citation.dataset_id], persona).length > 0,
+                              ),
+                            }
+                          : aiAnswer
+                      }
                       knownGeoids={knownGeoids}
                       onClear={() => runQuery('')}
                     />
@@ -713,7 +748,11 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                     <div className="answer" role="status">
                       {aiUnavailable && <AiUnavailableNotice />}
                       {aiSessionEnded && <SessionEndedNotice />}
-                      <p>{answer.answerText}</p>
+                      <p>
+                        {persona === 'alignment'
+                          ? answer.answerText
+                          : `${nf.format(answer.matchedTracts.length)} neighborhoods match.`}
+                      </p>
                       {proximityActive && (
                         <p>Of these, {cohortTracts.length} are beyond the proximity limit.</p>
                       )}
@@ -729,6 +768,43 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                       </button>
                     </div>
                   )}
+                </section>
+
+                <section className="action">
+                  <button
+                    type="button"
+                    className="cta"
+                    onClick={() =>
+                      setBrief(
+                        generateCoordinatedActionBrief({
+                          tracts: proximityActive
+                            ? cohortTracts
+                            : answer
+                              ? answer.matchedTracts
+                              : tracts,
+                          cohortId: proximityActive || answer ? 'all' : cohort,
+                          personaId: persona,
+                          selectionLabel: [
+                            answer
+                              ? `Question results: ${askedQuery}`
+                              : (COHORT_CARDS.find((c) => c.id === cohort)?.label ??
+                                'All neighborhoods'),
+                            proximityEnabled && view.pantry
+                              ? aiAnswer && answer
+                                ? `distance rule: ${milesText(aiAnswer.applied.reach_miles)}`
+                                : `beyond ${milesText(proximityMiles)}`
+                              : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' · '),
+                        }),
+                      )
+                    }
+                    disabled={cohortTracts.length === 0}
+                  >
+                    Make an action plan
+                  </button>
+                  {brief && <BriefCard brief={brief} tracts={cohortTracts} />}
                 </section>
 
                 <section className="shortlist">
@@ -755,10 +831,14 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                           </span>
                           <span className="row-badges">
                             <em title="People in poverty">{pct(t.pct_poverty)} poverty</em>
-                            <em title="Homes with no car">{pct(t.pct_no_vehicle)} no car</em>
-                            <em title="SBA loans since 2010">
-                              {t.sba_loans_total} {t.sba_loans_total === 1 ? 'loan' : 'loans'}
-                            </em>
+                            {view.pantry && (
+                              <em title="Homes with no car">{pct(t.pct_no_vehicle)} no car</em>
+                            )}
+                            {view.lending && (
+                              <em title="SBA loans since 2010">
+                                {t.sba_loans_total} {t.sba_loans_total === 1 ? 'loan' : 'loans'}
+                              </em>
+                            )}
                             {proximityActive && (
                               <em title="Straight-line miles from the closest populated block to a Second Harvest site">
                                 {t.nearest_block_miles === null
@@ -778,53 +858,19 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                     </p>
                   )}
                 </section>
-
-                <section className="action">
-                  <button
-                    type="button"
-                    className="cta"
-                    onClick={() =>
-                      setBrief(
-                        generateCoordinatedActionBrief({
-                          tracts: proximityActive
-                            ? cohortTracts
-                            : answer
-                              ? answer.matchedTracts
-                              : tracts,
-                          cohortId: proximityActive || answer ? 'all' : cohort,
-                          personaId: persona,
-                          selectionLabel: [
-                            answer
-                              ? `Question results: ${askedQuery}`
-                              : (COHORT_CARDS.find((c) => c.id === cohort)?.label ??
-                                'All neighborhoods'),
-                            proximityEnabled
-                              ? aiAnswer && answer
-                                ? `distance rule: ${milesText(aiAnswer.applied.reach_miles)}`
-                                : `beyond ${milesText(proximityMiles)}`
-                              : '',
-                          ]
-                            .filter(Boolean)
-                            .join(' · '),
-                        }),
-                      )
-                    }
-                    disabled={cohortTracts.length === 0}
-                  >
-                    Make an action plan
-                  </button>
-                  {brief && <BriefCard brief={brief} />}
-                </section>
               </div>
             ) : (
               <div className="panel-body" key={`evidence-${selected ?? 'none'}`}>
                 {selectedTract ? (
                   <TractEvidence
+                    persona={persona}
                     t={selectedTract}
                     minPopulation={bundle.thresholds.sba_min_population}
                     cut={cut}
                     reach={reachFacts(selectedTract, proximityMiles)}
-                    driveTime={driveTimeProps && <DriveTimeEstimate {...driveTimeProps} />}
+                    driveTime={
+                      view.pantry && driveTimeProps && <DriveTimeEstimate {...driveTimeProps} />
+                    }
                   />
                 ) : (
                   <p className="muted">Pick a neighborhood on the map or in the list.</p>
@@ -835,6 +881,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
         </main>
 
         <DataSources
+          persona={persona}
           povertyCut={rateText(cut.poverty)}
           lendingCut={cut.sba_rate_per_1000}
           lendingPart={percentileLabel(
@@ -893,10 +940,6 @@ function Footer() {
         </a>
         .
       </span>
-      <span>
-        Sources: Census ACS 2024 · USDA SRAM 2025 · SBA loans · Second Harvest · Census 2020 · FEMA
-        · CBPP SNAP Tracker · Feeding America 2024
-      </span>
     </footer>
   )
 }
@@ -920,46 +963,100 @@ function Pill({
   )
 }
 
-function BriefCard({ brief }: { brief: CoordinatedActionBrief }) {
+function BriefCard({
+  brief,
+  tracts,
+}: {
+  brief: CoordinatedActionBrief
+  tracts: readonly TractRecord[]
+}) {
   const needsAssessment = brief.dataCheckTractCount === brief.targetTractCount
+  const view = VIEW_CONTENT[brief.personaId]
+  const steps = actionSteps(tracts)
   return (
     <article className="brief" data-testid="coordinated-action-brief">
       <h3>{brief.title}</h3>
-      <div className="counterfactual">
-        <div>
-          <span className="cf-label">Today</span>
-          <span className="cf-value cf-value--bad">{brief.withoutCoordinationGapPct}%</span>
-          <span className="cf-sub">have no Second Harvest site inside</span>
-        </div>
-        <div>
-          <span className="cf-label">If both partners act</span>
-          <span className="cf-value cf-value--good">{brief.withJointDeploymentGapPct}%</span>
-          <span className="cf-sub">{brief.percentagePointReduction} points lower</span>
-        </div>
-      </div>
-      <dl className="brief-facts">
-        <dt>Neighborhoods</dt>
-        <dd>{brief.targetTractCount}</dd>
-        <dt>People</dt>
-        <dd>{nf.format(brief.totalResidentsCovered)}</dd>
-        <dt>Many with no car</dt>
-        <dd>{needsAssessment ? 'Not assessed' : brief.mobilePriorityTractCount}</dd>
-        <dt>Few business loans</dt>
-        <dd>{needsAssessment ? 'Not assessed' : brief.dualGapTractCount}</dd>
-        {brief.dataCheckTractCount > 0 && (
+      <p className="brief-overview">
+        {brief.targetTractCount} neighborhoods · {nf.format(brief.totalResidentsCovered)} people
+      </p>
+      {view.pantry && (
+        <section>
+          <h4>{view.lending ? 'For your pantry' : 'Next steps'}</h4>
+          <ul className="action-steps" aria-label="Pantry next steps">
+            {steps.pantry.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {view.lending && (
+        <section>
+          <h4>{view.pantry ? 'For lending partners' : 'Next steps'}</h4>
+          <ul className="action-steps" aria-label="Lending next steps">
+            {steps.lending.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <details className="brief-details">
+        <summary>Details and sources</summary>
+        {view.pantry && view.lending && (
           <>
-            <dt>Need data checks</dt>
-            <dd>{brief.dataCheckTractCount}</dd>
+            <p>These figures assume all planned services happen. Results have not been measured.</p>
+            <div className="counterfactual">
+              <div>
+                <span className="cf-label">Today</span>
+                <span className="cf-value cf-value--bad">{brief.withoutCoordinationGapPct}%</span>
+                <span className="cf-sub">have no Second Harvest site inside</span>
+              </div>
+              <div>
+                <span className="cf-label">If both partners act</span>
+                <span className="cf-value cf-value--good">{brief.withJointDeploymentGapPct}%</span>
+                <span className="cf-sub">{brief.percentagePointReduction} points lower</span>
+              </div>
+            </div>
           </>
         )}
-      </dl>
-      <h4>Food bank</h4>
-      <p>{brief.foodBankAction}</p>
-      <h4>Small business lender (SBA, CDFI)</h4>
-      <p>{brief.sbaOfficerAction}</p>
-      <h4>In short</h4>
-      <p>{brief.narrativeSummary}</p>
-      <SourceLinks ids={brief.sourcesCited} />
+        <dl className="brief-facts">
+          <dt>Neighborhoods</dt>
+          <dd>{brief.targetTractCount}</dd>
+          <dt>People</dt>
+          <dd>{nf.format(brief.totalResidentsCovered)}</dd>
+          {view.pantry && (
+            <>
+              <dt>Many with no car</dt>
+              <dd>{needsAssessment ? 'Not assessed' : brief.mobilePriorityTractCount}</dd>
+            </>
+          )}
+          {view.lending && (
+            <>
+              <dt>Few business loans</dt>
+              <dd>{needsAssessment ? 'Not assessed' : brief.dualGapTractCount}</dd>
+            </>
+          )}
+          {brief.dataCheckTractCount > 0 && (
+            <>
+              <dt>Need data checks</dt>
+              <dd>{brief.dataCheckTractCount}</dd>
+            </>
+          )}
+        </dl>
+        {view.pantry && (
+          <>
+            <h4>Food bank</h4>
+            <p>{brief.foodBankAction}</p>
+          </>
+        )}
+        {view.lending && (
+          <>
+            <h4>Lending partners</h4>
+            <p>{brief.sbaOfficerAction}</p>
+          </>
+        )}
+        {view.pantry && view.lending && <p>{brief.narrativeSummary}</p>}
+        <SourceLinks ids={sourceIdsForView(brief.sourcesCited, brief.personaId)} />
+      </details>
     </article>
   )
 }
@@ -1003,12 +1100,14 @@ function incomeText(t: TractRecord): string {
 
 function TractEvidence({
   t,
+  persona,
   minPopulation,
   cut,
   reach,
   driveTime,
 }: {
   t: TractRecord
+  persona: PersonaLensId
   minPopulation: number
   cut: CutValues
   reach: ReachFacts
@@ -1017,13 +1116,19 @@ function TractEvidence({
   const povertyMet = t.pct_poverty !== null && t.pct_poverty >= cut.poverty
   const distance = milesText(reach.miles)
   const lilaMet = t.lila_flag === 1
-  const badge = t.is_triple_gap
-    ? 'triple'
-    : t.tract_class === CLASS_HIGH_NEED
-      ? 'high'
-      : t.tract_class === CLASS_INSUFFICIENT
-        ? 'insufficient'
-        : 'nogap'
+  const view = VIEW_CONTENT[persona]
+  const steps = actionSteps([t])
+  const missingIndicators = t.missing_indicators.filter(
+    (m) => view.pantry || !/snap|CDC PLACES/i.test(m),
+  )
+  const badge =
+    persona === 'alignment' && t.is_triple_gap
+      ? 'triple'
+      : t.tract_class === CLASS_HIGH_NEED
+        ? 'high'
+        : t.tract_class === CLASS_INSUFFICIENT
+          ? 'insufficient'
+          : 'nogap'
   return (
     <article className="evidence" data-testid="tract-evidence-panel">
       <header>
@@ -1033,135 +1138,166 @@ function TractEvidence({
           {!t.drawn && ' · not on the map (water)'}
         </div>
         <div className={`class-badge class-badge--${badge}`}>
-          {t.is_triple_gap ? 'All three gaps · ' : ''}
+          {persona === 'alignment' && t.is_triple_gap ? 'All three gaps · ' : ''}
           {t.tract_class}
         </div>
       </header>
 
       <section>
         <h3>What could help</h3>
-        <p className="action-line">{plainAction(t.recommended_action)}</p>
-      </section>
-
-      <section>
-        <h3>Why it is on the map</h3>
-        <dl className="facts">
-          <Fact
-            label="People in poverty"
-            note={`High means ${rateText(cut.poverty)}% or more`}
-            value={pct(t.pct_poverty)}
-            tag={
-              t.pct_poverty === null
-                ? null
-                : { good: !povertyMet, text: povertyMet ? 'high' : 'not high' }
-            }
-          />
-          <Fact
-            label="Low income and far from a store"
-            note="USDA test: over 1/2 mile in town or 10 miles in the country, by road"
-            value={t.lila_flag === null ? 'No data' : lilaMet ? 'Yes' : 'No'}
-          />
-        </dl>
-      </section>
-
-      <section>
-        <h3>Food and money</h3>
-        <dl className="facts">
-          <Fact
-            label="SBA loans since 2010"
-            note={`Few means ${cut.sba_rate_per_1000.toFixed(2)} or fewer per 1,000 people, in places with ${nf.format(minPopulation)} or more people`}
-            value={
-              t.pop2020 > 0
-                ? `${t.sba_loans_total} (${((t.sba_loans_total / t.pop2020) * 1000).toFixed(2)} per 1,000 people) · ${money.format(t.sba_gross_usd_total)}`
-                : `${t.sba_loans_total} · ${money.format(t.sba_gross_usd_total)}`
-            }
-            tag={t.is_dual_gap ? { good: false, text: 'few' } : null}
-          />
-          <Fact
-            label="Homes with no car"
-            note={`Many means ${rateText(cut.no_vehicle)}% or more`}
-            value={pct(t.pct_no_vehicle)}
-            tag={t.is_transport_gap ? { good: false, text: 'many' } : null}
-          />
-          <Fact label="Second Harvest sites inside" value={t.sites_in_tract} />
-          <Fact
-            label={`People within ${distance} of a site`}
-            note="Share of 2020 population, straight-line from each populated block"
-            value={reach.share === null ? 'No people counted' : `${Math.round(reach.share * 100)}%`}
-            testId="reach-share"
-          />
-          <Fact
-            label={`Sites within ${distance}`}
-            note="Second Harvest sites this close to a populated block"
-            value={reach.sites}
-            testId="reach-sites"
-          />
-          <Fact
-            label="People per nearby site"
-            note="2020 population divided by those sites"
-            value={
-              reach.peoplePerSite === null ? 'No site this close' : nf.format(reach.peoplePerSite)
-            }
-            testId="reach-people-per-site"
-          />
-        </dl>
-        {driveTime}
-        {t.sites_in_tract === 0 && <p className="callout">{NO_SITE_CARD_TEXT}</p>}
-      </section>
-
-      <section>
-        <h3>The people</h3>
-        <dl className="facts">
-          <Fact
-            label="Typical home income"
-            note="Median, ± 90% margin of error"
-            value={incomeText(t)}
-          />
-          <Fact
-            label="Homes on SNAP"
-            value={`${pct(t.pct_hh_snap)} (${num(t.snap_households)} of ${num(t.households)})`}
-          />
-          <Fact label="People" note="2020 Census" value={nf.format(t.pop2020)} />
-          <Fact label="Disaster risk" note="FEMA" value={t.nri_risk ?? 'No data'} />
-          <Fact
-            label="Social vulnerability"
-            note="FEMA"
-            value={t.social_vulnerability ?? 'No data'}
-          />
-        </dl>
-      </section>
-
-      <section className="confidence">
-        <h3>How sure are we?</h3>
-        <strong className={`conf conf--${t.confidence_level.toLowerCase().replace(/\s+/g, '-')}`}>
-          {t.confidence_level}
-        </strong>
-        <p>{plainConfidence(t.confidence_reason)}</p>
-      </section>
-
-      <section>
-        <h3>What we do not know ({t.missing_indicators.length})</h3>
-        <ul className="missing">
-          {t.missing_indicators.map((m) => (
-            <li key={m}>{plainMissing(m)}</li>
+        <ul className="action-steps" aria-label="Neighborhood next steps">
+          {(view.pantry ? steps.pantry : []).map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+          {(view.lending ? steps.lending : []).map((step) => (
+            <li key={step}>{step}</li>
           ))}
         </ul>
       </section>
 
-      <SourceLinks
-        ids={[
-          'DS-H2',
-          'DS-H1',
-          'DS-H6',
-          'DS-X5',
-          'DS-X7b',
-          'DS-X28',
-          'DS-X12',
-          'DS-X24',
-          'DS-X16b',
-          'DS-H7',
-        ]}
-      />
+      <details className="evidence-details">
+        <summary>Numbers and sources</summary>
+        <section>
+          <h3>Why it is on the map</h3>
+          <dl className="facts">
+            <Fact
+              label="People in poverty"
+              note={`High means ${rateText(cut.poverty)}% or more`}
+              value={pct(t.pct_poverty)}
+              tag={
+                t.pct_poverty === null
+                  ? null
+                  : { good: !povertyMet, text: povertyMet ? 'high' : 'not high' }
+              }
+            />
+            <Fact
+              label="Low income and far from a store"
+              note="USDA test: over 1/2 mile in town or 10 miles in the country, by road"
+              value={t.lila_flag === null ? 'No data' : lilaMet ? 'Yes' : 'No'}
+            />
+          </dl>
+        </section>
+
+        <section>
+          <h3>
+            {view.pantry && view.lending
+              ? 'Food and business support'
+              : view.pantry
+                ? 'Pantry access'
+                : 'Business loans'}
+          </h3>
+          <dl className="facts">
+            {view.lending && (
+              <Fact
+                label="SBA loans since 2010"
+                note={`Few means ${cut.sba_rate_per_1000.toFixed(2)} or fewer per 1,000 people, in places with ${nf.format(minPopulation)} or more people`}
+                value={
+                  t.pop2020 > 0
+                    ? `${t.sba_loans_total} (${((t.sba_loans_total / t.pop2020) * 1000).toFixed(2)} per 1,000 people) · ${money.format(t.sba_gross_usd_total)}`
+                    : `${t.sba_loans_total} · ${money.format(t.sba_gross_usd_total)}`
+                }
+                tag={t.is_dual_gap ? { good: false, text: 'few' } : null}
+              />
+            )}
+            {view.pantry && (
+              <>
+                <Fact
+                  label="Homes with no car"
+                  note={`Many means ${rateText(cut.no_vehicle)}% or more`}
+                  value={pct(t.pct_no_vehicle)}
+                  tag={t.is_transport_gap ? { good: false, text: 'many' } : null}
+                />
+                <Fact label="Second Harvest sites inside" value={t.sites_in_tract} />
+                <Fact
+                  label={`People within ${distance} of a site`}
+                  note="Share of 2020 population, straight-line from each populated block"
+                  value={
+                    reach.share === null ? 'No people counted' : `${Math.round(reach.share * 100)}%`
+                  }
+                  testId="reach-share"
+                />
+                <Fact
+                  label={`Sites within ${distance}`}
+                  note="Second Harvest sites this close to a populated block"
+                  value={reach.sites}
+                  testId="reach-sites"
+                />
+                <Fact
+                  label="People per nearby site"
+                  note="2020 population divided by those sites"
+                  value={
+                    reach.peoplePerSite === null
+                      ? 'No site this close'
+                      : nf.format(reach.peoplePerSite)
+                  }
+                  testId="reach-people-per-site"
+                />
+              </>
+            )}
+          </dl>
+          {view.pantry && driveTime}
+          {view.pantry && t.sites_in_tract === 0 && <p className="callout">{NO_SITE_CARD_TEXT}</p>}
+        </section>
+
+        <section>
+          <h3>The people</h3>
+          <dl className="facts">
+            <Fact
+              label="Typical home income"
+              note="Median, ± 90% margin of error"
+              value={incomeText(t)}
+            />
+            {view.pantry && (
+              <Fact
+                label="Homes on SNAP"
+                value={`${pct(t.pct_hh_snap)} (${num(t.snap_households)} of ${num(t.households)})`}
+              />
+            )}
+            <Fact label="People" note="2020 Census" value={nf.format(t.pop2020)} />
+            <Fact label="Disaster risk" note="FEMA" value={t.nri_risk ?? 'No data'} />
+            <Fact
+              label="Social vulnerability"
+              note="FEMA"
+              value={t.social_vulnerability ?? 'No data'}
+            />
+          </dl>
+        </section>
+
+        <section className="confidence">
+          <h3>How sure are we?</h3>
+          <strong className={`conf conf--${t.confidence_level.toLowerCase().replace(/\s+/g, '-')}`}>
+            {t.confidence_level}
+          </strong>
+          <p>{plainConfidence(t.confidence_reason)}</p>
+        </section>
+
+        <section>
+          <h3>What we do not know ({missingIndicators.length})</h3>
+          <ul className="missing">
+            {missingIndicators.map((m) => (
+              <li key={m}>{plainMissing(m)}</li>
+            ))}
+          </ul>
+        </section>
+
+        <SourceLinks
+          ids={sourceIdsForView(
+            [
+              'DS-H2',
+              'DS-H1',
+              'DS-H6',
+              'DS-X5',
+              'DS-X7b',
+              'DS-X28',
+              'DS-X12',
+              'DS-X24',
+              'DS-X16b',
+              'DS-H7',
+            ],
+            persona,
+          )}
+        />
+      </details>
     </article>
   )
 }

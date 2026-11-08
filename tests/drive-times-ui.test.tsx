@@ -89,13 +89,18 @@ describe('cached drive times in the map controls', () => {
     for (const [name, value] of [
       ['High poverty', '90'],
       ['Many with no car', '90'],
-      ['Few business loans', '50'],
     ]) {
       const select = screen.getByRole('combobox', { name })
       fireEvent.change(select, { target: { value } })
       expect(select).toHaveValue(value)
       expect(controls()).toHaveTextContent('Estimated drive to a Second Harvest site: 21 min')
     }
+    expect(screen.queryByRole('combobox', { name: 'Few business loans' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Both partners' }))
+    const lendingCut = screen.getByRole('combobox', { name: 'Few business loans' })
+    fireEvent.change(lendingCut, { target: { value: '50' } })
+    expect(lendingCut).toHaveValue('50')
+    expect(controls()).toHaveTextContent('Estimated drive to a Second Harvest site: 21 min')
     fireEvent.click(screen.getByRole('button', { name: 'Reset rules' }))
     expect(slider).toHaveValue('10')
     expect(
