@@ -105,6 +105,7 @@ def parts(tmp_path: Path) -> Callable[..., tuple[impl.Answerer, Script]]:
         )
         return answerer, script
 
+    make.engine = eng  # type: ignore[attr-defined]
     return make
 
 
@@ -139,7 +140,23 @@ def test_loop_sends_taxonomy_and_settings_runs_tools_itself_and_returns_a_cited_
     answerer, script = parts(script)
     reply = answerer.answer(_request())
 
-    want_instruction = contract.expected_system_instruction(TAXONOMY, _applied())
+    index = contract.expected_schema_payload(
+        tuple(
+            contract.TableSchemaDescription(
+                d.table_name,
+                d.dataset_id,
+                tuple(d.columns),
+                d.grain,
+                tuple(d.join_keys),
+                d.as_of,
+                d.applied_filter,
+                tuple(tuple(t) for t in d.glossary_terms),
+            )
+            for d in parts.engine.describe_schema()  # type: ignore[attr-defined]
+        ),
+        detailed=False,
+    )
+    want_instruction = contract.expected_system_instruction(TAXONOMY, _applied(), index)
     for url, body in script.requests:
         assert url.endswith(f"/publishers/google/models/{MODEL}:generateContent"), url
         assert "aiplatform.googleapis.com" in url, f"POST-ANS-1 violation: not Vertex AI: {url}"
@@ -226,12 +243,13 @@ def test_an_ungrounded_number_gets_one_correction_then_fails(parts) -> None:  # 
     assert "ERRORS-ASK-3" in str(caught.value)
 
 
-def test_vertex_errors_round_limits_and_the_deadline_end_the_answer(parts) -> None:  # type: ignore[no-untyped-def]
+def test_vertex_errors_and_the_deadline_end_the_answer_and_the_last_call_answers(parts) -> None:  # type: ignore[no-untyped-def]
     """
     CONTRACT TRACEABILITY:
-    - Contract: ERRORS-ANS-1 (REQ-39, REQ-37)
-    - Enforces: a Vertex 503, more than MAX_TOOL_ROUNDS tool rounds, or passing
-      ANSWER_DEADLINE_SECONDS raise ModelUnavailableError naming ERRORS-ASK-2
+    - Contract: ERRORS-ANS-1, POST-ANS-4 (REQ-39, REQ-37, Z-31)
+    - Enforces: a Vertex 503 or passing ANSWER_DEADLINE_SECONDS raise ModelUnavailableError naming
+      ERRORS-ASK-2; the MAX_TOOL_ROUNDS-th request sets function calling mode FINAL_CALL_MODE and
+      its answer is returned, never an error
     - Category: negative / error / boundary
     - Risk tier: High; the App falls back only when the service says it cannot answer
     """
@@ -240,14 +258,19 @@ def test_vertex_errors_round_limits_and_the_deadline_end_the_answer(parts) -> No
         answerer.answer(_request())
     assert "ERRORS-ASK-2" in str(down.value)
 
-    loop = [_call("sql_query", {"sql": "SELECT 1 AS n"})] * (contract.MAX_TOOL_ROUNDS + 1)
-    answerer, script = parts(Script([*loop, _text("1")]))
-    with pytest.raises(impl.ModelUnavailableError) as rounds:
-        answerer.answer(_request())
-    assert "ERRORS-ASK-2" in str(rounds.value)
-    assert len(script.requests) == contract.MAX_TOOL_ROUNDS + 1, (
-        f"ERRORS-ANS-1 violation: {len(script.requests)} model requests"
+    loop = [_call("sql_query", {"sql": "SELECT 1 AS n"})] * (contract.MAX_TOOL_ROUNDS - 1)
+    answerer, script = parts(Script([*loop, _text("There is 1.")]))
+    reply = answerer.answer(_request())
+    assert reply.answer == "There is 1.", f"POST-ANS-4 violation: no answer: {reply.answer!r}"
+    assert len(script.requests) == contract.MAX_TOOL_ROUNDS, (
+        f"POST-ANS-4 violation: {len(script.requests)} model requests"
     )
+    modes = [
+        b.get("toolConfig", {}).get("functionCallingConfig", {}).get("mode")
+        for _, b in script.requests
+    ]
+    assert modes[-1] == contract.FINAL_CALL_MODE, f"POST-ANS-4 violation: last mode {modes[-1]}"
+    assert contract.FINAL_CALL_MODE not in modes[:-1], f"POST-ANS-4 violation: modes {modes}"
 
     ticks = iter([0.0, 1.0, contract.ANSWER_DEADLINE_SECONDS + 0.1, 100.0, 100.0, 100.0])
     answerer, _ = parts(
