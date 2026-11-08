@@ -668,6 +668,17 @@ CORRECTION_TEMPLATE = (
     "These numbers in your answer came from no tool result: {numbers}. Answer again using only "
     "numbers from tool results, or say that the data does not hold them."
 )
+# FORBIDDEN-ANS-1 (Ketema: "we can not have the model returning internal schema details" and "it
+# is also returning the executed sql. this cannot happen either"): an internal identifier is a
+# word with an underscore (table and column names are snake_case); SQL is a code block or a
+# line holding SELECT ... FROM.
+IDENTIFIER_PATTERN = re.compile(r"\b[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+\b")
+CODE_BLOCK_PATTERN = re.compile(r"```.*?(?:```|$)", re.DOTALL)
+SQL_LINE_PATTERN = re.compile(r"^.*\bselect\b.*\bfrom\b.*$", re.IGNORECASE | re.MULTILINE)
+SCHEMA_CORRECTION_TEMPLATE = (
+    "Your answer shows internal details: {names}. Answer again in plain words for a reader, "
+    "without SQL, table names, column names or tool names."
+)
 NUMBER_PATTERN = re.compile(r"(?<![\w.])-?\d[\d,]*(?:\.\d+)?(?![\w])")
 TRACT_PREFIX = "1400000US"
 MAX_BODY_BYTES = 16_384
@@ -926,6 +937,21 @@ def expected_ungrounded_numbers(
     return tuple(bad)
 
 
+def expected_leaks(answer: str) -> tuple[str, ...]:
+    """FORBIDDEN-ANS-1 oracle: code blocks, SQL lines and identifiers in an answer, in order."""
+    found = [m.group(0) for m in CODE_BLOCK_PATTERN.finditer(answer)]
+    found += [m.group(0) for m in SQL_LINE_PATTERN.finditer(answer)]
+    found += [m.group(0) for m in IDENTIFIER_PATTERN.finditer(answer)]
+    return tuple(found)
+
+
+def expected_scrubbed_answer(answer: str) -> str:
+    """FORBIDDEN-ANS-1 oracle: code blocks and SQL lines removed, then identifiers made words."""
+    text = SQL_LINE_PATTERN.sub("", CODE_BLOCK_PATTERN.sub("", answer))
+    text = IDENTIFIER_PATTERN.sub(lambda m: m.group(0).replace("_", " "), text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
 def expected_reply_tracts(
     answer: str, results: tuple[SqlQueryResult, ...], known_geoids: frozenset[str]
 ) -> tuple[str, ...]:
@@ -1008,6 +1034,13 @@ CONTRACT_QUERY_ANSWER: Mapping[str, Clause] = {
         "answers from the tool results it has; reaching that request is never an error (Z-31). "
         "Its answer goes through POST-ANS-2 and POST-ANS-3.",
         ("REQ-37", "REQ-39"),
+    ),
+    "FORBIDDEN-ANS-1": Clause(
+        "test",
+        "A returned answer has no expected_leaks (no SQL, code block or internal identifier). "
+        "When the model's answer has any, the model gets SCHEMA_CORRECTION_TEMPLATE once with "
+        "them; if the next answer still has any, expected_scrubbed_answer of it is returned.",
+        ("REQ-36", "REQ-40"),
     ),
     "POST-ANS-2": Clause(
         "test",

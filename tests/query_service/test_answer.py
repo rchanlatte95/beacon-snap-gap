@@ -279,3 +279,34 @@ def test_vertex_errors_and_the_deadline_end_the_answer_and_the_last_call_answers
     with pytest.raises(impl.ModelUnavailableError) as late:
         answerer.answer(_request())
     assert "ERRORS-ASK-2" in str(late.value)
+
+
+def test_answers_never_show_sql_or_internal_names(parts) -> None:  # type: ignore[no-untyped-def]
+    """
+    CONTRACT TRACEABILITY:
+    - Contract: FORBIDDEN-ANS-1 (REQ-36, REQ-40)
+    - Enforces: an answer with SQL or an internal identifier gets SCHEMA_CORRECTION_TEMPLATE once;
+      a clean retry is returned as is; a retry that still leaks is returned scrubbed
+    - Category: negative / boundary
+    - Risk tier: High; the App must never show the warehouse's SQL or schema to a reader
+    """
+    sql = {"sql": "SELECT count(*) AS n FROM sba_loans"}
+    leaky = "I ran SELECT count(*) FROM sba_loans and sba_loans_all_years shows 20 loans."
+    answerer, script = parts(
+        Script([_call("sql_query", sql), _text(leaky), _text("There are 20.")])
+    )
+    reply = answerer.answer(_request())
+    assert reply.answer == "There are 20.", f"FORBIDDEN-ANS-1 violation: {reply.answer!r}"
+    prompt = script.requests[-1][1]["contents"][-1]["parts"][0]["text"]
+    want = contract.SCHEMA_CORRECTION_TEMPLATE.format(
+        names=", ".join(contract.expected_leaks(leaky))
+    )
+    assert prompt == want, f"FORBIDDEN-ANS-1 violation: correction {prompt!r}"
+
+    stubborn = "Rows from sba_loans_all_years:\n```sql\nSELECT 1\n```\nThere are 20 loans."
+    answerer, _ = parts(Script([_call("sql_query", sql), _text(stubborn), _text(stubborn)]))
+    reply = answerer.answer(_request())
+    assert reply.answer == contract.expected_scrubbed_answer(stubborn), (
+        f"FORBIDDEN-ANS-1 violation: returned {reply.answer!r}"
+    )
+    assert contract.expected_leaks(reply.answer) == (), "FORBIDDEN-ANS-1 violation: still leaks"
