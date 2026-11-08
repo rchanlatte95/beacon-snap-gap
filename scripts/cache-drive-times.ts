@@ -12,7 +12,7 @@ import {
 import type { TractRecord } from '../src/wizard/alignmentWizard.ts'
 import { isLocation } from '../src/map/proximity.ts'
 
-const MATRIX_URL = 'https://api.openrouteservice.org/v2/matrix/driving-car'
+const MATRIX_URL = 'https://api.heigit.org/openrouteservice/v2/matrix/driving-car'
 const MAX_CELLS = 3500
 const REQUEST_INTERVAL_MS = 1700 // Below the hosted Standard limit of 40 requests/minute.
 

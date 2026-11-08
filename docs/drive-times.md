@@ -1,6 +1,8 @@
 # Drive-time estimates
 
 This PoC uses the hosted [openrouteservice Matrix API](https://giscience.github.io/openrouteservice/api-reference/endpoints/matrix/).
+The endpoint is `https://api.heigit.org/openrouteservice/v2/matrix/driving-car`, following the
+[provider's URL migration](https://ask.openrouteservice.org/t/deprecating-api-openrouteservice-org-in-favour-of-api-heigit-org/7912).
 It works with the existing MapLibre map and permits storing results under its
 [current terms](https://account.heigit.org/info/tos). Result data is CC BY-SA 4.0.
 The app credits openrouteservice and OpenStreetMap and links to the result license.

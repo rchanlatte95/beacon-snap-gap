@@ -66,7 +66,7 @@ describe('road-network drive-time cache', () => {
       now: NOW,
     })
     const [url, init] = request.mock.calls[0]!
-    expect(url).toBe('https://api.openrouteservice.org/v2/matrix/driving-car')
+    expect(url).toBe('https://api.heigit.org/openrouteservice/v2/matrix/driving-car')
     expect(init?.headers).toEqual({ Authorization: 'test-key', 'Content-Type': 'application/json' })
     expect(JSON.parse(init!.body as string)).toEqual({
       locations: [
