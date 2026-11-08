@@ -166,7 +166,7 @@ Updated 2026-11-08 (cycle 17). The App provides source links beside findings, th
 
 ## 9. App source catalog
 
-The App's source list (REQ-61). The Build (`src/data_prep/alignment_bundle.py`) reads this table and copies the cited rows into the bundle, in a fixed order. A missing heading, a wrong header, an incomplete row, a repeated ID or a missing cited ID stops the Build (ERRORS-BLD-2). Keep each cell on one line and without a vertical bar.
+The App's source list, copied into the static bundle by the Build (POST-SRC-1). One row per cited source.
 
 | ID | Label | Publisher | Period | URL | Method | Limits |
 |---|---|---|---|---|---|---|

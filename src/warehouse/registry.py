@@ -10,7 +10,7 @@ import tomllib
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Final
 
 from .provenance import NOT_RECORDED
@@ -26,6 +26,28 @@ class RegistryError(Exception):
 
 class UnregisteredSourceError(RegistryError):
     """ERRORS-REG-2 / FORBIDDEN-REG-1: a retained file or archive member has no exact entry."""
+
+
+class ArchiveMemberError(RegistryError):
+    """ERRORS-ARCH-1..2: an archive member has no contracted format or cannot be opened."""
+
+
+MEMBER_FORMAT_BY_EXTENSION: Final[Mapping[str, str]] = {
+    ".csv": "csv",
+    ".tsv": "tsv",
+    ".dat": "dat",
+    ".pl": "pl",
+    ".txt": "text",
+    ".md": "text",
+    ".xlsx": "xlsx",
+    ".xls": "xls",
+    ".json": "json",
+    ".geojson": "geojson",
+    ".pdf": "pdf",
+    ".pptx": "pptx",
+    ".shp": "shapefile",
+    ".sas7bdat": "sas",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,10 +205,18 @@ def member_scope(entry: RegistryEntry, member: str) -> tuple[str, str | None]:
     """Return (file_format, reference_end) for an archive member (POST-REG-2).
 
     Raises:
-        UnregisteredSourceError: ERRORS-REG-2, the entry lists members but not this exact one.
+        ArchiveMemberError: ERRORS-ARCH-1, the member's extension has no contracted format.
+        UnregisteredSourceError: ERRORS-REG-2 / FORBIDDEN-REG-1, the entry lists members but
+            not this exact one.
     """
     if not entry.members:
-        return entry.file_format, entry.reference_end
+        ext = PurePosixPath(member).suffix.lower()
+        if ext not in MEMBER_FORMAT_BY_EXTENSION:
+            raise ArchiveMemberError(
+                f"ERRORS-ARCH-1 violation: member {member!r} of {entry.path!r} has extension "
+                f"{ext!r}, which has no contracted format"
+            )
+        return MEMBER_FORMAT_BY_EXTENSION[ext], entry.reference_end
     for listed in entry.members:
         if listed.name == member:
             return listed.file_format, listed.reference_end

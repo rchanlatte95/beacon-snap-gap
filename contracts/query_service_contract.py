@@ -22,9 +22,12 @@ Batches:
 The implementation MUST NOT import this module (CL11-F). Tests import both and compare.
 """
 
+import math
 import re
+import statistics
 from collections.abc import Mapping
 from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Literal
 
 from contracts.planner_map_contract import (
@@ -569,5 +572,357 @@ CONTRACT_QUERY_ASK: Mapping[str, Clause] = {
         "reply is HTTP 503 with a JSON error naming "
         "ERRORS-ASK-2; the service never returns a 200 without an answer built from tool results.",
         ("REQ-39", "REQ-37"),
+    ),
+}
+
+
+# =============================================================================================
+# Batches 3 to 5 (cycle 19): tools (REQ-35), the answer loop (REQ-36, REQ-37, REQ-38, REQ-60)
+# and the HTTP endpoint (ERRORS-ASK-1, ERRORS-ASK-2, ERRORS-ASK-3).
+# =============================================================================================
+
+# --- 1. Constants ------------------------------------------------------------------------------
+
+# Catalog source_file values (registry paths, POST-BASE-1) of the tables the tools read.
+SITES_SOURCE_FILE = (
+    "repo:data/external/second-harvest-food-finder/second_harvest_food_finder_locations.csv"
+)
+SITE_COLUMNS: tuple[str, ...] = (
+    "storeid",
+    "name",
+    "address",
+    "lat",
+    "lng",
+    "tract_geoid",
+    "county",
+)
+BLOCKS_SOURCE_FILE = "repo:data/external/census-2020-blocks/central-fl-blocks-2020.csv"
+BLOCK_COLUMNS: tuple[str, ...] = ("geoid20", "pop20", "lat", "lon")
+TRACTS_SOURCE_FILE = (
+    "repo:data/external/second-harvest-food-finder/central_fl_tract_pantry_coverage.csv"
+)
+TRACT_ID_COLUMN = "geoid"
+EARTH_RADIUS_MILES = 3958.8  # the Build's sphere (planner_map_contract.EARTH_RADIUS_MILES)
+MAX_NEAR_MILES = 20.0  # the App's largest reach step
+SITES_NEAR_COLUMNS: tuple[str, ...] = ("storeid", "name", "address", "county", "miles")
+CORRELATION_COLUMNS: tuple[str, ...] = ("n", "coefficient", "method", "excluded")
+CORRELATION_METHOD = "pearson"
+CORRELATION_MIN_N = 3
+CORRELATION_CAVEATS: tuple[str, ...] = (
+    "Correlation does not show cause.",
+    "Rows with a missing or non-numeric value are left out.",
+)
+
+TOOL_NAMES: tuple[str, ...] = ("schema_describe", "sql_query", "sites_near", "stats_correlate")
+MAX_TOOL_ROUNDS = 8
+ANSWER_DEADLINE_SECONDS = 18.0  # below the App's 20-second limit (Z-26)
+MODEL_ENV = "QUERY_SERVICE_MODEL"
+PROJECT_ENV = "GOOGLE_CLOUD_PROJECT"
+LOCATION_ENV = "GOOGLE_CLOUD_LOCATION"
+TAXONOMY_PATH = "docs/taxonomy.md"
+SYSTEM_PREAMBLE = (
+    "You answer questions about Central Florida public data for food bank planners and small "
+    "business lenders. Use only the tools. Every number you state must come from a tool result, "
+    "the question or the current settings. If the data does not hold the answer, say so. Name no "
+    "source that a tool did not return."
+)
+CORRECTION_TEMPLATE = (
+    "These numbers in your answer came from no tool result: {numbers}. Answer again using only "
+    "numbers from tool results, or say that the data does not hold them."
+)
+NUMBER_PATTERN = re.compile(r"(?<![\w.])-?\d[\d,]*(?:\.\d+)?(?![\w])")
+TRACT_PREFIX = "1400000US"
+MAX_BODY_BYTES = 16_384
+
+
+# --- 2. Exceptions ------------------------------------------------------------------------------
+
+
+class ToolArgumentError(QueryServiceContractError):
+    """ERRORS-TOOL-1: a tool was called with arguments outside its contract."""
+
+
+class ModelUnavailableError(QueryServiceContractError):
+    """ERRORS-ASK-2: Vertex AI failed, timed out, or the answer passed its deadline or rounds."""
+
+
+class AnswerNotGroundedError(QueryServiceContractError):
+    """ERRORS-ASK-3: the answer kept a number that no tool result, question or setting holds."""
+
+
+# --- 3. Records -------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Site:
+    """One Second Harvest site from the sites table."""
+
+    storeid: str
+    name: str
+    address: str
+    county: str
+    lat: float
+    lon: float
+
+
+@dataclass(frozen=True)
+class CorrelationResult:
+    """POST-TOOL-2: a correlation over the rows of one query."""
+
+    n: int
+    coefficient: float | None
+    method: str
+    excluded: int
+    caveats: tuple[str, ...]
+
+
+# --- 4. Oracles ---------------------------------------------------------------------------------
+
+
+def expected_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """POST-TOOL-1 oracle: the Build's haversine, this exact formula."""
+    p = math.pi / 180.0
+    a = (
+        math.sin((lat2 - lat1) * p / 2.0) ** 2
+        + math.cos(lat1 * p) * math.cos(lat2 * p) * math.sin((lon2 - lon1) * p / 2.0) ** 2
+    )
+    return 2.0 * EARTH_RADIUS_MILES * math.asin(math.sqrt(a))
+
+
+def expected_sites_near(
+    origins: tuple[tuple[float, float], ...], miles: float, sites: tuple[Site, ...]
+) -> tuple[tuple[str, str, str, str, float], ...]:
+    """POST-TOOL-1 oracle: sites within miles (inclusive) of any origin point.
+
+    For a point the origins are that point; for a tract they are its populated 2020 blocks
+    (pop20 > 0), as in the Build (Z-2 2-A). Each row is SITES_NEAR_COLUMNS with the smallest
+    distance, ordered by distance then storeid.
+    """
+    rows = []
+    for s in sites:
+        if not origins:
+            break
+        d = min(expected_miles(lat, lon, s.lat, s.lon) for lat, lon in origins)
+        if d <= miles:
+            rows.append((s.storeid, s.name, s.address, s.county, d))
+    return tuple(sorted(rows, key=lambda r: (r[4], r[0])))
+
+
+def _as_float(value: object) -> float | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        number = float(str(value))
+    except ValueError:
+        return None
+    return number if math.isfinite(number) else None
+
+
+def expected_correlation(pairs: tuple[tuple[object, object], ...]) -> CorrelationResult:
+    """POST-TOOL-2 oracle: Pearson r over the pairs whose two values both parse as numbers.
+
+    The coefficient is None when fewer than CORRELATION_MIN_N pairs remain or either side is
+    constant (statistics.correlation raises StatisticsError).
+    """
+    kept = [(a, b) for a, b in ((_as_float(x), _as_float(y)) for x, y in pairs)]
+    good = [(a, b) for a, b in kept if a is not None and b is not None]
+    coefficient: float | None = None
+    if len(good) >= CORRELATION_MIN_N:
+        try:
+            coefficient = statistics.correlation([a for a, _ in good], [b for _, b in good])
+        except statistics.StatisticsError:
+            coefficient = None
+    return CorrelationResult(
+        n=len(good),
+        coefficient=coefficient,
+        method=CORRELATION_METHOD,
+        excluded=len(pairs) - len(good),
+        caveats=CORRELATION_CAVEATS,
+    )
+
+
+def expected_system_instruction(taxonomy_text: str, applied: AppliedThresholds) -> str:
+    """POST-ANS-1 oracle: the system instruction sent with every question (REQ-36, REQ-60)."""
+    return (
+        f"{SYSTEM_PREAMBLE}\n\n## Core taxonomy ({TAXONOMY_PATH})\n{taxonomy_text.strip()}\n\n"
+        "## Current settings\n"
+        f"Reach distance: {applied.reach_miles:g} miles, straight-line.\n"
+        f"Poverty cut: the {applied.poverty}th percentile.\n"
+        f"No-vehicle cut: the {applied.no_vehicle}th percentile.\n"
+        f"SBA loans per 1,000 residents cut: the {applied.sba_rate_per_1000}th percentile."
+    )
+
+
+def _numbers_in(text: str) -> list[Decimal]:
+    out = []
+    for match in NUMBER_PATTERN.finditer(text):
+        try:
+            out.append(Decimal(match.group(0).replace(",", "")))
+        except InvalidOperation:
+            continue
+    return out
+
+
+def _tool_numbers(value: object) -> set[Decimal]:
+    found: set[Decimal] = set()
+    if isinstance(value, Mapping):
+        for v in value.values():
+            found |= _tool_numbers(v)
+    elif isinstance(value, list | tuple):
+        for v in value:
+            found |= _tool_numbers(v)
+    elif isinstance(value, bool) or value is None:
+        return found
+    elif isinstance(value, int | float | Decimal):
+        if not (isinstance(value, float) and not math.isfinite(value)):
+            found.add(Decimal(str(value)))
+    else:
+        found |= set(_numbers_in(str(value)))
+    return found
+
+
+def expected_ungrounded_numbers(
+    answer: str, tool_payloads: tuple[object, ...], allowed_texts: tuple[str, ...]
+) -> tuple[str, ...]:
+    """POST-ANS-2 oracle (REQ-37): the numbers written in the answer that are grounded nowhere.
+
+    A written number is grounded when it equals a number found in a tool payload or in an allowed
+    text (the question and the current settings), or when some tool number rounded half-up to the
+    written number's decimal places equals it, or, for a written percentage, when some tool number
+    times 100 so rounded equals it. Each ungrounded number is returned once, as written.
+    """
+    pool = set()
+    for p in tool_payloads:
+        pool |= _tool_numbers(p)
+    allowed = {n for t in allowed_texts for n in _numbers_in(t)}
+    bad: list[str] = []
+    for match in NUMBER_PATTERN.finditer(answer):
+        written = match.group(0)
+        try:
+            value = Decimal(written.replace(",", ""))
+        except InvalidOperation:
+            continue
+        places = Decimal(1).scaleb(value.as_tuple().exponent)  # type: ignore[arg-type]
+        is_pct = answer[match.end() : match.end() + 1] == "%"
+        candidates = pool | ({v * 100 for v in pool} if is_pct else set())
+        grounded = (
+            value in pool
+            or value in allowed
+            or any(c.quantize(places, rounding=ROUND_HALF_UP) == value for c in candidates)
+        )
+        if not grounded and written not in bad:
+            bad.append(written)
+    return tuple(bad)
+
+
+def expected_reply_tracts(
+    answer: str, results: tuple[SqlQueryResult, ...], known_geoids: frozenset[str]
+) -> tuple[str, ...]:
+    """POST-ANS-3 oracle (Z-26): known tract GEOIDs in the results' cells, then in the answer.
+
+    A cell holds a tract when its text is a known GEOID, or TRACT_PREFIX followed by one. Order is
+    first appearance: results in order, rows in order, columns in order, then the answer text.
+    """
+    seen: dict[str, None] = {}
+    for result in results:
+        for row in result.rows:
+            for column in result.columns:
+                text = "" if row.get(column) is None else str(row.get(column))
+                geoid = text.removeprefix(TRACT_PREFIX)
+                if geoid in known_geoids:
+                    seen.setdefault(geoid, None)
+    for match in re.finditer(r"\d{11}", answer):
+        if match.group(0) in known_geoids:
+            seen.setdefault(match.group(0), None)
+    return tuple(seen)
+
+
+# --- 5. Clauses -------------------------------------------------------------------------------
+
+CONTRACT_QUERY_TOOLS: Mapping[str, Clause] = {
+    "POST-TOOL-1": Clause(
+        "test",
+        "sites_near(geoid=None, lat=None, lon=None, miles) returns a SqlQueryResult with "
+        "SITES_NEAR_COLUMNS and rows equal to expected_sites_near: origins are the point, or the "
+        "tract's populated blocks from the BLOCKS_SOURCE_FILE table; sites come from the "
+        "SITES_SOURCE_FILE table; truncated is False; referenced_tables are those tables and the "
+        "citations are theirs (SEQ-7).",
+        ("REQ-35", "REQ-32"),
+    ),
+    "POST-TOOL-2": Clause(
+        "test",
+        "stats_correlate(sql) runs sql through execute_sql (same checks and limits, row_limit "
+        "MAX_ROW_LIMIT) and requires exactly two columns; it returns a SqlQueryResult with "
+        "CORRELATION_COLUMNS and one row equal to expected_correlation over the rows, its "
+        "referenced_tables and citations from the query, plus the caveats CORRELATION_CAVEATS; "
+        "truncated is True when the query was truncated.",
+        ("REQ-35", "REQ-32"),
+    ),
+    "ERRORS-TOOL-1": Clause(
+        "test",
+        "sites_near raises ToolArgumentError naming ERRORS-TOOL-1 unless exactly one of geoid or "
+        "(lat, lon) is given, miles is in (0, MAX_NEAR_MILES], lat is in [-90, 90], lon is in "
+        "[-180, 180] and a geoid is a known tract; stats_correlate raises it when the query does "
+        "not return exactly two columns. Tool errors reach the "
+        "model as an error result, never as a "
+        "crash.",
+        ("REQ-35",),
+    ),
+}
+
+CONTRACT_QUERY_ANSWER: Mapping[str, Clause] = {
+    "POST-ANS-1": Clause(
+        "test",
+        "Every model request names the model from MODEL_ENV, carries the system instruction "
+        "expected_system_instruction(taxonomy at TAXONOMY_PATH, applied thresholds), declares "
+        "exactly TOOL_NAMES, and disables automatic function calling, so the service runs every "
+        "tool call itself and records each result (REQ-36, REQ-38, REQ-60).",
+        ("REQ-36", "REQ-38", "REQ-60"),
+    ),
+    "POST-ANS-2": Clause(
+        "test",
+        "Before an answer is returned, expected_ungrounded_numbers(answer, tool payloads, "
+        "(question, settings)) is empty. If not, the model gets CORRECTION_TEMPLATE once with "
+        "those numbers; if the next answer is still ungrounded, "
+        "AnswerNotGroundedError (ERRORS-ASK-3) "
+        "is raised (jev at Ketema's direction: one corrective retry).",
+        ("REQ-37",),
+    ),
+    "POST-ANS-3": Clause(
+        "test",
+        "A returned AskReply has the final answer text, the configured model name, the results of "
+        "every sql_query, sites_near and stats_correlate call in call order, tracts equal to "
+        "expected_reply_tracts, and applied equal to the request's thresholds (POST-ASK-1).",
+        ("REQ-60", "REQ-32", "REQ-40"),
+    ),
+    "ERRORS-ANS-1": Clause(
+        "test",
+        "A Vertex AI error (google.genai errors.APIError), a transport timeout, more than "
+        "MAX_TOOL_ROUNDS tool rounds, or no final answer within ANSWER_DEADLINE_SECONDS raises "
+        "ModelUnavailableError naming ERRORS-ASK-2; no partial answer is returned.",
+        ("REQ-39", "REQ-37"),
+    ),
+}
+
+CONTRACT_QUERY_HTTP: Mapping[str, Clause] = {
+    "POST-HTTP-1": Clause(
+        "test",
+        f"POST {ASK_PATH} with a JSON body that passes PRE-ASK-1 returns 200 and "
+        "expected_reply_json of the answer, with Content-Type application/json.",
+        ("REQ-60", "REQ-40"),
+    ),
+    "ERRORS-HTTP-1": Clause(
+        "test",
+        "A body over MAX_BODY_BYTES, not JSON, or outside PRE-ASK-1 returns 400 with "
+        '{"error": message naming ERRORS-ASK-1}; ModelUnavailableError returns 503 naming '
+        "ERRORS-ASK-2; AnswerNotGroundedError returns 503 naming ERRORS-ASK-3; any other path "
+        "returns 404 and any other method on the path 405. The model is not called for a 400.",
+        ("REQ-39", "REQ-60"),
+    ),
+    "SEQ-11": Clause(
+        "test",
+        "The service opens the engine (SEQ-6) and reads the taxonomy before it accepts its first "
+        "request; if either fails the process exits non-zero naming the failure (CL9).",
+        ("REQ-46", "REQ-36"),
     ),
 }

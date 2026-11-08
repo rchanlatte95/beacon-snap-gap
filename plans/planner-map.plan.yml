@@ -257,7 +257,17 @@
         "POST-APP-13",
         "POST-APP-14",
         "POST-APP-15",
-        "ERRORS-SQL-2"
+        "ERRORS-SQL-2",
+        "POST-TOOL-1",
+        "POST-TOOL-2",
+        "ERRORS-TOOL-1",
+        "POST-ANS-1",
+        "POST-ANS-2",
+        "POST-ANS-3",
+        "ERRORS-ANS-1",
+        "POST-HTTP-1",
+        "ERRORS-HTTP-1",
+        "SEQ-11"
       ],
       "clauses_deferred": [],
       "negative_constraints": [
