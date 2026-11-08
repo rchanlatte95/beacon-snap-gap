@@ -2,9 +2,9 @@
   "schema_version": "1.1",
   "feature_name": "beacon-snap-cliff-planner-map",
   "manifest_path": "requirements/REQUIREMENT_MANIFEST.md",
-  "manifest_hash": "sha256:fa135eb74ced7e42a71464c338a559997ed822c86c3f9863a56c6383598de0c8",
+  "manifest_hash": "sha256:830b76152d6206979351fbdc317172b8695860d4dc91b33b902b894ffcc025bb",
   "created": "2026-11-07",
-  "last_updated": "2026-11-07",
+  "last_updated": "2026-11-08",
   "status": "ACTIVE",
   "slices": [
     {
@@ -68,9 +68,9 @@
       "pivot_note": "If work stops after SLICE-1, a Viewer can open the deployed Cloud Run URL, see the 489 drawn Central Florida tracts coloured by flag status, and read a card for each flagged tract; the slider is absent by the human's decision.",
       "deliverable": {
         "surface": "ui",
-        "capability": "A Food Bank Planner or SBA/CDFI Officer opens the Cloud Run URL, sees the top KPI cohort strip (97 Classic Food Deserts, 50 Dual-Gap Food + SBA tracts, 53 Mobile-Priority Transport Gap tracts, 29 Triple-Gap Opportunities to Serve, and 2 Insufficient Data tracts), switches across the three persona lenses, views 489 Central Florida tracts with a pinned on-canvas legend and clean exterior county borders, uses the AI Insight and Coordinated Action Wizard to filter cohorts or inspect a tract's evidence (SBA lending, no-vehicle %, median household income + 90% MOE, confidence badge and sources), and generates a Coordinated Action Brief.",
+        "capability": "A Food Bank Planner or SBA/CDFI Officer opens the Cloud Run URL, sees the top KPI cohort strip (97 Classic Food Deserts, 26 Dual-Gap Food + SBA tracts, 53 Mobile-Priority Transport Gap tracts, 12 Triple-Gap Opportunities to Serve, and 2 Insufficient Data tracts), switches across the three persona lenses, views 489 Central Florida tracts with a pinned on-canvas legend and clean exterior county borders, uses the AI Insight and Coordinated Action Wizard to filter cohorts or inspect a tract's evidence (SBA lending, no-vehicle %, median household income + 90% MOE, confidence badge and sources), and generates a Coordinated Action Brief.",
         "use": "Open the Cloud Run URL, look at the tract map, and click a flagged tract to open its card.",
-        "observe": "The top KPI strip and recomputed test assertions show 97 Classic Food Deserts, 50 Dual-Gap tracts (<=10 SBA loans), 53 High No-Vehicle tracts (>=6.90%), 29 Triple-Gap tracts, and 2 Insufficient Data tracts; clicking a tract or running the AI wizard displays matching source values, confidence level, and a Coordinated Action Brief.",
+        "observe": "The top KPI strip and recomputed test assertions show 97 Classic Food Deserts, 26 Dual-Gap tracts (SBA loans per 1,000 residents in the bottom quartile), 53 High No-Vehicle tracts (>=6.90%), 12 Triple-Gap tracts, and 2 Insufficient Data tracts; clicking a tract or running the AI wizard displays matching source values, confidence level, and a Coordinated Action Brief.",
         "attested_by": null,
         "attested_at": null
       }
@@ -98,6 +98,172 @@
         "attested_by": null,
         "attested_at": null
       }
+    },
+    {
+      "id": "SLICE-3",
+      "requirement_ids": [
+        "REQ-25",
+        "REQ-26",
+        "REQ-27",
+        "REQ-28",
+        "REQ-29",
+        "REQ-30",
+        "REQ-31",
+        "REQ-47",
+        "REQ-48",
+        "REQ-51",
+        "REQ-53",
+        "REQ-54"
+      ],
+      "clauses_in_scope": [
+        "POST-SCOPE-1",
+        "POST-SCOPE-2",
+        "POST-SCOPE-3",
+        "POST-SCOPE-4",
+        "POST-SCOPE-5",
+        "POST-SCOPE-6",
+        "INV-SCOPE-1",
+        "INV-SCOPE-2",
+        "FORBIDDEN-SCOPE-1",
+        "ERRORS-SCOPE-1",
+        "POST-STATE-1",
+        "POST-STATE-2",
+        "POST-STATE-3",
+        "POST-STATE-4",
+        "INV-STATE-1",
+        "ERRORS-STATE-1",
+        "POST-PROV-1",
+        "POST-PROV-2",
+        "POST-PROV-3",
+        "INV-PROV-1",
+        "FORBIDDEN-PROV-1",
+        "ERRORS-PROV-1",
+        "POST-GLOSS-1",
+        "POST-GLOSS-2",
+        "INV-GLOSS-1",
+        "FORBIDDEN-GLOSS-1",
+        "SEQ-5",
+        "ERRORS-GLOSS-1",
+        "INV-STORAGE-1",
+        "POST-ADAPT-1",
+        "ERRORS-ADAPT-1",
+        "ERRORS-ADAPT-2",
+        "POST-ADAPT-2",
+        "ERRORS-ADAPT-3",
+        "POST-ADAPT-3",
+        "FORBIDDEN-ADAPT-1",
+        "POST-WRITE-1",
+        "POST-WRITE-2",
+        "INV-WRITE-1",
+        "ERRORS-WRITE-1",
+        "POST-REG-1",
+        "ERRORS-REG-1",
+        "POST-REG-2",
+        "ERRORS-REG-2",
+        "FORBIDDEN-REG-1",
+        "POST-READ-1",
+        "ERRORS-READ-1",
+        "POST-RET-1",
+        "ERRORS-RET-1",
+        "POST-REG-3",
+        "ERRORS-REG-3",
+        "POST-RET-2",
+        "ERRORS-RET-2",
+        "POST-READ-2",
+        "ERRORS-READ-2",
+        "POST-READ-3"
+      ],
+      "clauses_deferred": [],
+      "negative_constraints": [
+        "INV-23"
+      ],
+      "status": "CONTRACT_WRITTEN",
+      "depends_on": [],
+      "issue": "ketema/beacon-snap-cliff#13",
+      "pivot_note": "Reopened in cycle 14 (data adapter). If work stops after SLICE-3, the warehouse sits in the private bucket, built by the Ingest committed in this repository, with only locations relative to the warehouse location, every in-scope source, row counts a reader can recount, a provenance row for every table and a glossary, and it opens through the data adapter at any configured location; nothing queries it yet. No open zone blocks this slice.",
+      "deliverable": {
+        "surface": "file",
+        "capability": "A reader can see every retained source, why each was kept or excluded, and where each table came from.",
+        "use": "Open the warehouse files and catalog tables.",
+        "observe": "Every table has an origin URL, SHA-256 and filter; counts equal a recount of the sources; excluded files list their reasons.",
+        "attested_by": null,
+        "attested_at": null
+      }
+    },
+    {
+      "id": "SLICE-4",
+      "requirement_ids": [
+        "REQ-32",
+        "REQ-33",
+        "REQ-34",
+        "REQ-35",
+        "REQ-36",
+        "REQ-37",
+        "REQ-38",
+        "REQ-39",
+        "REQ-40",
+        "REQ-46",
+        "REQ-49",
+        "REQ-50",
+        "REQ-52"
+      ],
+      "clauses_in_scope": [
+        "SEQ-6",
+        "POST-SCHEMA-1",
+        "POST-SQL-1",
+        "SEQ-7",
+        "FORBIDDEN-SQL-1",
+        "ERRORS-SQL-1"
+      ],
+      "clauses_deferred": [],
+      "negative_constraints": [
+        "INV-32"
+      ],
+      "status": "PENDING",
+      "depends_on": [
+        "SLICE-1",
+        "SLICE-3"
+      ],
+      "issue": "ketema/beacon-snap-cliff#14",
+      "pivot_note": "No open zone remains. If work stops after SLICE-4, a Viewer on a private address can ask plain-language and free-form questions and get cited answers built from the warehouse; the shared login is SLICE-5. REQ-39 (the outage fallback) is flagged by Ketema: it may change the UI, and he wants to see the rendered result before accepting it.",
+      "deliverable": {
+        "surface": "ui",
+        "capability": "A planner or officer can ask a plain-language question about any loaded data and get a cited answer.",
+        "use": "Type a question in the AI wizard.",
+        "observe": "The six baseline questions each match a recomputation from the source files and show chips naming each source, publisher, as-of date and origin link; free-form questions run through the schema tool and read-only SQL.",
+        "attested_by": null,
+        "attested_at": null
+      }
+    },
+    {
+      "id": "SLICE-5",
+      "requirement_ids": [
+        "REQ-41",
+        "REQ-42",
+        "REQ-43",
+        "REQ-44",
+        "REQ-45"
+      ],
+      "clauses_in_scope": [],
+      "clauses_deferred": [],
+      "negative_constraints": [
+        "INV-37"
+      ],
+      "status": "PENDING",
+      "depends_on": [
+        "SLICE-1",
+        "SLICE-4"
+      ],
+      "issue": "TODO",
+      "pivot_note": "No open zone remains. Ketema handles the teardown with no fixed date (Z-12). If work stops after SLICE-5, the services run behind the login with internal ingress.",
+      "deliverable": {
+        "surface": "http",
+        "capability": "Only people with the shared login can reach the app and the query service.",
+        "use": "Request the Gateway URL with and without credentials, and request a service address directly.",
+        "observe": "No credentials returns HTTP 401; a direct service address fails; the password appears in no repository file, image layer or log.",
+        "attested_by": null,
+        "attested_at": null
+      }
     }
   ],
   "pivot_guidance": [
@@ -107,7 +273,10 @@
     "The plan is written against manifest_hash. Any manifest change fails the drift check: re-read the manifest, update this file, then continue.",
     "SLICE-2 stays BLOCKED until the human has seen the SLICE-1 deliverable and decides on zone Z-3; show a visual mock when the question returns.",
     "After SLICE-1 AUDIT: verify every requirement ID traces to a contract clause and a test, the human attests the deliverable, then ask whether to unblock SLICE-2 or plan the SBDC/CDFI officer view.",
-    "REQ-13 (Beacon brand) is verified by human review, not by a test, so SLICE-1 needs a human attestation before it is audited."
+    "REQ-13 (Beacon brand) is verified by human review, not by a test, so SLICE-1 needs a human attestation before it is audited.",
+    "SLICE-3 to SLICE-5 (cycle 13) follow SLICE-1. All cycle 13 zones are decided. SLICE-3 can start contracts once the human approves the plan.",
+    "Approval recorded 2026-11-08: Ketema approved the amended manifest and the plan for SLICE-3 to SLICE-5 with caveats (session login, warehouse built once, REQ-39 flagged). The SLICE-1 amendments (INV-04, INV-06) are covered by that approval. Approval is bound to the manifest_hash in this file; any later change to these slices' requirements ends it until Ketema renews it.",
+    "Cycle 14 (2026-11-08): Ketema approved option A by constitutional refactor (\"A. implement via constitutional refactor. no shortcuts\") and the rebuild (\"if a rule say once but was executed in error it is invalid. rebuild if needed. continue\"). SLICE-3 is reopened for REQ-47, REQ-48 and REQ-51; SLICE-4 adds REQ-49, REQ-50 and REQ-52. Approval is bound to the manifest_hash in this file. Disconnect Matrix: plans/warehouse-adapter.refactor.md."
   ],
   "forgotten_invariants": [
     "INV-01",
@@ -118,6 +287,8 @@
     "INV-07",
     "INV-08",
     "INV-11",
-    "INV-12"
+    "INV-12",
+    "INV-32",
+    "INV-37"
   ]
 }

@@ -1,7 +1,17 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { OpportunityMap } from './map/OpportunityMap'
+import { ProximityControls } from './map/ProximityControls'
+import {
+  DEFAULT_REACH_MILES,
+  clampReachMiles,
+  evaluateProximity,
+  nearestSiteDistances,
+  reachMinutes,
+  sitesWithinMiles,
+} from './map/proximity'
 import { plainAction, plainConfidence, plainMissing } from './plainWords'
+import { DataSources, SourceLinks } from './SourceCitations'
 import {
   CLASS_HIGH_NEED,
   CLASS_INSUFFICIENT,
@@ -29,7 +39,8 @@ export interface PlannerBundle {
   readonly thresholds: {
     readonly poverty_cut_q75: number
     readonly poverty_cut_method: string
-    readonly sba_loans_median: number
+    readonly sba_rate_cut_per_1000: number
+    readonly sba_min_population: number
     readonly no_vehicle_q75: number
     readonly drive_time_minutes: number
   }
@@ -60,6 +71,7 @@ interface GeoLayers {
 
 export interface OpportunitiesAppProps {
   readonly initialBundle?: PlannerBundle
+  readonly initialSites?: GeoJSON.FeatureCollection
   readonly initialLoadError?: string
   readonly enableMap?: boolean
 }
@@ -72,6 +84,11 @@ const BUNDLE_FILES = {
 } as const
 
 const SHORTLIST_MAX = 40
+const PERSONA_COHORTS: Record<PersonaLensId, CohortId> = {
+  alignment: 'triple',
+  planner: 'high_need',
+  officer: 'dual',
+}
 
 const nf = new Intl.NumberFormat('en-US')
 const money = new Intl.NumberFormat('en-US', {
@@ -131,6 +148,9 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
   const [answer, setAnswer] = useState<WizardAnswer | null>(null)
   const [brief, setBrief] = useState<CoordinatedActionBrief | null>(null)
   const [overlays, setOverlays] = useState({ sba: false, transport: false, sites: false })
+  const [emphasizeGaps, setEmphasizeGaps] = useState(false)
+  const [proximityEnabled, setProximityEnabled] = useState(false)
+  const [proximityMiles, setProximityMiles] = useState(DEFAULT_REACH_MILES)
   const [panelTab, setPanelTab] = useState<'briefing' | 'evidence'>('briefing')
 
   useEffect(() => {
@@ -184,14 +204,37 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
         : [],
     [tracts, bundle],
   )
-  const cohortTracts = useMemo(() => {
+  const baseCohortTracts = useMemo(() => {
     const base = answer ? answer.matchedTracts : filterTractsByCohort(tracts, cohort)
     const sorted = [...base].sort((a, b) => (b.pct_poverty ?? 0) - (a.pct_poverty ?? 0))
     return sorted
   }, [tracts, cohort, answer])
+  const sites = geo?.sites ?? props.initialSites
+  const siteDistances = useMemo(
+    () => (sites ? nearestSiteDistances(tracts, sites) : null),
+    [tracts, sites],
+  )
+  const proximity = useMemo(
+    () =>
+      siteDistances ? evaluateProximity(baseCohortTracts, siteDistances, proximityMiles) : null,
+    [baseCohortTracts, siteDistances, proximityMiles],
+  )
+  const proximityActive = proximityEnabled && proximity !== null
+  const cohortTracts = proximityActive ? proximity.outside : baseCohortTracts
+  const focusedGeoids = useMemo(
+    () => cohortTracts.filter((t) => t.drawn).map((t) => t.geoid),
+    [cohortTracts],
+  )
   const selectedTract = useMemo(
     () => tracts.find((t) => t.geoid === selected) ?? null,
     [tracts, selected],
+  )
+  const selectedSiteCount = useMemo(
+    () =>
+      sites && selectedTract
+        ? sitesWithinMiles(selectedTract.centroid, sites, proximityMiles)
+        : null,
+    [sites, selectedTract, proximityMiles],
   )
   const notDrawn = useMemo(() => tracts.filter((t) => !t.drawn), [tracts])
 
@@ -215,6 +258,16 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
     setBrief(null)
     setQuery('')
   }
+  const choosePersona = (id: PersonaLensId) => {
+    setPersona(id)
+    chooseCohort(PERSONA_COHORTS[id])
+  }
+  const changeProximity = (miles: number) => {
+    setProximityMiles(clampReachMiles(miles))
+    setProximityEnabled(true)
+    setEmphasizeGaps(true)
+    setBrief(null)
+  }
   const selectTract = (geoid: string | null) => {
     setSelected(geoid)
     if (geoid) setPanelTab('evidence')
@@ -223,7 +276,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
   if (loadError) {
     return (
       <div className="app">
-        <Header persona={persona} onPersona={setPersona} />
+        <Header persona={persona} onPersona={choosePersona} />
         <main className="main main--error shell">
           <div className="load-error" role="alert">
             <h2>The map data did not load</h2>
@@ -241,7 +294,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
   if (!bundle) {
     return (
       <div className="app">
-        <Header persona={persona} onPersona={setPersona} />
+        <Header persona={persona} onPersona={choosePersona} />
         <main className="main main--error shell">
           <div className="loading">Loading the map data…</div>
         </main>
@@ -258,7 +311,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
 
   return (
     <div className="app" data-persona={persona}>
-      <Header persona={persona} onPersona={setPersona} />
+      <Header persona={persona} onPersona={choosePersona} />
 
       <section className="hero shell" aria-label="Groups of neighborhoods">
         <div className="hero-lede">
@@ -287,79 +340,149 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
 
       <main className="main shell">
         <div className="map-col">
-          {enableMap && geo ? (
-            <OpportunityMap
-              tractsGeojson={geo.tracts}
-              countiesGeojson={geo.counties}
-              sitesGeojson={geo.sites}
-              records={tracts}
-              cohortId={answer ? 'all' : cohort}
-              selectedGeoid={selected}
-              onSelect={selectTract}
-              overlays={overlays}
-            />
-          ) : (
-            <div className="map-placeholder" aria-hidden="true" />
-          )}
-
-          <div className="overlay-pills" role="group" aria-label="Add to the map">
-            <Pill
-              on={overlays.sba}
-              swatch="dash"
-              onClick={() => setOverlays((o) => ({ ...o, sba: !o.sba }))}
+          <div className="map-toolbar">
+            <div className="gap-context" id="gap-emphasis-context" role="status">
+              <strong>{cohortLabel}</strong>
+              {proximityActive && (
+                <span>
+                  Beyond {proximityMiles} mi / {reachMinutes(proximityMiles)} min estimated
+                </span>
+              )}
+              <span>
+                {nf.format(focusedGeoids.length)}{' '}
+                {focusedGeoids.length === 1 ? 'neighborhood' : 'neighborhoods'} on map
+                {cohortTracts.length > focusedGeoids.length &&
+                  `; ${cohortTracts.length - focusedGeoids.length} without a map shape`}
+                .{' '}
+                {focusedGeoids.length === 0
+                  ? 'No areas to emphasize.'
+                  : emphasizeGaps
+                    ? 'Outlined; other areas faded.'
+                    : 'Emphasize this group on the map.'}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="gap-emphasis-button"
+              aria-pressed={emphasizeGaps}
+              aria-describedby="gap-emphasis-context"
+              onClick={() => setEmphasizeGaps((on) => !on)}
             >
-              Few business loans
-            </Pill>
-            <Pill
-              on={overlays.transport}
-              swatch="hatch"
-              onClick={() => setOverlays((o) => ({ ...o, transport: !o.transport }))}
-            >
-              Many with no car
-            </Pill>
-            <Pill
-              on={overlays.sites}
-              swatch="dot"
-              onClick={() => setOverlays((o) => ({ ...o, sites: !o.sites }))}
-            >
-              Second Harvest sites
-            </Pill>
+              <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
+                <path
+                  d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="10" cy="10" r="3" stroke="currentColor" strokeWidth="1.7" />
+              </svg>
+              Emphasize gaps
+            </button>
           </div>
+          <ProximityControls
+            ready={proximity !== null}
+            enabled={proximityEnabled}
+            miles={proximityMiles}
+            outsideCount={proximity?.outside.length ?? 0}
+            withinCount={proximity?.withinCount ?? 0}
+            unknownCount={proximity?.unknown.length ?? 0}
+            onEnabled={(enabled) => {
+              setProximityEnabled(enabled)
+              if (enabled) setEmphasizeGaps(true)
+              setBrief(null)
+            }}
+            onMiles={changeProximity}
+            onReset={() => {
+              setProximityMiles(DEFAULT_REACH_MILES)
+              setProximityEnabled(false)
+              setBrief(null)
+            }}
+          />
+          <div className="map-viewport">
+            {enableMap && geo ? (
+              <OpportunityMap
+                tractsGeojson={geo.tracts}
+                countiesGeojson={geo.counties}
+                sitesGeojson={geo.sites}
+                records={tracts}
+                focusedGeoids={focusedGeoids}
+                emphasizeGaps={emphasizeGaps}
+                selectedGeoid={selected}
+                onSelect={selectTract}
+                overlays={overlays}
+              />
+            ) : (
+              <div className="map-placeholder" aria-hidden="true" />
+            )}
 
-          <div className="pinned-legend" data-testid="pinned-map-legend" aria-label="Map key">
-            <div className="legend-row">
-              <i className="swatch swatch--triple" />
-              <span>All three gaps</span>
-              <b>{counts.triple}</b>
+            <div className="overlay-pills" role="group" aria-label="Add to the map">
+              <Pill
+                on={overlays.sba}
+                swatch="dash"
+                onClick={() => setOverlays((o) => ({ ...o, sba: !o.sba }))}
+              >
+                Few business loans
+              </Pill>
+              <Pill
+                on={overlays.transport}
+                swatch="hatch"
+                onClick={() => setOverlays((o) => ({ ...o, transport: !o.transport }))}
+              >
+                Many with no car
+              </Pill>
+              <Pill
+                on={overlays.sites}
+                swatch="dot"
+                onClick={() => setOverlays((o) => ({ ...o, sites: !o.sites }))}
+              >
+                Second Harvest sites
+              </Pill>
             </div>
-            <div className="legend-row">
-              <i className="swatch swatch--high" />
-              <span>{CLASS_HIGH_NEED}</span>
-              <b>{counts.high_need}</b>
-            </div>
-            <div className="legend-row">
-              <i className="swatch swatch--nogap" />
-              <span>{CLASS_NO_GAP}</span>
-              <b>{bundle.counts.no_gap}</b>
-            </div>
-            <div className="legend-row">
-              <i className="swatch swatch--insufficient" />
-              <span>{CLASS_INSUFFICIENT}</span>
-              <b>{counts.insufficient}</b>
-            </div>
-            <div className="legend-note">
-              Not on the map:{' '}
-              {notDrawn.map((t) => (
-                <button
-                  key={t.geoid}
-                  type="button"
-                  className="linklike"
-                  onClick={() => selectTract(t.geoid)}
-                >
-                  {t.name} ({t.geoid})
-                </button>
-              ))}{' '}
-              is water.
+
+            <div className="pinned-legend" data-testid="pinned-map-legend" aria-label="Map key">
+              {emphasizeGaps && focusedGeoids.length > 0 && (
+                <div className="legend-row legend-emphasis">
+                  <i className="swatch swatch--emphasis" />
+                  <span>Emphasized gaps</span>
+                  <b>{focusedGeoids.length}</b>
+                </div>
+              )}
+              <div className="legend-row">
+                <i className="swatch swatch--triple" />
+                <span>All three gaps</span>
+                <b>{counts.triple}</b>
+              </div>
+              <div className="legend-row">
+                <i className="swatch swatch--high" />
+                <span>{CLASS_HIGH_NEED}</span>
+                <b>{counts.high_need}</b>
+              </div>
+              <div className="legend-row">
+                <i className="swatch swatch--nogap" />
+                <span>{CLASS_NO_GAP}</span>
+                <b>{bundle.counts.no_gap}</b>
+              </div>
+              <div className="legend-row">
+                <i className="swatch swatch--insufficient" />
+                <span>{CLASS_INSUFFICIENT}</span>
+                <b>{counts.insufficient}</b>
+              </div>
+              <div className="legend-note">
+                Not on the map:{' '}
+                {notDrawn.map((t) => (
+                  <button
+                    key={t.geoid}
+                    type="button"
+                    className="linklike"
+                    onClick={() => selectTract(t.geoid)}
+                  >
+                    {t.name} ({t.geoid})
+                  </button>
+                ))}{' '}
+                is water.
+              </div>
             </div>
           </div>
         </div>
@@ -394,7 +517,10 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                       <span className={`insight-figure insight-figure--${item.tone}`}>
                         {item.figure}
                       </span>
-                      <span className="insight-text">{item.text}</span>
+                      <div className="insight-text">
+                        {item.text}
+                        <SourceLinks ids={item.sourceIds} />
+                      </div>
                     </li>
                   ))}
                 </ol>
@@ -426,6 +552,9 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                 {answer && (
                   <div className="answer" role="status">
                     <p>{answer.answerText}</p>
+                    {proximityActive && (
+                      <p>Of these, {cohortTracts.length} are beyond the proximity limit.</p>
+                    )}
                     {answer.appliedFilters.length > 0 && (
                       <ul className="filters">
                         {answer.appliedFilters.map((f) => (
@@ -445,7 +574,9 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                   Where to start <span className="count">{cohortTracts.length}</span>
                 </h2>
                 <p className="shortlist-sub">
-                  {cohortLabel}, most poverty first. Pick one to see why.
+                  {cohortLabel}
+                  {proximityActive ? `, beyond ${proximityMiles} miles` : ''}, most poverty first.
+                  Pick one to see why.
                 </p>
                 <ul>
                   {cohortTracts.slice(0, SHORTLIST_MAX).map((t) => (
@@ -466,6 +597,11 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                           <em title="SBA loans since 2010">
                             {t.sba_loans_total} {t.sba_loans_total === 1 ? 'loan' : 'loans'}
                           </em>
+                          {proximityActive && (
+                            <em title="Straight-line distance to the nearest Second Harvest site">
+                              {siteDistances?.get(t.geoid)?.toFixed(1)} mi to a site
+                            </em>
+                          )}
                         </span>
                       </button>
                     </li>
@@ -485,8 +621,12 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                   onClick={() =>
                     setBrief(
                       generateCoordinatedActionBrief({
-                        tracts: answer ? answer.matchedTracts : tracts,
-                        cohortId: answer ? 'all' : cohort,
+                        tracts: proximityActive
+                          ? cohortTracts
+                          : answer
+                            ? answer.matchedTracts
+                            : tracts,
+                        cohortId: proximityActive || answer ? 'all' : cohort,
                         personaId: persona,
                       }),
                     )
@@ -501,7 +641,12 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
           ) : (
             <div className="panel-body" key={`evidence-${selected ?? 'none'}`}>
               {selectedTract ? (
-                <TractEvidence t={selectedTract} thresholds={bundle.thresholds} />
+                <TractEvidence
+                  t={selectedTract}
+                  thresholds={bundle.thresholds}
+                  proximityMiles={proximityMiles}
+                  nearbySiteCount={selectedSiteCount}
+                />
               ) : (
                 <p className="muted">Pick a neighborhood on the map or in the list.</p>
               )}
@@ -510,6 +655,12 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
         </aside>
       </main>
 
+      <DataSources
+        povertyCut={bundle.thresholds.poverty_cut_q75}
+        lendingCut={bundle.thresholds.sba_rate_cut_per_1000}
+        minPopulation={bundle.thresholds.sba_min_population}
+        transportCut={bundle.thresholds.no_vehicle_q75}
+      />
       <Footer />
     </div>
   )
@@ -617,7 +768,7 @@ function BriefCard({ brief }: { brief: CoordinatedActionBrief }) {
       <p>{brief.sbaOfficerAction}</p>
       <h4>In short</h4>
       <p>{brief.narrativeSummary}</p>
-      <p className="sources">Source IDs: {brief.sourcesCited.join(', ')}</p>
+      <SourceLinks ids={brief.sourcesCited} />
     </article>
   )
 }
@@ -660,9 +811,13 @@ function incomeText(t: TractRecord): string {
 function TractEvidence({
   t,
   thresholds,
+  proximityMiles,
+  nearbySiteCount,
 }: {
   t: TractRecord
   thresholds: PlannerBundle['thresholds']
+  proximityMiles: number
+  nearbySiteCount: number | null
 }) {
   const povertyMet = t.pct_poverty !== null && t.pct_poverty >= thresholds.poverty_cut_q75
   const lilaMet = t.lila_flag === 1
@@ -718,8 +873,12 @@ function TractEvidence({
         <dl className="facts">
           <Fact
             label="SBA loans since 2010"
-            note={`The middle value here is ${thresholds.sba_loans_median}`}
-            value={`${t.sba_loans_total} · ${money.format(t.sba_gross_usd_total)}`}
+            note={`Few means ${thresholds.sba_rate_cut_per_1000.toFixed(4)} or fewer loans per 1,000 people, with at least ${nf.format(thresholds.sba_min_population)} residents`}
+            value={
+              t.pop2020 > 0
+                ? `${t.sba_loans_total} (${((t.sba_loans_total / t.pop2020) * 1000).toFixed(2)} per 1,000 people) · ${money.format(t.sba_gross_usd_total)}`
+                : `${t.sba_loans_total} · ${money.format(t.sba_gross_usd_total)}`
+            }
             tag={t.is_dual_gap ? { good: false, text: 'few' } : null}
           />
           <Fact
@@ -730,11 +889,19 @@ function TractEvidence({
           />
           <Fact label="Second Harvest sites inside" value={t.sites_in_tract} />
           <Fact
-            label="Sites within 10 miles"
-            note="Straight-line distance"
-            value={t.sites_in_reach}
+            label={`Sites within ${proximityMiles} ${proximityMiles === 1 ? 'mile' : 'miles'}`}
+            note="Straight-line from the population center"
+            value={nearbySiteCount === null ? 'No data' : nearbySiteCount}
           />
-          <Fact label="People per nearby site" value={num(t.pantry_load)} />
+          <Fact
+            label="People per nearby site"
+            note="2020 population divided by sites in this radius"
+            value={num(
+              nearbySiteCount !== null && nearbySiteCount > 0 && t.pop2020 > 0
+                ? Math.round(t.pop2020 / nearbySiteCount)
+                : null,
+            )}
+          />
         </dl>
         {t.sites_in_tract === 0 && <p className="callout">{NO_SITE_CARD_TEXT}</p>}
       </section>
@@ -778,11 +945,20 @@ function TractEvidence({
         </ul>
       </section>
 
-      <p className="sources">
-        Source IDs: ACS 2024 S1701 (DS-H2), S2201 (DS-H1), B08201 (DS-X7b), S1901/B19013 (DS-X28);
-        USDA SRAM 2025 (DS-H6); SBA FOIA (DS-X5); Second Harvest (DS-X12); Census 2020 blocks
-        (DS-X24); FEMA NRI (DS-X16b).
-      </p>
+      <SourceLinks
+        ids={[
+          'DS-H2',
+          'DS-H1',
+          'DS-H6',
+          'DS-X5',
+          'DS-X7b',
+          'DS-X28',
+          'DS-X12',
+          'DS-X24',
+          'DS-X16b',
+          'DS-H7',
+        ]}
+      />
     </article>
   )
 }

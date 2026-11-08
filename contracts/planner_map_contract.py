@@ -33,6 +33,15 @@ QUANTILE_N = 4
 QUANTILE_METHOD = "inclusive"
 POVERTY_CUT_INDEX = 2  # statistics.quantiles(..., n=4) returns Q1, Q2, Q3 at indexes 0, 1, 2.
 MEDIAN_INDEX = 1  # Q2 (50th percentile) at index 1.
+BOTTOM_QUARTILE_INDEX = 0  # Q1 (25th percentile) at index 0.
+
+# REQ-19 / Z-23: SBA loans per 1,000 residents in the bottom quartile, for tracts of at least
+# 1,200 residents (the Census Bureau's tract minimum, the brief's "sizable population base").
+SBA_RATE_PER_RESIDENTS = 1000
+SBA_MIN_POPULATION = 1200
+# The static bundle's "thresholds" object carries the cut and the floor under these keys.
+BUNDLE_SBA_RATE_CUT_KEY = "sba_rate_cut_per_1000"
+BUNDLE_SBA_MIN_POPULATION_KEY = "sba_min_population"
 
 MIN_PCT = 0.0
 MAX_PCT = 100.0
@@ -45,9 +54,9 @@ EXPECTED_POVERTY_VALUE_COUNT = 488
 EXPECTED_HIGH_NEED_COUNT = 97
 EXPECTED_NO_GAP_COUNT = 391
 EXPECTED_INSUFFICIENT_COUNT = 2
-EXPECTED_DUAL_GAP_COUNT = 50
+EXPECTED_DUAL_GAP_COUNT = 26
 EXPECTED_TRANSPORT_GAP_COUNT = 53
-EXPECTED_TRIPLE_GAP_COUNT = 29
+EXPECTED_TRIPLE_GAP_COUNT = 12
 EXPECTED_COUNTY_COUNT = 4
 EXPECTED_COUNTY_RING_COUNT = 1
 
@@ -138,6 +147,7 @@ class TractAlignmentRecord:
     geoid: str
     tract_class: str
     sba_loans_total: int
+    pop2020: int
     sba_gross_usd_total: float
     pct_no_vehicle: Optional[float]
     households: Optional[int]
@@ -237,9 +247,21 @@ def validate_classification(
     return produced
 
 
-def expected_sba_median(loan_counts: Sequence[int]) -> float:
-    """POST-ALN-1 oracle: regional median SBA loan count across tracts."""
-    return float(statistics.median(loan_counts))
+def expected_sba_rate(loans: int, population: int) -> float | None:
+    """POST-ALN-1 oracle: SBA loans per SBA_RATE_PER_RESIDENTS residents; None when nobody lives there."""
+    if population <= 0:
+        return None
+    return loans / population * SBA_RATE_PER_RESIDENTS
+
+
+def expected_sba_rate_cut(loans: Sequence[int], populations: Sequence[int]) -> float:
+    """POST-ALN-1 oracle: inclusive bottom-quartile rate over the populated tracts."""
+    rates = [
+        r
+        for r in (expected_sba_rate(n, p) for n, p in zip(loans, populations, strict=True))
+        if r is not None
+    ]
+    return statistics.quantiles(rates, n=QUANTILE_N, method=QUANTILE_METHOD)[BOTTOM_QUARTILE_INDEX]
 
 
 def expected_no_vehicle_q75(no_vehicle_rates: Sequence[float]) -> float:
@@ -283,12 +305,18 @@ def expected_recommended_action(
 
 def validate_alignment_record(
     record: TractAlignmentRecord,
-    sba_median: float,
+    sba_rate_cut: float,
     no_vehicle_q75: float,
 ) -> TractAlignmentRecord:
     """POST-ALN-1, POST-ALN-2, POST-ALN-3, POST-ALN-4 validator."""
     high_need = record.tract_class == CLASS_HIGH_NEED
-    exp_dual = high_need and record.sba_loans_total <= sba_median
+    rate = expected_sba_rate(record.sba_loans_total, record.pop2020)
+    exp_dual = (
+        high_need
+        and record.pop2020 >= SBA_MIN_POPULATION
+        and rate is not None
+        and rate <= sba_rate_cut
+    )
     exp_trans = (
         high_need
         and record.pct_no_vehicle is not None
@@ -298,7 +326,8 @@ def validate_alignment_record(
     if record.is_dual_gap != exp_dual:
         raise AlignmentViolation(
             f"POST-ALN-1 violation: tract {record.geoid} is_dual_gap={record.is_dual_gap} "
-            f"expected {exp_dual} (class={record.tract_class!r}, sba_loans_total={record.sba_loans_total}, median={sba_median})"
+            f"expected {exp_dual} (class={record.tract_class!r}, sba_loans_total={record.sba_loans_total}, "
+            f"pop2020={record.pop2020}, rate_per_1000={rate}, cut={sba_rate_cut})"
         )
     if record.is_transport_gap != exp_trans or record.is_triple_gap != exp_triple:
         raise AlignmentViolation(
@@ -387,15 +416,18 @@ CONTRACT_PLANNER_MAP_CLASSIFICATION = {
     ),
     "POST-ALN-1": Clause(
         "test",
-        "A tract is flagged as a dual-gap opportunity (is_dual_gap=True) iff its class is Classic Food Desert "
-        "AND its SBA 7(a)/504 loan count (DS-X5) is at or below the 490-tract regional median of 10 loans (50 tracts).",
+        "A tract is flagged as a dual-gap opportunity (is_dual_gap=True) iff its class is Classic Food Desert, "
+        "it has at least SBA_MIN_POPULATION (1,200) residents, AND its SBA 7(a)/504 loans (DS-X5) per "
+        "SBA_RATE_PER_RESIDENTS (1,000) residents are at or below the inclusive bottom-quartile cut over the "
+        "populated tracts (0.9427; 26 tracts). The static bundle's thresholds carry the cut under "
+        "BUNDLE_SBA_RATE_CUT_KEY and the floor under BUNDLE_SBA_MIN_POPULATION_KEY.",
         ("REQ-19",),
     ),
     "POST-ALN-2": Clause(
         "test",
         "A tract is flagged as a transport-gap priority (is_transport_gap=True) iff its class is Classic Food Desert "
         "AND its household no-vehicle rate (DS-X7b) is at or above the inclusive 75th percentile of 6.90% (53 tracts); "
-        "it is a triple-gap opportunity (is_triple_gap=True) iff both is_dual_gap and is_transport_gap hold (29 tracts).",
+        "it is a triple-gap opportunity (is_triple_gap=True) iff both is_dual_gap and is_transport_gap hold (12 tracts).",
         ("REQ-20",),
     ),
     "POST-ALN-3": Clause(
