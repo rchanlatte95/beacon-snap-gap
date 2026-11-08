@@ -145,7 +145,7 @@
       "negative_constraints": [
         "INV-23"
       ],
-      "status": "PENDING",
+      "status": "GREEN_COMPLETE",
       "depends_on": [],
       "issue": "ketema/beacon-snap-cliff#13",
       "pivot_note": "If work stops after SLICE-3, the warehouse sits in the private bucket with every in-scope source, row counts a reader can recount, a provenance row for every table and a glossary, but nothing queries it yet. No open zone blocks this slice.",
