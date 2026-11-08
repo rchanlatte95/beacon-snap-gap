@@ -2495,18 +2495,6 @@ reason = "project code that produced the committed ACS median income extract; th
 # labels of each worksheet's first non-empty row, read on 2026-11-08 with src/warehouse/office.py.
 
 [[glossary]]
-path = "cache:sba-ppp/ppp-data-dictionary.xlsx"
-part = "Sheet1"
-term = "Field Name"
-definition = "Field Description"
-
-[[glossary]]
-path = "cache:sba-rrf-foia/rrf-foia-data-dictionary.xlsx"
-part = "Sheet1"
-term = "Field Name"
-definition = "Description"
-
-[[glossary]]
 path = "cache:sba-sbg-foia/sbg-foia-data-dictionary-2025.xlsx"
 part = "SBG Data Dictionary"
 term = "Field Name"
