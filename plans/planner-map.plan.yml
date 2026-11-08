@@ -2,7 +2,7 @@
   "schema_version": "1.1",
   "feature_name": "beacon-snap-cliff-planner-map",
   "manifest_path": "requirements/REQUIREMENT_MANIFEST.md",
-  "manifest_hash": "sha256:aa7d977f818e19b6324cd85e4681fc229d71335691de7a4dbbf440a8df86da4b",
+  "manifest_hash": "sha256:8d025bdacdf0af32bf89b8a805bb3c2aed5cfb378985abe7a48c64ddd9d8fa56",
   "created": "2026-11-07",
   "last_updated": "2026-11-08",
   "status": "ACTIVE",
@@ -108,7 +108,10 @@
         "REQ-28",
         "REQ-29",
         "REQ-30",
-        "REQ-31"
+        "REQ-31",
+        "REQ-47",
+        "REQ-48",
+        "REQ-51"
       ],
       "clauses_in_scope": [
         "POST-SCOPE-1",
@@ -145,10 +148,10 @@
       "negative_constraints": [
         "INV-23"
       ],
-      "status": "GREEN_COMPLETE",
+      "status": "CONTRACT_WRITTEN",
       "depends_on": [],
       "issue": "ketema/beacon-snap-cliff#13",
-      "pivot_note": "If work stops after SLICE-3, the warehouse sits in the private bucket with every in-scope source, row counts a reader can recount, a provenance row for every table and a glossary, but nothing queries it yet. No open zone blocks this slice.",
+      "pivot_note": "Reopened in cycle 14 (data adapter). If work stops after SLICE-3, the warehouse sits in the private bucket, built by the Ingest committed in this repository, with only locations relative to the warehouse location, every in-scope source, row counts a reader can recount, a provenance row for every table and a glossary, and it opens through the data adapter at any configured location; nothing queries it yet. No open zone blocks this slice.",
       "deliverable": {
         "surface": "file",
         "capability": "A reader can see every retained source, why each was kept or excluded, and where each table came from.",
@@ -170,7 +173,10 @@
         "REQ-38",
         "REQ-39",
         "REQ-40",
-        "REQ-46"
+        "REQ-46",
+        "REQ-49",
+        "REQ-50",
+        "REQ-52"
       ],
       "clauses_in_scope": [
         "SEQ-6",
@@ -240,7 +246,8 @@
     "After SLICE-1 AUDIT: verify every requirement ID traces to a contract clause and a test, the human attests the deliverable, then ask whether to unblock SLICE-2 or plan the SBDC/CDFI officer view.",
     "REQ-13 (Beacon brand) is verified by human review, not by a test, so SLICE-1 needs a human attestation before it is audited.",
     "SLICE-3 to SLICE-5 (cycle 13) follow SLICE-1. All cycle 13 zones are decided. SLICE-3 can start contracts once the human approves the plan.",
-    "Approval recorded 2026-11-08: Ketema approved the amended manifest and the plan for SLICE-3 to SLICE-5 with caveats (session login, warehouse built once, REQ-39 flagged). The SLICE-1 amendments (INV-04, INV-06) are covered by that approval. Approval is bound to the manifest_hash in this file; any later change to these slices' requirements ends it until Ketema renews it."
+    "Approval recorded 2026-11-08: Ketema approved the amended manifest and the plan for SLICE-3 to SLICE-5 with caveats (session login, warehouse built once, REQ-39 flagged). The SLICE-1 amendments (INV-04, INV-06) are covered by that approval. Approval is bound to the manifest_hash in this file; any later change to these slices' requirements ends it until Ketema renews it.",
+    "Cycle 14 (2026-11-08): Ketema approved option A by constitutional refactor (\"A. implement via constitutional refactor. no shortcuts\") and the rebuild (\"if a rule say once but was executed in error it is invalid. rebuild if needed. continue\"). SLICE-3 is reopened for REQ-47, REQ-48 and REQ-51; SLICE-4 adds REQ-49, REQ-50 and REQ-52. Approval is bound to the manifest_hash in this file. Disconnect Matrix: plans/warehouse-adapter.refactor.md."
   ],
   "forgotten_invariants": [
     "INV-01",

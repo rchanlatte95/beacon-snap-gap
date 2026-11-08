@@ -53,6 +53,8 @@ A contract executes only when all of its predicates evaluate to TRUE.
   > Approval with caveats, 2026-11-08: "once authenticated the user shall not have to pass credentials on every request. authentication shall last for the length of the session, cleared on logout only. does not need to be complex. i also only want the warehouse built once and stored in its bucket. the app will just connect to it, not rebuild it repeatedly. i am flagging the fallback requirement as this may affect the ui (and i want to see that if so) but no changes yet i want to see what these requirements produce. approved with my caveats above"
   >
   > Zone answers, 2026-11-08: "3.8-flash. no contest"; "this is public data. i see no reason to restrict at all. the sba data by default in the insight queries we have defined aggregate, but if a sba loan administrator asks a natural language query wanting row level data it should not be restricted. drop the hackathon demo lens. C."; "A." (outage fallback); "i like these. keep them as the baseline. it highlights a few things: the ai will need a taxonomy file that is given on every query or it will hallucinate what 'Food Desert' is. generate a glossary of terms from the brief content, data source legends or meta data to ensure grounding. also recognize that any free form query should be allowed. the ai must have tools that allow free ad hoc queries. so its a tool that returns the warehouse schema"; "yes this is my responsibility. no hard date. mark as such: ketema will handle teardown."; "A" (no MCP server). Direction on form: "requirements are meant to change ... the invariant text must now state what we need to have a well functioning app. we do not restrict or put ourselves in a straight jacket. ponytail rules."
+  >
+  > Cycle 14 (data adapter), 2026-11-08: "the bucket name is irrelevant, just create it and then record it and ensure it is a reusable reference. if the bucket is ever changed the reference constant needs to be updated." Then: "the technology is irrelevant, but the value of duckdb is plain. do not reinvent in python what already exists. if there was a conflict due to where the data lives you should have surfaced that. the requirement intent was to decouple the data from the image build process. if a gcp bucket cannot be mounted say so. but hard coded local file paths is bad architecture. data access should be abstracted. this is a standard data adapter pattern. re-assess and present cohesive options" Then: "A. implement via constitutional refactor. no shortcuts" Then: "do not get hung up on obvious logic: if a rule say once but was executed in error it is invalid. rebuild if needed. continue"
 - **Trace gap**: The idea list that "ideas 1,2,4" refers to is not in the repo. Add it, or record where it is, so that this trace is complete.
 - **Our Understanding**: SLICE-1 is the "Opportunities to Serve" cross-agency alignment map and AI-guided action wizard for Central Florida (490 tracts). It brings together Food Bank / SNAP planners and SBA / SBDC / CDFI lending officers around the same low-income population, contrasts food need (97 Classic Food Desert tracts) against SBA 7(a)/504 lending (DS-X5, 50 dual-gap tracts with at or below the regional median of 10 loans), household no-vehicle transportation barriers (DS-X7b, 53 tracts in the top quartile at or above 6.90%, yielding 29 triple-gap tracts), and median household income with 90% margins of error (DS-X28, DS-X29), keeps the legend pinned on the map canvas over clean exterior county borders, and provides a Gap-Zapper-style AI briefing, natural-language query/filter wizard, and one-click Coordinated Action Brief generator. The SNAP-loss slider remains stashed in SLICE-2 (Z-3).
 - **Ambiguity Score**: 0 for SLICE-1 and for SLICE-3 to SLICE-5 (ready for contracts and implementation). Rationale for SLICE-1: flow, stack, three-persona alignment scope, the high-need rule (Z-1, 97 tracts), the SBA lending contrast rule (DS-X5, 50 dual-gap tracts), the no-vehicle transportation barrier rule (DS-X7b, 53 tracts, 29 triple-gap tracts), median household income and MOE integration (DS-X28, DS-X29), the pantry-coverage load rule (Z-2, Z-2e), the map classes and pinned legend (D-1), the deterministic confidence rule, the AI insight and coordinated action wizard, the Build output path (Z-5), the base map tile source (Z-6, OpenFreeMap Positron vector tiles with REQ-10 fallback) and the deployment target (Z-4) are all decided. Z-3 (slider) is deferred to SLICE-2. 
@@ -101,8 +103,9 @@ Build DEPENDS ON the ACS S1901/B19013 median household income table (`data/exter
 Ingest DEPENDS ON the files listed in `data/cache/MANIFEST.jsonl` and under `data/hackathon/` and `data/external/` for every table it loads. It reads no other input.
 Ingest DEPENDS ON `docs/data-sources.md` for each data source's ID and title.
 Ingest DEPENDS ON the data dictionaries and lookup files it loads for the glossary table.
+Ingest DEPENDS ON the data adapter to write the warehouse at the configured warehouse location.
 QueryService DEPENDS ON `docs/taxonomy.md` for the core taxonomy it sends with every question.
-QueryService DEPENDS ON the warehouse in the private Cloud Storage bucket for every answer.
+QueryService DEPENDS ON the data adapter for every answer; the adapter opens the warehouse read-only in DuckDB at one configured warehouse location (the bucket mount in Cloud Run).
 QueryService DEPENDS ON Vertex AI for the language model.
 App DEPENDS ON the QueryService for every AI answer and every query result, and on the Build output for the map (unchanged from SLICE-1).
 Gateway DEPENDS ON Google Secret Manager for the login credential.
@@ -116,7 +119,7 @@ Gateway DEPENDS ON the App and the QueryService for the content it forwards.
 | SEQ-3 | App | Load the static tract file | BEFORE it renders the map | Map draws without data |
 | SEQ-4 | App | Read the clicked tract's record and its data-limitation list | BEFORE it opens the card | Card shows a flag without its caveats |
 | SEQ-5 | Ingest | Write the files, catalog and sources tables | AFTER every table is loaded and BEFORE it reports success | A table exists with no provenance row |
-| SEQ-6 | QueryService | Connect to the warehouse in the bucket | BEFORE it accepts its first request | A request is answered with no warehouse behind it |
+| SEQ-6 | QueryService | Open the warehouse read-only through the data adapter at the configured warehouse location | BEFORE it accepts its first request | A request is answered with no warehouse behind it |
 | SEQ-7 | QueryService | Attach the provenance of each table used | AFTER each tool call and BEFORE the answer text is built | An answer cites no source |
 | SEQ-8 | Gateway | Check the login | BEFORE it forwards any request | An unauthenticated request reaches a backend |
 | SEQ-9 | App | Show the deterministic notice and use the built-in wizard | AFTER the QueryService reports Vertex AI unavailable and BEFORE the next question | The Viewer sees a blank or stale answer |
@@ -135,8 +138,8 @@ Gateway DEPENDS ON the App and the QueryService for the content it forwards.
 | IP-8 | ACS B08201 no-vehicle table (DS-X7b) | Build | Household no-vehicle percentage per tract | pending |
 | IP-9 | ACS S1901/B19013 median household income table (DS-X28, DS-X29) | Build | Median household income, 90% margin of error and income status per tract | pending |
 | IP-10 | Retained source files and `MANIFEST.jsonl` | Ingest | File bytes, origin URL, retrieval time, SHA-256 | pending |
-| IP-11 | Ingest | Warehouse in the bucket | Parquet tables plus the files, catalog, sources, columns and documents tables | pending |
-| IP-12 | Warehouse in the bucket | QueryService | Tables read from the bucket | pending |
+| IP-11 | Ingest (data adapter) | Warehouse at the configured warehouse location | Parquet tables plus the files, catalog, sources, columns, documents and glossary tables, with table locations relative to the warehouse location | pending |
+| IP-12 | Warehouse at the configured warehouse location (the bucket mount in Cloud Run) | QueryService (data adapter) | Tables opened read-only in DuckDB | pending |
 | IP-13 | QueryService | Vertex AI | Tool calls and tool results | pending |
 | IP-14 | QueryService | App | Answer text, result rows, provenance records | pending |
 | IP-15 | Gateway | App and QueryService | Authenticated requests | pending |
@@ -148,10 +151,10 @@ Gateway DEPENDS ON the App and the QueryService for the content it forwards.
 | Build | Run by a developer or CI before the image build | Exits when files are written; leaves no state |
 | App | Browser loads page from Cloud Run | Browser tab close; the App keeps no state |
 | Cloud Run service | Deployed by the human's account | Removed by the human; the app has no teardown |
-| Ingest | Run by a developer before the warehouse upload | Exits when the tables are written; leaves no state beyond the warehouse |
-| QueryService | Cloud Run starts it and it connects to the warehouse (SEQ-6) | Operator removes the service after the hackathon |
+| Ingest | Run by the Operator with the Ingest code committed in this repository, before the warehouse upload | Exits when the tables are written; leaves no state beyond the warehouse |
+| QueryService | Cloud Run starts it with the bucket mounted read-only, and it opens the warehouse through the data adapter (SEQ-6) | Operator removes the service after the hackathon |
 | Gateway | Cloud Run starts it with the secret mounted | Operator removes the service after the hackathon |
-| Bucket | Operator creates it and uploads the warehouse | Operator removes access grants and the bucket after the hackathon |
+| Bucket | Operator creates it and uploads the warehouse built by the committed Ingest | Operator removes access grants and the bucket after the hackathon |
 
 ## 4. Hard Invariants (The "Never" List)
 
@@ -196,7 +199,13 @@ Gateway DEPENDS ON the App and the QueryService for the content it forwards.
 | INV-38 | Access | REQ-43: The Operator shall set the App and the QueryService to internal-only ingress. | execution | Must | Ketema, 2026-11-08 (Z-13): login plus a private network; a request to a service address from outside the Gateway fails |
 | INV-39 | Lifecycle | REQ-44: The Operator shall remove the Gateway, the QueryService, the App and the bucket's access grants when the hackathon is over. | human review | Should | Ketema, 2026-11-08 (Z-12): "ketema will handle teardown"; no fixed date |
 | INV-40 | Access | REQ-45: The App shall provide a logout control that ends the Viewer's session. | test | Must | Ketema, 2026-11-08 (Z-13): the session is cleared on logout only |
-| INV-41 | Storage | REQ-46: The QueryService shall read the warehouse from the bucket without rebuilding it. | test | Must | Ketema, 2026-11-08 (Z-14): the warehouse is built once and stored in its bucket; the app connects to it and does not rebuild it |
+| INV-41 | Storage | REQ-46: The QueryService shall read the warehouse from the bucket through the data adapter without rebuilding it. | test | Must | Ketema, 2026-11-08 (Z-14): the warehouse is built once and stored in its bucket; the app connects to it and does not rebuild it |
+| INV-42 | Storage | REQ-47: The Ingest and the QueryService shall reach the warehouse through one data adapter that takes a single configured warehouse location. | test | Must | Ketema, 2026-11-08 (Z-19): data access goes through a standard data adapter (verbatim in section 1) |
+| INV-43 | Storage | REQ-48: The Ingest shall record in the warehouse only table locations relative to the warehouse location. | test | Must | Ketema, 2026-11-08 (Z-19): "hard coded local file paths is bad architecture"; observations O2 to O4 in `plans/warehouse-adapter.refactor.md` |
+| INV-44 | Query engine | REQ-49: The QueryService shall run every query with DuckDB over the warehouse files. | test | Must | Ketema, cycle 13 ("1-agreed" to DuckDB with Parquet) and 2026-11-08: "the value of duckdb is plain. do not reinvent in python what already exists" |
+| INV-45 | Query engine | REQ-50: The QueryService shall enforce read-only access with DuckDB's read-only database mode, DuckDB's statement parser and DuckDB's file-access limits. | test | Must | Ketema, 2026-11-08: "do not reinvent in python what already exists"; probes P1 to P5 in `plans/warehouse-adapter.refactor.md` |
+| INV-46 | Build | REQ-51: The Operator shall build the warehouse with the Ingest code committed in this repository. | execution | Must | Ketema, 2026-11-08 (Z-18): "if a rule say once but was executed in error it is invalid. rebuild if needed" |
+| INV-47 | Storage | REQ-52: The Operator shall mount the warehouse bucket read-only into the QueryService at the configured warehouse location, using the service's own identity. | execution | Must | Ketema, 2026-11-08 (Z-19, option A): a Cloud Run Cloud Storage volume mount |
 
 When the slider slice starts, the App shall carry INV-02 (REQ-2, the "assumption-based estimate" label). See "Deferred items" in section 5.
 
@@ -205,7 +214,7 @@ When the slider slice starts, the App shall carry INV-02 (REQ-2, the "assumption
 ## 5. High-Entropy Zones (Adjudicated)
 | Zone | Question | Resolution | Decided By |
 |------|----------|------------|------------|
-| Stack | Which technologies? | React, Vite, TypeScript 7, MapLibre, static data, Vitest, no AI first. The compiler is TypeScript 7 (PR #8); `typescript-eslint` runs on the TypeScript 6 legacy API side by side until it supports 7 | User (CL4) |
+| Stack | Which technologies? | React, Vite, TypeScript 7, MapLibre, static data, Vitest, no AI first. The compiler is TypeScript 7 (PR #8); `typescript-eslint` runs on the TypeScript 6 legacy API side by side until it supports 7. Warehouse engine: DuckDB over Parquet (cycle 13, "1-agreed"; reached through the data adapter, Z-19) | User (CL4) |
 | Hosting | Where does it run? | User's Google Cloud Run account | User (CL4) |
 | Scope | Which views first? | **Three persona lenses in SLICE-1**: Food Bank Planner, SBA / CDFI Officer, and Shared Alignment ("Opportunities to Serve"), guided by a Gap-Zapper-style AI Insight and Coordinated Action Wizard | Ketema (CL4), 2026-11-07 |
 | **Z-1** | What makes a tract "high need"? | **Option B with driving-distance LILA**: poverty rate at or above the 75th percentile of the 488 Central Florida tracts that have a poverty value (ACS 2024), AND the USDA driving-distance LILA flag (`DD_SRAM_LILATracts_halfAnd10`: 1/2 mile urban, 10 miles rural). This flags 97 tracts. Straight-line (Euclidean) LILA, 68 tracts, was considered. The contract names the quantile method (see note below) | B proposed by Ryan, confirmed by Ketema; driving distance decided by Ketema and Ryan (CL4), 2026-11-07 |
@@ -226,10 +235,12 @@ When the slider slice starts, the App shall carry INV-02 (REQ-2, the "assumption
 | **Z-11** | Which questions define "answers natural-language questions about the data"? | **Decided.** Six baseline questions, listed in section 8, plus free-form questions through the schema tool and read-only SQL | Ketema (CL4), 2026-11-08 |
 | **Z-12** | When is the shutdown, and who triggers it? | **Decided.** Ketema handles the teardown himself, with no fixed date | Ketema (CL4), 2026-11-08 |
 | **Z-13** | How are the services protected? | **Decided.** A username and password login at an nginx Gateway (username [omitted], password in Secret Manager, never in the repository). A Viewer signs in once, stays signed in until logout, and nothing else ends the session. The App and the QueryService take internal-only ingress | Ketema (CL4), 2026-11-08 |
-| **Z-14** | Where does the canonical warehouse live, and how do the App and the model both reach it? | **Decided.** A private Google Cloud Storage bucket in `<gcp-project>`. The Ingest runs once and the QueryService reads the warehouse from the bucket; nothing rebuilds it. New App features read through the QueryService; the static tract file stays for the map | Ketema (CL4), 2026-11-08 |
+| **Z-14** | Where does the canonical warehouse live, and how do the App and the model both reach it? | **Decided.** A private Google Cloud Storage bucket in `<gcp-project>`. The Ingest runs once and the QueryService reads the warehouse from the bucket through the data adapter (Z-19); nothing rebuilds it. New App features read through the QueryService; the static tract file stays for the map | Ketema (CL4), 2026-11-08 |
 | **Z-15** | What data does the warehouse hold? | **Decided.** Every retained source file with a reference period of 2024 or later, plus base geography (most recent vintage), Florida, New York and Utah rows where a source has a state field, nothing fetched at build, nothing deleted, no duplicates | Ketema (CL4), 2026-11-08 |
 | **Z-16** | Which provider and query design? | **Decided.** Vertex AI with a schema tool, read-only SQL for free-form queries, a spatial lookup and a correlation tool. The core taxonomy goes with every question | Ketema (CL4), 2026-11-08 |
 | **Z-17** | Is an MCP server in scope? | **Decided.** No. A later slice can wrap the same tools | Ketema (CL4), 2026-11-08 |
+| **Z-18** | Who builds the corrected warehouse, given that REQ-31 says it is built once? | **Decided.** The first build ran from scratch scripts and wrote machine-specific paths, so it was done in error and does not count as the one build. The Operator rebuilds the warehouse with the Ingest code committed in this repository (REQ-51) and uploads it to the bucket | Ketema (CL4), 2026-11-08 |
+| **Z-19** | How does the QueryService reach the warehouse in the bucket? | **Decided, option A.** Cloud Run mounts the bucket read-only as a volume at a configured warehouse location, using the service's own identity. DuckDB opens the warehouse there through a data adapter that takes that one location; tests and local runs use the same adapter with a different location. The warehouse stores only locations relative to it | Ketema (CL4), 2026-11-08 |
 
 **Note on the Z-1 poverty cut.** The cycle 1 review gave 17.1% and cycle 3 gave 17.0%. Both are roundings of the same 75th percentile, computed two ways with Python `statistics.quantiles(n=4)` over the 488 tracts that have a poverty value: exclusive method 17.075%, inclusive method 17.025%. Both cuts give the same 97 tracts (driving-distance LILA) and 68 tracts (straight-line LILA). The only tract between the rounded and the computed cuts is `12069031107` (poverty 17.0%), and it has no LILA flag, so a literal "17.0% or more" rule also gives 97. Do not encode a rounded value. The contract computes the cut and names the method.
 
@@ -265,6 +276,9 @@ Counts below come from `data/external/second-harvest-food-finder/central_fl_trac
 | Static data in the repo | A backend with a database | Adds infrastructure and a security surface for no first-pass benefit |
 | Rule-based "why flagged" | An LLM-written explanation | Cannot be verified; adds a runtime dependency |
 | Cloud Run | GitHub Pages | User chose Cloud Run |
+| Bucket mounted read-only (Z-19 A) | DuckDB reads `gs://` directly (Z-19 B) | DuckDB authenticates to Cloud Storage only with HMAC keys, a long-lived credential to create, rotate and remove; the mount uses the service's own identity |
+| Bucket mounted read-only (Z-19 A) | Copy the bucket to the container at startup (Z-19 C) | About 1 GB per cold start held in memory, and a slow start |
+| DuckDB's own read-only and statement checks (REQ-50) | A hand-written SQL regex and keyword list | Re-implements what DuckDB already enforces ("do not reinvent in python what already exists") |
 
 ### Deferred map alternatives (not decisions; test later if needed)
 
@@ -292,7 +306,8 @@ These are candidates for each mapping job. They are not chosen and not rejected.
 | loadTractData | Load the static file | NO | App | Page load |
 | computeFlags() | Flag high-need tracts without nearby pantries | NO | App | Page load |
 | buildTractCard(tractId) | Evidence, confidence, limitations | NO | App | Tract click |
-| ingest-warehouse | Load retained files into the warehouse tables | YES (writes the warehouse only) | Ingest | A developer runs it |
+| ingest-warehouse | Load retained files into the warehouse tables at the configured warehouse location through the data adapter | YES (writes the warehouse only) | Ingest | The Operator runs it |
+| open-warehouse | Open the warehouse read-only in DuckDB at the configured warehouse location | NO | QueryService (data adapter) | QueryService startup (SEQ-6) |
 | schema.describe | Return tables, columns, grain, join keys, as-of dates and glossary terms | NO | QueryService | A model tool call |
 | sql.query | Run a read-only SELECT within the limits | NO | QueryService | A model tool call |
 | sites.near | Find sites within a distance of a tract or point | NO | QueryService | A model tool call |
@@ -325,6 +340,9 @@ These are candidates for each mapping job. They are not chosen and not rejected.
 | REQ-38 | Vertex AI is unreachable or slow | FALLBACK: the built-in wizard (REQ-39) | The App shall show the notice in REQ-39 |
 | REQ-41 | A request has no valid session | Reject the request | The Gateway shall answer HTTP 401 and show the login |
 | REQ-43 | A request reaches a service address directly | The request fails | The service address returns an error and no content |
+| REQ-47 | The configured warehouse location is unset, missing, or holds no warehouse | Halt: the QueryService does not start | The QueryService shall exit non-zero naming the location and the missing item |
+| REQ-48 | A catalog table location is absolute or points outside the warehouse location | Halt: the QueryService does not start | The QueryService shall exit non-zero naming the table and its location |
+| REQ-50 | A statement is not exactly one SELECT, or reads a file outside the warehouse location | Reject the statement | The QueryService shall return an error that names the rule broken |
 
 When the slider slice starts, the App shall carry REQ-11 (slider clamp).
 
@@ -333,7 +351,7 @@ When the slider slice starts, the App shall carry REQ-11 (slider clamp).
 
 Human acceptance remains with the human: whether the map and card are useful to a food bank planner.
 
-> SLICE-3 (warehouse): "The files table lists every retained source file as loaded or excluded with its reason; the row counts of the tables equal a recount of the source files after the state filter; every table has an origin URL, SHA-256 and filter; a run with the network disabled produces the same tables. A check that passes while a table has no origin URL, or while a count differs from a recount, must fail."
+> SLICE-3 (warehouse): "The files table lists every retained source file as loaded or excluded with its reason; the row counts of the tables equal a recount of the source files after the state filter; every table has an origin URL, SHA-256 and filter; a run with the network disabled produces the same tables. A check that passes while a table has no origin URL, or while a count differs from a recount, must fail. The warehouse opens read-only through the data adapter in a fresh container at a location other than the one it was built at, and every catalog table location is relative to that location."
 >
 > SLICE-4 (query service and AI): "A Viewer asks these six baseline questions, and each answer equals an independent recomputation from the source files and names the sources it used: (1) How many Classic Food Desert tracts are in Orange County, and how many of them had 10 or fewer SBA loans? (2) Which five lenders approved the most SBA 7(a) loans in Florida with an approval date in 2024 or later? (3) Among the Classic Food Desert tracts, which five have the highest FEMA hurricane expected annual loss? (4) Across the 490 Central Florida tracts, how strongly is poverty rate correlated with SBA loan count? (5) Where did the median income for tract 12095016510 come from, and how reliable is it? (6) How many people lost SNAP in Seminole County? For question 6 the correct answer states that the warehouse holds no county-level figure. Free-form questions run through the schema tool and read-only SQL. A check that passes when an answer states a number that no tool returned must fail."
 >
@@ -343,6 +361,8 @@ Human acceptance of SLICE-3 to SLICE-5 remains with the human: whether the answe
 
 ## 9. Contract Authority
 **Authoritative Sources**: `contracts/planner_map_contract.py` (Build domain, Python) and `contracts/planner-map.app.contract.ts` (App domain, TypeScript, cross-referenced by clause ID per Idiomatic Per-Ecosystem Distribution)
+
+SLICE-3 (warehouse, Ingest and data adapter): `contracts/warehouse_contract.py`. SLICE-4 (QueryService): `contracts/query_service_contract.py`.
 
 requirements/REQUIREMENT_MANIFEST.md (this file)
         ↓
@@ -372,3 +392,4 @@ src/
 | 2026-11-07 | Ketema, agent | Cycle 11: Z-2e Decided By is now Ketema and Ryan (Ryan accepted on issue #4). Stack row records TypeScript 7 at Ketema's direction; PR #8 moves the scaffolding. |
 | 2026-11-07 | Ketema, agent | Cycle 12: constitutional refactor incorporating sponsor feedback, live visual inspection of PR #11, PR #12 median household income data (DS-X28, DS-X29), and Ketema's Gap Zapper directive. Added Actor Officer and requirements REQ-18 (three persona lenses and KPI cohort cards), REQ-19 (SBA lending contrast, DS-X5, 50 dual-gap tracts), REQ-20 (no-vehicle transport gap, DS-X7b, 53 tracts, 29 triple-gap tracts, mobile deployment recommendation), REQ-21 (AI Insight and Coordinated Action Wizard with counterfactual brief generator), REQ-22 (deterministic confidence level, median household income + 90% MOE, and sources), REQ-23 (exterior-only county boundaries), and REQ-24 (unobscured overview choropleth). Recorded Z-6 (OpenFreeMap Positron with REQ-10 fallback). Ambiguity score 1 to 0. |
 | 2026-11-08 | Ketema, agent | Cycle 13: wiring the data and the AI. Added actors Ingest, QueryService, Gateway and Operator; requirements REQ-25 to REQ-44 (INV-20 to INV-39) for SLICE-3 (warehouse), SLICE-4 (query service and AI) and SLICE-5 (access); SEQ-5 to SEQ-10, IP-10 to IP-16, lifecycle rows, interfaces and failure modes; core taxonomy in `docs/taxonomy.md`. Resolved zones Z-7 to Z-17 one at a time with Ketema (CL4). INV-06 now states the need (own files and query service plus tiles) and INV-04 covers the static files only (Z-9: loan rows are not restricted). The first draft of this cycle had 30 requirements; the human asked for need-based statements, not a straitjacket (PONYTAIL), so it was compressed to 20. The password given in chat is not recorded (CL16). Ambiguity 0. Ketema approved the manifest and plan with caveats: a session login (sign in once, logout only ends it; REQ-41, REQ-45), the warehouse built once and read from its bucket (REQ-31, REQ-46), and REQ-39 flagged for UI review. |
+| 2026-11-08 | Ketema, agent | Cycle 14: data adapter (constitutional refactor, option A). Recorded DuckDB over Parquet as the warehouse engine (cycle 13 "1-agreed", lost when cycle 13 was compressed). Added Z-18 (the first build was done in error; rebuild with committed Ingest code) and Z-19 (Cloud Run read-only bucket mount, one configured warehouse location, data adapter). Added REQ-47 to REQ-52 (INV-42 to INV-47); amended REQ-46, SEQ-6, IP-11, IP-12, the dependency graph, lifecycle rows, interfaces, failure modes, rejected alternatives and the SLICE-3 completion promise. Evidence: `plans/warehouse-adapter.refactor.md`. |
