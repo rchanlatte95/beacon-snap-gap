@@ -4,6 +4,8 @@ Only Ketema unparks an entry. Decision-model support (jev-1.14, 2026-11-08) is a
 
 ## Q-1: spreadsheet reader (batch 6c-iv)
 
+- **Decided By: User** (Ketema, 2026-11-08): A.
+
 - **Depends:** the spreadsheet reader clauses (not yet written) and their tests.
 - **Options:**
   - **A.** LibreOffice (present) converts every sheet of `.xls` and `.xlsx` to CSV; the contracted `read_delimited` reads each CSV as text. One path for both formats. Parity with the first build: 62 sheets, 59 equal row counts, 99.64% of 2,980,074 cells equal.
@@ -14,6 +16,10 @@ Only Ketema unparks an entry. Decision-model support (jev-1.14, 2026-11-08) is a
 
 ## Q-2: spreadsheet dates (batch 6c-iv)
 
+- **Decided By: User** (Ketema, 2026-11-08): B, "One format. be consistent with what already exists." Then: "converge on 1 date format and make sure we always use that one."
+- **Converged format:** `YYYY-MM-DD` (the contract's `DATE_PATTERN`, already used by the registry and provenance). Every first-build sheet date is midnight, so nothing is lost. A date cell with a time of day other than midnight stops the Ingest naming the file; no second format is introduced.
+- **Existing formats:** the first build's 182 sheet tables hold 8,314 date cells, all `YYYY-MM-DD 00:00:00` (none has a time of day); the registry and provenance dates are `YYYY-MM-DD`.
+
 - **Depends:** Q-1 option A.
 - **Conflict:** the first build stored a date cell as pandas wrote it, `2024-08-01 00:00:00`; LibreOffice writes what the sheet shows, `08/01/2024`.
 - **Options:** **A.** store the text as the sheet displays it; **B.** store a parsed date text, which needs a date rule per sheet.
@@ -22,12 +28,16 @@ Only Ketema unparks an entry. Decision-model support (jev-1.14, 2026-11-08) is a
 
 ## Q-3: PPTX reader (batch 6c-iv)
 
+- **Decided By: User** (Ketema, 2026-11-08): A.
+
 - **Depends:** the PPTX reader clause (not yet written).
 - **Options:** **A.** LibreOffice converts the deck to PDF, then `pdftotext`, one page per slide (both present); **B.** install `python-pptx`.
 - **Decision model:** A 88%.
 - **Recommendation:** A.
 
-## Q-4: keep blank PDF pages (POST-READ-2, parked)
+## Q-4: keep blank PDF pages (POST-READ-2, unparked)
+
+- **Decided By: User** (Ketema, 2026-11-08): A. POST-READ-2 and ERRORS-READ-2 unparked.
 
 - **Clause text:** "returns one DocumentPage per page that PDF_INFO_COMMAND reports, numbered from 1 in order, blank pages kept with their own text".
 - **Conflict:** the first build dropped blank pages, so a document's stored page numbers could differ from the PDF's. REQ-25 says "load ... every retained source file" but does not say whether every page counts.
