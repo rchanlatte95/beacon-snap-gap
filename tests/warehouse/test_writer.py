@@ -45,6 +45,8 @@ def _base_tables(
         "columns": con.sql("SELECT 'loans' AS table_name, 0 AS ordinal, 'LoanID' AS column_name"),
         "documents": con.sql("SELECT 'DS-X5' AS ds, 1 AS page, 'text' AS text"),
         "glossary": con.sql("SELECT 'loans' AS source_table, 'LoanID' AS term, 'id' AS definition"),
+        # batch 7: BASE_TABLES gained ingest_log (thin amendment, 7f1b95e)
+        "ingest_log": con.sql("SELECT 'cache:sba/7a.csv' AS source_file, 'line 2' AS location"),
     }
 
 

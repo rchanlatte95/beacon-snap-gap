@@ -114,7 +114,15 @@ TABLE_NAME_PATTERN = re.compile(r"^[a-z_][a-z0-9_]*$")
 
 # Batch 6a: warehouse writer (REQ-48, REQ-51). Base tables live inside warehouse.duckdb; every
 # data table lives in its own Parquet file named by table_location().
-BASE_TABLES: tuple[str, ...] = ("files", "catalog", "sources", "columns", "documents", "glossary")
+BASE_TABLES: tuple[str, ...] = (
+    "files",
+    "catalog",
+    "sources",
+    "columns",
+    "documents",
+    "glossary",
+    "ingest_log",  # batch 7: each row set aside while reading (REQ-54)
+)
 CATALOG_REQUIRED_COLUMNS: tuple[str, ...] = ("table_name", "parquet", "status")
 # Batch 7 (Ingest command) and SLICE-4 reader: the columns of each base table, in order. The
 # QueryService reads catalog, columns, sources and glossary by these names (POST-BASE-1).
@@ -135,9 +143,11 @@ BASE_TABLE_COLUMNS: Mapping[str, tuple[str, ...]] = {
         "rows_in_source",
         "rows_loaded",
     ),
-    "columns": ("table_name", "column_name", "ordinal", "column_type"),
+    # label: a worksheet's first non-empty row, as suggested column names; "" otherwise (batch 7)
+    "columns": ("table_name", "column_name", "ordinal", "column_type", "label"),
     "documents": ("source_file", "page", "text"),
     "glossary": ("source_table", "dataset_id", "term", "definition"),
+    "ingest_log": ("source_file", "location", "kind", "detail"),
 }
 
 # Batch 6b: source registry and reading (REQ-25, REQ-26, REQ-29).
@@ -1700,5 +1710,232 @@ CONTRACT_DOCUMENTS: Mapping[str, Clause] = {
         "member_source raises ArchiveMemberError naming the archive and member when the member "
         "is not in the archive or cannot be extracted.",
         ("REQ-25",),
+    ),
+}
+
+
+# =============================================================================================
+# Batch 7 (cycle 19): the Ingest command. Judgement calls by jev at Ketema's direction (highest
+# rated): table names '<ds>_<file stem>[_<member stem>][_<sheet or key>]' (0.50); worksheets
+# kept as raw cells with the first non-empty row recorded as labels (0.62); native geometry
+# (0.63); glossary dictionaries declared in the registry (0.83); rows set aside logged to stderr
+# and to the ingest_log table with per-file counts (0.85); origin from the download manifest
+# (0.83); a process pool that stages Parquet for the one writer (0.89).
+# =============================================================================================
+
+INGEST_MODULE = "src.warehouse.ingest"  # run as: python -m src.warehouse.ingest --workers N
+MANIFEST_FILE = "data/cache/MANIFEST.jsonl"
+MEMBER_SEPARATOR = "!"  # source key of an archive member: '<archive path>!<member name>'
+DELIMITED_READS: Mapping[str, tuple[str | None, bool]] = {  # format -> (delimiter, header)
+    "csv": (None, True),
+    "tsv": ("\t", True),
+    "dat": (None, True),
+    "pl": ("|", False),
+}
+SHEET_FORMATS: frozenset[str] = frozenset({"xlsx", "xls"})
+JSON_FORMATS: frozenset[str] = frozenset({"json"})
+GEO_FORMATS: frozenset[str] = frozenset({"geojson", "shapefile"})
+PAGE_FORMATS: frozenset[str] = frozenset({"pdf", "text"})
+SLIDE_FORMATS: frozenset[str] = frozenset({"pptx"})
+RAW_COLUMN_PREFIX = "c"  # worksheet columns are c1..cN
+FILE_LOADED = "loaded"
+FILE_EXCLUDED = "excluded"
+FILE_NOT_A_SOURCE = "not a source"
+
+
+class IngestError(WarehouseContractError):
+    """ERRORS-INGEST-1: the Ingest cannot build the warehouse as specified; nothing is final."""
+
+
+class GlossaryDeclarationError(WarehouseContractError):
+    """ERRORS-GLOSS-2: a [[glossary]] declaration is incomplete or names no registered source."""
+
+
+@dataclass(frozen=True)
+class GlossaryDeclaration:
+    """A registry [[glossary]] entry: the dictionary part of a source and its two columns."""
+
+    path: str
+    part: str | None  # a worksheet, JSON key or archive member; None for the whole file
+    term: str
+    definition: str
+
+
+def validate_glossary_declarations(
+    data: Mapping[str, object], entries: Sequence[RegistryEntry]
+) -> tuple[GlossaryDeclaration, ...]:
+    """POST-GLOSS-3 / ERRORS-GLOSS-2 oracle over the registry's [[glossary]] array."""
+    paths = {e.path for e in entries}
+    raw_list = data.get("glossary", []) or []
+    if not isinstance(raw_list, list):
+        raise GlossaryDeclarationError("ERRORS-GLOSS-2 violation: [[glossary]] is not an array")
+    out: list[GlossaryDeclaration] = []
+    for raw in raw_list:
+        if not isinstance(raw, dict):
+            raise GlossaryDeclarationError(f"ERRORS-GLOSS-2 violation: {raw!r} is not a table")
+        path, part = raw.get("path"), raw.get("part")
+        term, definition = raw.get("term"), raw.get("definition")
+        if not isinstance(path, str) or path not in paths:
+            raise GlossaryDeclarationError(
+                f"ERRORS-GLOSS-2 violation: glossary path {path!r} is not a registered source"
+            )
+        for key, value in (("term", term), ("definition", definition)):
+            if not isinstance(value, str) or not value.strip():
+                raise GlossaryDeclarationError(
+                    f"ERRORS-GLOSS-2 violation: glossary entry for {path!r} has no {key}"
+                )
+        if part is not None and (not isinstance(part, str) or not part.strip()):
+            raise GlossaryDeclarationError(
+                f"ERRORS-GLOSS-2 violation: glossary entry for {path!r} has an empty part"
+            )
+        out.append(GlossaryDeclaration(path, part, str(term).strip(), str(definition).strip()))
+    return tuple(out)
+
+
+def _snake(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+
+
+def expected_table_name(ds: str, path: str, member: str | None, part: str | None) -> str:
+    """POST-INGEST-2 oracle: a table's name before repeats are numbered."""
+    stem = PurePosixPath(path.split(":", 1)[-1]).stem
+    pieces = [ds, stem, PurePosixPath(member).stem if member else "", part or ""]
+    name = "_".join(p for p in (_snake(x) for x in pieces) if p)
+    return name if name and not name[0].isdigit() else f"t_{name}"
+
+
+def expected_unique_names(names: Sequence[str]) -> tuple[str, ...]:
+    """POST-INGEST-2 oracle: the k-th use of a name (k >= 2) becomes '<name>_<k>', skipping any
+    name already taken, in input order."""
+    taken: set[str] = set()
+    counts: dict[str, int] = {}
+    out: list[str] = []
+    for name in names:
+        counts[name] = counts.get(name, 0) + 1
+        candidate = name if counts[name] == 1 else f"{name}_{counts[name]}"
+        while candidate in taken:
+            counts[name] += 1
+            candidate = f"{name}_{counts[name]}"
+        taken.add(candidate)
+        out.append(candidate)
+    return tuple(out)
+
+
+def expected_sheet_columns(rows: Sequence[Sequence[str | None]]) -> tuple[str, ...]:
+    """POST-INGEST-2 oracle: a worksheet's raw column names c1..cN, N its widest row."""
+    width = max((len(r) for r in rows), default=0)
+    return tuple(f"{RAW_COLUMN_PREFIX}{i}" for i in range(1, width + 1))
+
+
+def expected_sheet_labels(rows: Sequence[Sequence[str | None]]) -> tuple[str, ...]:
+    """POST-INGEST-5 oracle: the first row with a non-empty cell, as text, padded to the width."""
+    width = max((len(r) for r in rows), default=0)
+    first = next((r for r in rows if any(c not in (None, "") for c in r)), ())
+    return tuple(("" if c is None else str(c)) for c in first) + ("",) * (width - len(first))
+
+
+def expected_origin(
+    source_key: str, manifest_records: Sequence[Mapping[str, object]]
+) -> tuple[str, str]:
+    """POST-INGEST-4 oracle: (origin_url, retrieved_at) of a source from the download manifest.
+
+    The archive's key is used for an archive member. The last 'ok' record whose cache key
+    (expected_cache_key) equals it gives its url and ts; otherwise both are NOT_RECORDED.
+    """
+    key = source_key.split(MEMBER_SEPARATOR, 1)[0]
+    found = (NOT_RECORDED, NOT_RECORDED)
+    for record in manifest_records:
+        if record.get("status") == "ok" and expected_cache_key(record) == key:
+            url, ts = record.get("url"), record.get("ts")
+            found = (
+                url if isinstance(url, str) and url.strip() else NOT_RECORDED,
+                ts if isinstance(ts, str) and ts.strip() else NOT_RECORDED,
+            )
+    return found
+
+
+CONTRACT_INGEST: Mapping[str, Clause] = {
+    "POST-INGEST-1": Clause(
+        "test",
+        "run(repo_root, env, workers) builds the warehouse at WAREHOUSE_LOCATION. Scope "
+        "(expected_scope_decisions) is decided over units: each retained non-archive file, and "
+        "each member of a retained zip archive (expected_archive_members), keyed "
+        "'<archive>!<member>', with the member's format and "
+        "reference end, the SHA-256 of its bytes "
+        "and the entry's base geography and release_id. The files table has one row per unit and "
+        "one per archive and non-source: status FILE_LOADED with an empty reason or '<n> rows set "
+        "aside', FILE_EXCLUDED with the scope reason, FILE_NOT_A_SOURCE with the registry's "
+        "reason, and for an archive FILE_LOADED with reason '<n> members'; ds and file_format "
+        "from the registry (NOT_RECORDED for a non-source) and the SHA-256.",
+        ("REQ-25", "REQ-26", "REQ-28"),
+    ),
+    "POST-INGEST-2": Clause(
+        "test",
+        "Every loaded delimited file (DELIMITED_READS), worksheet (SHEET_FORMATS, columns "
+        "expected_sheet_columns, raw cells), JSON table (JSON_FORMATS) and geographic file "
+        "(GEO_FORMATS, geometry kept) becomes one data table; archive members are read as their "
+        "member format through member_source. Names are expected_unique_names of "
+        "expected_table_name in registry order, then member, part and reading order. Rows equal "
+        "the reader's rows after expected_state_filter. A worksheet with no cell gives no table.",
+        ("REQ-25", "REQ-27", "REQ-28", "REQ-48"),
+    ),
+    "POST-INGEST-3": Clause(
+        "test",
+        "Every page of a loaded PAGE_FORMATS or SLIDE_FORMATS file is one documents row "
+        "(source key, page from 1, text); such files give no data table.",
+        ("REQ-25",),
+    ),
+    "POST-INGEST-4": Clause(
+        "test",
+        "Each data table has one catalog row (status 'ok') and one sources row per POST-BASE-1: "
+        "origin_url and retrieved_at from expected_origin, publisher, license and as_of from the "
+        "registry, the source file's SHA-256 (the archive's for a member), the applied filter and "
+        "the row counts before and after the state filter.",
+        ("REQ-29",),
+    ),
+    "POST-INGEST-5": Clause(
+        "test",
+        "Each data table column has one columns row (ordinal from 1, DuckDB type, label "
+        "expected_sheet_labels for a worksheet and '' otherwise).",
+        ("REQ-29", "REQ-33"),
+    ),
+    "POST-GLOSS-3": Clause(
+        "test",
+        "The glossary holds build_glossary_entries over each declared dictionary part "
+        "(validate_glossary_declarations): rows after the label row, keyed by label for a "
+        "worksheet and by column name otherwise, source_table the part's table name.",
+        ("REQ-30",),
+    ),
+    "ERRORS-GLOSS-2": Clause(
+        "test",
+        "A [[glossary]] declaration naming no registered source, or with a blank term, definition "
+        "or part, raises GlossaryDeclarationError naming ERRORS-GLOSS-2 before any reading.",
+        ("REQ-30",),
+    ),
+    "POST-INGEST-6": Clause(
+        "test",
+        "Each row a reader set aside is one ingest_log row (source key, 'line <n>', its error "
+        "type, its raw text) and one stderr log line naming the file and line (REQ-53, REQ-54).",
+        ("REQ-53", "REQ-54"),
+    ),
+    "POST-INGEST-7": Clause(
+        "test",
+        "The warehouse is the same for any workers >= 1: the files are read in parallel worker "
+        "processes that stage Parquet, and one writer registers the staged tables in name order "
+        "and writes the base tables last (SEQ-5).",
+        ("REQ-51",),
+    ),
+    "FORBIDDEN-INGEST-1": Clause(
+        "test",
+        "The Ingest opens no network connection and changes no source file (their SHA-256 are "
+        "the same after the run).",
+        ("REQ-28",),
+    ),
+    "ERRORS-INGEST-1": Clause(
+        "test",
+        "An unregistered candidate (ERRORS-RET-2), an unreadable file, a loaded format with no "
+        "reader, or an existing warehouse at the location raises IngestError naming "
+        "ERRORS-INGEST-1 and the file; no warehouse.duckdb is written.",
+        ("REQ-25", "REQ-31", "REQ-51"),
     ),
 }
