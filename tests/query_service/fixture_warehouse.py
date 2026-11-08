@@ -106,10 +106,13 @@ def build_warehouse(root: Path) -> Path:
             )
             for n, t in TABLES.items()
         ],
-        "columns": [(n, c, i, "VARCHAR") for n, t in TABLES.items() for i, c in enumerate(t[2], 1)],
+        "columns": [
+            (n, c, i, "VARCHAR", "") for n, t in TABLES.items() for i, c in enumerate(t[2], 1)
+        ],
         "glossary": [],
         "files": [],
         "documents": [],
+        "ingest_log": [],
     }
     writer.finalize({name: _rel(con, f"b_{name}", base[name], rows_by_base[name]) for name in base})
     return root
