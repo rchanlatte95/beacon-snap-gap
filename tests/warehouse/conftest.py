@@ -1,7 +1,5 @@
 """Put the repository root on sys.path so tests can import contracts/ and src/."""
 
-from __future__ import annotations
-
 import sys
 from pathlib import Path
 

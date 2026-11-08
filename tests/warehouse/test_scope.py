@@ -15,8 +15,6 @@ FOUR-CRITERIA TEST VALIDITY GATE (both tests):
   C4 NOT FUTURE-EDIT: every asserted behavior is a contracted clause.
 """
 
-from __future__ import annotations
-
 import random
 from datetime import date
 
@@ -30,26 +28,104 @@ from src.warehouse import scope as impl
 
 # (path, sha256, format, reference_end, is_base_geography, release_id) -> expected (decision, reason)
 CASES = [
-    ("recent.csv", "hA", "csv", "2026-09-30", False, None, ("load", None)),  # POST-SCOPE-1 interior
-    ("boundary_in.csv", "hB", "csv", "2024-01-01", False, None, ("load", None)),  # POST-SCOPE-1 on-point
-    ("boundary_out.csv", "hC", "csv", "2023-12-31", False, None, ("exclude", "time_scope")),  # POST-SCOPE-3 off-point
-    ("old_dup.csv", "hA", "csv", "2019-09-30", False, None, ("exclude", "time_scope")),  # POST-SCOPE-3 precedence over duplicate_content
+    (
+        "recent.csv",
+        "hA",
+        "csv",
+        "2026-09-30",
+        False,
+        None,
+        ("load", None),
+    ),  # POST-SCOPE-1 interior
+    (
+        "boundary_in.csv",
+        "hB",
+        "csv",
+        "2024-01-01",
+        False,
+        None,
+        ("load", None),
+    ),  # POST-SCOPE-1 on-point
+    (
+        "boundary_out.csv",
+        "hC",
+        "csv",
+        "2023-12-31",
+        False,
+        None,
+        ("exclude", "time_scope"),
+    ),  # POST-SCOPE-3 off-point
+    (
+        "old_dup.csv",
+        "hA",
+        "csv",
+        "2019-09-30",
+        False,
+        None,
+        ("exclude", "time_scope"),
+    ),  # POST-SCOPE-3 precedence over duplicate_content
     ("geo.csv", "hE", "csv", "2020-12-31", True, None, ("load", None)),  # POST-SCOPE-2
-    ("geo_dup.csv", "hE", "csv", "1999-12-31", True, None, ("exclude", "duplicate_content")),  # POST-SCOPE-2 + POST-SCOPE-4
-    ("sram.csv", "hG", "csv", "2025-12-31", False, "sram25", ("load", None)),  # POST-SCOPE-5 winner
-    ("sram.xlsx", "hF", "xlsx", "2025-12-31", False, "sram25", ("exclude", "duplicate_format")),  # POST-SCOPE-5
-    ("sram.sas", "hK", "sas", "2025-01-01", False, "sram25", ("exclude", "duplicate_format")),  # POST-SCOPE-5
+    (
+        "geo_dup.csv",
+        "hE",
+        "csv",
+        "1999-12-31",
+        True,
+        None,
+        ("exclude", "duplicate_content"),
+    ),  # POST-SCOPE-2 + POST-SCOPE-4
+    (
+        "sram.csv",
+        "hG",
+        "csv",
+        "2025-12-31",
+        False,
+        "sram25",
+        ("load", None),
+    ),  # POST-SCOPE-5 winner
+    (
+        "sram.xlsx",
+        "hF",
+        "xlsx",
+        "2025-12-31",
+        False,
+        "sram25",
+        ("exclude", "duplicate_format"),
+    ),  # POST-SCOPE-5
+    (
+        "sram.sas",
+        "hK",
+        "sas",
+        "2025-01-01",
+        False,
+        "sram25",
+        ("exclude", "duplicate_format"),
+    ),  # POST-SCOPE-5
     ("unknown.xlsx", "hH", "xlsx", None, False, None, ("load", None)),  # POST-SCOPE-6
-    ("same_as_recent.csv", "hA", "csv", "2025-06-30", False, None, ("exclude", "duplicate_content")),  # POST-SCOPE-4
+    (
+        "same_as_recent.csv",
+        "hA",
+        "csv",
+        "2025-06-30",
+        False,
+        None,
+        ("exclude", "duplicate_content"),
+    ),  # POST-SCOPE-4
 ]
 
 
 def _impl_files():
-    return [impl.make_source_file(p, h, f, end, geo, rel) for p, h, f, end, geo, rel, _ in CASES]
+    return [
+        impl.make_source_file(p, h, f, end, geo, rel)
+        for p, h, f, end, geo, rel, _ in CASES
+    ]
 
 
 def _contract_files():
-    return [contract.validate_source_file(p, h, f, end, geo, rel) for p, h, f, end, geo, rel, _ in CASES]
+    return [
+        contract.validate_source_file(p, h, f, end, geo, rel)
+        for p, h, f, end, geo, rel, _ in CASES
+    ]
 
 
 def test_scope_decisions_for_a_mixed_file_set():
@@ -92,17 +168,79 @@ def test_scope_decisions_for_a_mixed_file_set():
         )
 
     # The contract oracle must agree with the implementation on the same files.
-    contract_decisions = tuple(contract.ScopeDecision(d.path, d.decision, d.reason) for d in decisions)
+    contract_decisions = tuple(
+        contract.ScopeDecision(d.path, d.decision, d.reason) for d in decisions
+    )
     contract.validate_scope_decisions(_contract_files(), contract_decisions)
 
 
 _BAD_INPUTS = [
-    ("empty path", dict(path="", sha256="h", format="csv", reference_end=None, is_base_geography=False, release_id=None)),
-    ("empty sha256", dict(path="a.csv", sha256="", format="csv", reference_end=None, is_base_geography=False, release_id=None)),
-    ("unknown format", dict(path="a.parquet", sha256="h", format="parquet", reference_end=None, is_base_geography=False, release_id=None)),
-    ("date not YYYY-MM-DD", dict(path="a.csv", sha256="h", format="csv", reference_end="24-01-01", is_base_geography=False, release_id=None)),
-    ("date not a real day", dict(path="a.csv", sha256="h", format="csv", reference_end="2024-13-01", is_base_geography=False, release_id=None)),
-    ("empty release_id", dict(path="a.csv", sha256="h", format="csv", reference_end=None, is_base_geography=False, release_id="")),
+    (
+        "empty path",
+        {
+            "path": "",
+            "sha256": "h",
+            "format": "csv",
+            "reference_end": None,
+            "is_base_geography": False,
+            "release_id": None,
+        },
+    ),
+    (
+        "empty sha256",
+        {
+            "path": "a.csv",
+            "sha256": "",
+            "format": "csv",
+            "reference_end": None,
+            "is_base_geography": False,
+            "release_id": None,
+        },
+    ),
+    (
+        "unknown format",
+        {
+            "path": "a.parquet",
+            "sha256": "h",
+            "format": "parquet",
+            "reference_end": None,
+            "is_base_geography": False,
+            "release_id": None,
+        },
+    ),
+    (
+        "date not YYYY-MM-DD",
+        {
+            "path": "a.csv",
+            "sha256": "h",
+            "format": "csv",
+            "reference_end": "24-01-01",
+            "is_base_geography": False,
+            "release_id": None,
+        },
+    ),
+    (
+        "date not a real day",
+        {
+            "path": "a.csv",
+            "sha256": "h",
+            "format": "csv",
+            "reference_end": "2024-13-01",
+            "is_base_geography": False,
+            "release_id": None,
+        },
+    ),
+    (
+        "empty release_id",
+        {
+            "path": "a.csv",
+            "sha256": "h",
+            "format": "csv",
+            "reference_end": None,
+            "is_base_geography": False,
+            "release_id": "",
+        },
+    ),
 ]
 
 
