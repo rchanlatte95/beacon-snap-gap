@@ -646,6 +646,8 @@ TOOL_NAMES: tuple[str, ...] = ("schema_describe", "sql_query", "sites_near", "st
 MAX_TOOL_ROUNDS = 4  # Z-31: model calls per question; the last one answers without tools
 ANSWER_DEADLINE_SECONDS = 45.0  # Ryan's choice: 45 s with 4 rounds (below the App's 50 s)
 FINAL_CALL_MODE = "NONE"  # Z-31: function calling mode of the last model call
+CALL_TIMEOUT_SECONDS = 12.0  # one Vertex call; a stalled call is cut here and retried once
+CALL_RETRIES = 1
 FINAL_ANSWER_PROMPT = (
     "Answer the question now from the tool results above. Do not call any tool. If they do not "
     "hold the answer, say so."
@@ -1008,8 +1010,10 @@ CONTRACT_QUERY_ANSWER: Mapping[str, Clause] = {
     ),
     "ERRORS-ANS-1": Clause(
         "test",
-        "A Vertex AI error (google.genai errors.APIError), a transport timeout, or no final "
-        "answer within ANSWER_DEADLINE_SECONDS raises ModelUnavailableError naming ERRORS-ASK-2; "
+        "Each Vertex AI call has CALL_TIMEOUT_SECONDS; a failed call (google.genai errors.APIError "
+        "or a transport timeout) is retried CALL_RETRIES time. A call that still fails, or no "
+        "final answer within ANSWER_DEADLINE_SECONDS, raises ModelUnavailableError naming "
+        "ERRORS-ASK-2; "
         "no partial answer is returned.",
         ("REQ-39", "REQ-37"),
     ),

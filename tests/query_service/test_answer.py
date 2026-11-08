@@ -253,10 +253,20 @@ def test_vertex_errors_and_the_deadline_end_the_answer_and_the_last_call_answers
     - Category: negative / error / boundary
     - Risk tier: High; the App falls back only when the service says it cannot answer
     """
-    answerer, _ = parts(Script([503]))
+    answerer, script = parts(Script([503] * (contract.CALL_RETRIES + 1)))
     with pytest.raises(impl.ModelUnavailableError) as down:
         answerer.answer(_request())
     assert "ERRORS-ASK-2" in str(down.value)
+    assert len(script.requests) == contract.CALL_RETRIES + 1, (
+        f"ERRORS-ANS-1 violation: {len(script.requests)} attempts, expected one retry"
+    )
+
+    answerer, script = parts(Script([504, _text("No figure.")]))
+    reply = answerer.answer(_request())
+    assert reply.answer == "No figure.", f"ERRORS-ANS-1 violation: the retry gave {reply.answer!r}"
+    assert impl.CALL_TIMEOUT_SECONDS == contract.CALL_TIMEOUT_SECONDS, (
+        "ERRORS-ANS-1 violation: the per-call timeout differs from the contract"
+    )
 
     loop = [_call("sql_query", {"sql": "SELECT 1 AS n"})] * (contract.MAX_TOOL_ROUNDS - 1)
     answerer, script = parts(Script([*loop, _text("There is 1.")]))
