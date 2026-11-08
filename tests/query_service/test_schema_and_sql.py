@@ -107,7 +107,9 @@ def _build(root: Path) -> Path:
         )
         for n, s in SOURCES.items()
     ]
-    columns = [(n, c, i, "VARCHAR") for n, (cols, _) in data.items() for i, c in enumerate(cols, 1)]
+    columns = [
+        (n, c, i, "VARCHAR", "") for n, (cols, _) in data.items() for i, c in enumerate(cols, 1)
+    ]
     glossary = [
         ("sba_loans", "DS-X5", "BorrState", "Borrower state"),
         ("sba_loans", "DS-X5", "GrossApproval", "Approved amount"),
@@ -119,6 +121,7 @@ def _build(root: Path) -> Path:
         "glossary": glossary,
         "files": [],
         "documents": [],
+        "ingest_log": [],
     }
     writer.finalize({name: _rel(con, base[name], rows_by_base[name]) for name in base})
     return root

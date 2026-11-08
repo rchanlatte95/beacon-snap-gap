@@ -80,6 +80,12 @@ export function DataSources({
               any of its populated blocks is. This is not road distance, and it does not show
               opening hours or capacity.
             </li>
+            <li>
+              Drive-time estimates use openrouteservice road routes from the population center,
+              cached for 24 hours. They are separate from block-based reach and exclude live
+              traffic. Missing or expired route data uses the clearly labeled 10 miles = 30 minutes
+              heuristic, applied to the distance covering 80% of residents.
+            </li>
           </ul>
           <div className="source-grid">
             {sources.map((source) => (

@@ -2490,3 +2490,30 @@ file_format = "csv"
 [[not_a_source]]
 path = "repo:data/external/census-acs/extract_median_income.py"
 reason = "project code that produced the committed ACS median income extract; the extract is the source"
+
+# Data dictionaries and lookup files for the glossary (REQ-30, POST-GLOSS-3). Columns are the
+# labels of each worksheet's first non-empty row, read on 2026-11-08 with src/warehouse/office.py.
+
+[[glossary]]
+path = "cache:sba-sbg-foia/sbg-foia-data-dictionary-2025.xlsx"
+part = "SBG Data Dictionary"
+term = "Field Name"
+definition = "Definition"
+
+[[glossary]]
+path = "cache:sba/7a_504_foia_data_dictionary.xlsx"
+part = "7(a) Data Dictionary"
+term = "Field Name"
+definition = "Definition"
+
+[[glossary]]
+path = "cache:sba/7a_504_foia_data_dictionary.xlsx"
+part = "504 Data Dictionary"
+term = "Field Name"
+definition = "Definition"
+
+[[glossary]]
+path = "cache:census-acs-docs-2024/ACS2024_Table_Shells.xlsx"
+part = "2024"
+term = "UniqueID"
+definition = "Stub"

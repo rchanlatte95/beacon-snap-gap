@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Map as MapLibre, NavigationControl, setWorkerUrl } from 'maplibre-gl'
 import type {
   ExpressionSpecification,
@@ -181,6 +182,8 @@ export interface OpportunityMapProps {
     readonly transport: boolean
     readonly sites: boolean
   }
+  /** Notes shown inside the map's (i) credits box, after the base map credits. */
+  readonly attributionNotes?: ReactNode
 }
 
 export function OpportunityMap(props: OpportunityMapProps) {
@@ -199,6 +202,12 @@ export function OpportunityMap(props: OpportunityMapProps) {
   const mapRef = useRef<MapLibre | null>(null)
   const [ready, setReady] = useState(false)
   const [tilesFailed, setTilesFailed] = useState(false)
+  // MapLibre rewrites only its own inner credits element, so this sibling keeps what React puts in it.
+  const [notesHost] = useState(() => {
+    const host = document.createElement('div')
+    host.className = 'map-attrib-notes'
+    return host
+  })
   // True while the tract source holds flags that differ from tractsGeojson.
   const recoloredRef = useRef(false)
   const selectRef = useRef(onSelect)
@@ -219,6 +228,7 @@ export function OpportunityMap(props: OpportunityMapProps) {
     mapRef.current = map
     recoloredRef.current = false
     map.addControl(new NavigationControl({ showCompass: false }), 'top-left')
+    el.current.querySelector('.maplibregl-ctrl-attrib')?.append(notesHost)
 
     let fellBack = false
     const fallback = () => {
@@ -444,7 +454,7 @@ export function OpportunityMap(props: OpportunityMapProps) {
       map.remove()
       mapRef.current = null
     }
-  }, [tractsGeojson, countiesGeojson, sitesGeojson])
+  }, [tractsGeojson, countiesGeojson, sitesGeojson, notesHost])
 
   // The fills follow the class and gap flags under the chosen cuts.
   useEffect(() => {
@@ -503,6 +513,7 @@ export function OpportunityMap(props: OpportunityMapProps) {
     <div className="map-wrap">
       <div ref={el} className="map-canvas" aria-label="Map of Central Florida neighborhoods" />
       {tilesFailed && <div className="map-badge">{BASE_MAP_UNAVAILABLE_TEXT}</div>}
+      {props.attributionNotes !== undefined && createPortal(props.attributionNotes, notesHost)}
     </div>
   )
 }

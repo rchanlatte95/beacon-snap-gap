@@ -406,6 +406,12 @@ code {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+@media (max-width: 760px) {
+  .proximity-sliders {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
 .proximity-result,
 .proximity-note {
   margin: 4px 0 0;
@@ -415,6 +421,15 @@ code {
 }
 .proximity-note {
   color: var(--ink-mute);
+}
+/* Drive-time and distance notes inside the map's (i) box; they open and close with its credits. */
+.map-attrib-notes {
+  display: none;
+  max-width: 340px;
+  padding-bottom: 2px;
+}
+.maplibregl-ctrl-attrib.maplibregl-compact-show .map-attrib-notes {
+  display: block;
 }
 .map-wrap,
 .map-canvas,
@@ -686,6 +701,11 @@ code {
 }
 .ask form button:hover {
   background: var(--primary-700);
+}
+.ask .ask-model {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-mute);
 }
 .cta {
   width: 100%;

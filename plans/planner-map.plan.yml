@@ -203,7 +203,18 @@
         "ERRORS-ARCH-1",
         "POST-ARCH-2",
         "ERRORS-ARCH-2",
-        "POST-BASE-1"
+        "POST-BASE-1",
+        "POST-INGEST-1",
+        "POST-INGEST-2",
+        "POST-INGEST-3",
+        "POST-INGEST-4",
+        "POST-INGEST-5",
+        "POST-GLOSS-3",
+        "ERRORS-GLOSS-2",
+        "POST-INGEST-6",
+        "POST-INGEST-7",
+        "FORBIDDEN-INGEST-1",
+        "ERRORS-INGEST-1"
       ],
       "clauses_deferred": [],
       "negative_constraints": [
