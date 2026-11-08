@@ -227,15 +227,16 @@ def test_delimited_read_keeps_text_reports_encoding_and_fails_fast(tmp_path: Pat
     utf8 = tmp_path / "codes.csv"
     utf8.write_bytes(b"GEO_ID,code,name\n1400000US12095016510,007,Orlando\n")
     rel, enc = read_impl.read_delimited(con, utf8)
-    assert (rel.fetchall(), set(rel.types), enc) == (
+    type_names = {str(t) for t in rel.types}
+    assert (rel.fetchall(), type_names, enc) == (
         [("1400000US12095016510", "007", "Orlando")],
-        {duckdb.typing.VARCHAR},
+        {"VARCHAR"},
         "utf-8",
     ), (
         "test_delimited_read_keeps_text_reports_encoding_and_fails_fast FAILED\n"
         "POST-READ-1 violation: rows, column types or encoding wrong for a UTF-8 file\n"
         "EXPECTED: one row with code '007', all VARCHAR, encoding 'utf-8'\n"
-        f"ACTUAL: {rel.fetchall()!r}, {set(rel.types)!r}, {enc!r}\n"
+        f"ACTUAL: {rel.fetchall()!r}, {type_names!r}, {enc!r}\n"
         "GUIDANCE: keep every value as text exactly as written; report the encoding used"
     )
 
