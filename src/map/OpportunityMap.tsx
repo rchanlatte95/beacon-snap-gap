@@ -177,6 +177,7 @@ export interface OpportunityMapProps {
   readonly emphasizeGaps: boolean
   readonly selectedGeoid: string | null
   readonly onSelect: (geoid: string | null) => void
+  readonly showOverlap?: boolean
   readonly overlays: {
     readonly sba: boolean
     readonly transport: boolean
@@ -197,6 +198,7 @@ export function OpportunityMap(props: OpportunityMapProps) {
     selectedGeoid,
     onSelect,
     overlays,
+    showOverlap = true,
   } = props
   const el = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibre | null>(null)
@@ -465,6 +467,19 @@ export function OpportunityMap(props: OpportunityMapProps) {
     ;(map.getSource('tracts') as GeoJSONSource | undefined)?.setData(data ?? tractsGeojson)
     recoloredRef.current = data !== null
   }, [tractsGeojson, records, ready])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready) return
+    map.setPaintProperty('tract-fill', 'fill-color', [
+      'case',
+      ['all', showOverlap, ['==', ['get', 'is_triple_gap'], true]],
+      COLORS.triple,
+      ['==', ['get', 'tract_class'], CLASS_HIGH_NEED],
+      COLORS.highNeed,
+      COLORS.noGap,
+    ])
+  }, [showOverlap, ready])
 
   // The map and shortlist follow the same cohort or question results.
   useEffect(() => {
