@@ -11,7 +11,8 @@ Batches:
   counts it records (REQ-29).
 - Batch 3: table provenance records with "not recorded" for absent fields (REQ-29) and local-disk
   only / unaltered retained sources (REQ-28).
-- Later batches: glossary (REQ-30), publish to the bucket (REQ-31).
+- Batch 4: glossary table from loaded data dictionaries and lookup files (REQ-30), provenance
+  table write sequencing (SEQ-5, REQ-29), and canonical GCS bucket storage in <gcp-project> (REQ-31).
 The implementation MUST NOT import this module (CL11-F). Tests import both and compare.
 """
 
@@ -68,6 +69,10 @@ PROVENANCE_TEXT_FIELDS: tuple[str, ...] = (
     "as_of",
 )
 
+# Batch 4: glossary table, provenance write sequencing (SEQ-5), and canonical bucket (REQ-30, 31).
+GLOSSARY_COLUMNS: tuple[str, ...] = ("source_table", "dataset_id", "term", "definition")
+PROVENANCE_TABLES: tuple[str, ...] = ("files", "catalog", "sources")
+WAREHOUSE_GCP_PROJECT = "<gcp-project>"
 # --- 2. Domain exceptions (every message names its clause) --------------------------------
 
 
@@ -97,6 +102,14 @@ class InvalidProvenanceInputError(WarehouseContractError):
 
 class ProvenanceViolationError(WarehouseContractError):
     """POST-PROV-1..3, INV-PROV-1 or FORBIDDEN-PROV-1: provenance or source integrity violated."""
+
+
+class InvalidGlossarySourceError(WarehouseContractError):
+    """ERRORS-GLOSS-1: a dictionary/lookup source description is invalid."""
+
+
+class GlossaryViolationError(WarehouseContractError):
+    """POST-GLOSS-1..2, INV-GLOSS-1, FORBIDDEN-GLOSS-1 or SEQ-5: glossary or write order wrong."""
 
 
 # --- 3. Immutable typed records ------------------------------------------------------------
@@ -158,6 +171,27 @@ class TableProvenance:
     applied_filter: str
     rows_in_source: int
     rows_loaded: int
+
+
+@dataclass(frozen=True)
+class GlossaryEntry:
+    """Batch 4 validated glossary entry from a data dictionary or lookup table (REQ-30)."""
+
+    source_table: str
+    dataset_id: str
+    term: str
+    definition: str
+
+
+@dataclass(frozen=True)
+class DictionaryTableSpec:
+    """Description of one loaded dictionary or lookup table to extract glossary rows from."""
+
+    source_table: str
+    dataset_id: str
+    term_column: str
+    definition_column: str
+    rows: tuple[Mapping[str, str], ...]
 
 
 # --- 4. Callable validators ----------------------------------------------------------------
@@ -429,6 +463,88 @@ def validate_sources_unaltered(
             )
 
 
+def expected_glossary_entries(
+    specs: Sequence[DictionaryTableSpec],
+) -> tuple[GlossaryEntry, ...]:
+    """POST-GLOSS-1, POST-GLOSS-2, INV-GLOSS-1, FORBIDDEN-GLOSS-1, ERRORS-GLOSS-1 oracle."""
+    entries: list[GlossaryEntry] = []
+    seen: set[tuple[str, str, str]] = set()
+    for spec in specs:
+        if (
+            not spec.source_table.strip()
+            or not spec.dataset_id.strip()
+            or not spec.term_column.strip()
+            or not spec.definition_column.strip()
+        ):
+            raise InvalidGlossarySourceError(
+                "ERRORS-GLOSS-1 violation: source_table, dataset_id, term_column and "
+                "definition_column must be non-empty"
+            )
+        src_tbl = spec.source_table.strip()
+        ds_id = spec.dataset_id.strip()
+        for row in spec.rows:
+            if spec.term_column not in row or spec.definition_column not in row:
+                raise InvalidGlossarySourceError(
+                    f"ERRORS-GLOSS-1 violation: row in {src_tbl!r} is missing "
+                    f"{spec.term_column!r} or {spec.definition_column!r}"
+                )
+            term = row[spec.term_column].strip()
+            defn = row[spec.definition_column].strip()
+            if not term or not defn:
+                continue
+            key = (src_tbl, term, defn)
+            if key in seen:
+                continue
+            seen.add(key)
+            entries.append(
+                GlossaryEntry(
+                    source_table=src_tbl,
+                    dataset_id=ds_id,
+                    term=term,
+                    definition=defn,
+                )
+            )
+    return tuple(entries)
+
+
+def validate_glossary_entries(
+    specs: Sequence[DictionaryTableSpec],
+    actual: Sequence[GlossaryEntry],
+) -> None:
+    """Raise GlossaryViolationError naming the clause when actual glossary entries disagree."""
+    for entry in actual:
+        if not entry.term.strip() or not entry.definition.strip():
+            raise GlossaryViolationError(
+                f"FORBIDDEN-GLOSS-1 violation: glossary entry {entry!r} has blank term or "
+                "definition"
+            )
+    want = expected_glossary_entries(specs)
+    if tuple(actual) != want:
+        raise GlossaryViolationError(
+            f"POST-GLOSS-1 / POST-GLOSS-2 / INV-GLOSS-1 violation: got {len(actual)} entries, "
+            f"expected {len(want)} matching oracle order and contents"
+        )
+
+
+def validate_ingest_write_sequence(events: Sequence[str]) -> None:
+    """SEQ-5 gate: files, catalog and sources tables are written AFTER data tables and BEFORE ok."""
+    data_indices = [i for i, e in enumerate(events) if e.startswith("load_table:")]
+    prov_indices = [i for i, e in enumerate(events) if e in PROVENANCE_TABLES]
+    done_indices = [i for i, e in enumerate(events) if e == "report_success"]
+    if set(PROVENANCE_TABLES) - set(events) or len(done_indices) != 1:
+        raise GlossaryViolationError(
+            "SEQ-5 violation: Ingest must write files, catalog and sources and report_success once"
+        )
+    if data_indices and min(prov_indices) <= max(data_indices):
+        raise GlossaryViolationError(
+            "SEQ-5 violation: provenance tables written before all data tables finished loading"
+        )
+    if max(prov_indices) >= done_indices[0]:
+        raise GlossaryViolationError(
+            "SEQ-5 violation: report_success emitted before files, catalog and sources were written"
+        )
+
+
 # --- 5. Traceability map (every clause declares its verification method) -----------------------
 
 CONTRACT_SCOPE: Mapping[str, Clause] = {
@@ -569,5 +685,52 @@ CONTRACT_PROVENANCE: Mapping[str, Clause] = {
         "source_file or applied_filter is blank, sha256 is not 64 lowercase hex characters, or "
         "row counts are negative or rows_loaded > rows_in_source.",
         ("REQ-29",),
+    ),
+}
+
+
+CONTRACT_GLOSSARY: Mapping[str, Clause] = {
+    "POST-GLOSS-1": Clause(
+        "test",
+        "Every row in a DictionaryTableSpec with a non-empty trimmed term and definition produces "
+        "a GlossaryEntry carrying source_table, dataset_id, term and definition.",
+        ("REQ-30",),
+    ),
+    "POST-GLOSS-2": Clause(
+        "test",
+        "Duplicate (source_table, term, definition) triples are deduplicated keeping the first "
+        "occurrence in input order.",
+        ("REQ-30",),
+    ),
+    "INV-GLOSS-1": Clause(
+        "test",
+        "Glossary entries preserve the exact trimmed term and definition text from the loaded "
+        "dictionary or lookup rows in input order without altering input mappings.",
+        ("REQ-28", "REQ-30"),
+    ),
+    "FORBIDDEN-GLOSS-1": Clause(
+        "test",
+        "Rows with an empty or whitespace-only term or definition are never emitted into the "
+        "glossary table, and no definition is fabricated when a row lacks one.",
+        ("REQ-29", "REQ-30"),
+    ),
+    "SEQ-5": Clause(
+        "test",
+        "The Ingest writes the files, catalog and sources provenance tables AFTER every data and "
+        "glossary table is loaded and BEFORE it reports success.",
+        ("REQ-29", "REQ-30"),
+    ),
+    "ERRORS-GLOSS-1": Clause(
+        "test",
+        "build_glossary_entries raises InvalidGlossarySourceError when source_table, dataset_id, "
+        "term_column or definition_column is blank, or when a row lacks the declared term_column "
+        "or definition_column key.",
+        ("REQ-30",),
+    ),
+    "INV-STORAGE-1": Clause(
+        "tool",
+        "The Operator builds the warehouse once and keeps the canonical copy in a private Google "
+        "Cloud Storage bucket in project <gcp-project> (WAREHOUSE_GCP_PROJECT).",
+        ("REQ-31",),
     ),
 }

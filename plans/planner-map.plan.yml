@@ -132,7 +132,14 @@
         "POST-PROV-3",
         "INV-PROV-1",
         "FORBIDDEN-PROV-1",
-        "ERRORS-PROV-1"
+        "ERRORS-PROV-1",
+        "POST-GLOSS-1",
+        "POST-GLOSS-2",
+        "INV-GLOSS-1",
+        "FORBIDDEN-GLOSS-1",
+        "SEQ-5",
+        "ERRORS-GLOSS-1",
+        "INV-STORAGE-1"
       ],
       "clauses_deferred": [],
       "negative_constraints": [
