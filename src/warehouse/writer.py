@@ -26,6 +26,7 @@ BASE_TABLES: Final[tuple[str, ...]] = (
     "columns",
     "documents",
     "glossary",
+    "ingest_log",
 )
 CATALOG_REQUIRED_COLUMNS: Final[tuple[str, ...]] = ("table_name", "parquet", "status")
 
