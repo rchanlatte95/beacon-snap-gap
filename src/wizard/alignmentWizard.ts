@@ -22,22 +22,22 @@ export const PERSONA_LENSES: ReadonlyArray<{
 }> = [
   {
     id: 'alignment',
-    label: 'Shared Alignment: Opportunities to Serve',
+    label: 'Both partners',
     headline: 'Where food banks and lenders can help together',
     tagline: 'Red areas have all three gaps. Orange areas are other food deserts.',
   },
   {
     id: 'planner',
-    label: 'Food Bank Planner (SNAP & Pantries)',
+    label: 'Food bank',
     headline: 'Where food banks are needed most',
     tagline:
       'Food deserts, and the places where a mobile pantry may reach more people than a fixed one.',
   },
   {
     id: 'officer',
-    label: 'SBA / CDFI Lending Officer',
+    label: 'Small business lender',
     headline: 'Where small business loans could help most',
-    tagline: 'Food deserts that got 10 or fewer SBA loans since 2010.',
+    tagline: 'Food deserts with the fewest SBA loans for their population since 2010.',
   },
 ]
 
@@ -50,7 +50,7 @@ export const COHORT_CARDS: ReadonlyArray<{
   {
     id: 'triple',
     label: 'All three gaps',
-    expectedCount: 29,
+    expectedCount: 12,
     hint: 'Food desert, few business loans, many homes with no car',
   },
   {
@@ -62,8 +62,8 @@ export const COHORT_CARDS: ReadonlyArray<{
   {
     id: 'dual',
     label: 'Few business loans',
-    expectedCount: 50,
-    hint: 'Food deserts with 10 or fewer SBA loans since 2010',
+    expectedCount: 26,
+    hint: 'Food deserts in the lowest quarter for SBA loans per 1,000 people',
   },
   {
     id: 'transport',
@@ -149,7 +149,8 @@ const SOURCES = [
   'DS-X28',
 ] as const
 const COUNTIES = ['orange', 'seminole', 'lake', 'osceola'] as const
-const SBA_MEDIAN_LOANS = 10
+// Z-21: a brief whose reduction is zero says so.
+export const NO_REACH_TEXT = 'This plan does not reach these neighborhoods.'
 
 const nf = new Intl.NumberFormat('en-US')
 
@@ -205,8 +206,9 @@ export function answerWizardQuery(tracts: readonly TractRecord[], query: string)
   }
 
   if (/low sba|few sba|low lending|under[- ]?lent|lending gap|sba gap|without sba|no sba/.test(q)) {
-    result = result.filter((t) => t.sba_loans_total <= SBA_MEDIAN_LOANS)
-    filters.push(`${SBA_MEDIAN_LOANS} or fewer SBA loans since 2010`)
+    // REQ-19: the Build's lending-gap flag, never a raw loan count.
+    result = result.filter((t) => t.is_dual_gap)
+    filters.push('Food desert with few SBA loans for its population')
   }
 
   if (/no[- ]vehicle|without (a )?car|transport|transit|mobile/.test(q)) {
@@ -230,7 +232,7 @@ export function answerWizardQuery(tracts: readonly TractRecord[], query: string)
       : `${nf.format(result.length)} neighborhood${result.length === 1 ? '' : 's'} match, with ${nf.format(residents)} people. ` +
         `${noSite} have no Second Harvest site inside. ` +
         `In ${mobile}, many homes have no car. ` +
-        `${dual} got ${SBA_MEDIAN_LOANS} or fewer SBA loans since 2010.`
+        `${dual} got few SBA loans for their population since 2010.`
 
   return { matchedTracts: result, answerText, appliedFilters: filters }
 }
@@ -255,9 +257,8 @@ export function generateCoordinatedActionBrief(input: {
     (t) => t.sites_in_tract === 0 && !t.is_transport_gap && !t.is_dual_gap,
   ).length
   const withJoint = target.length > 0 ? Math.round((unaddressed / target.length) * 1000) / 10 : 0
-  const safeBaseline = baseline > 0 ? baseline : target.length > 0 ? 100 : 0
-  const safeWith = Math.min(withJoint, Math.max(0, safeBaseline - 0.1))
-  const reduction = Math.round((safeBaseline - safeWith) * 10) / 10
+  // POST-APP-3 (Z-21): report the computed shares as they are, including a zero reduction.
+  const reduction = Math.round((baseline - withJoint) * 10) / 10
 
   const cohortLabel =
     COHORT_CARDS.find((c) => c.id === input.cohortId)?.label ?? 'All neighborhoods'
@@ -272,17 +273,19 @@ export function generateCoordinatedActionBrief(input: {
       : `Add pantry space and hours in all ${plural(target.length, 'neighborhood')}.`
   const sbaOfficerAction =
     dual > 0
-      ? `Hold small business loan and coaching clinics in the ${plural(dual, 'neighborhood')} that got 10 or fewer SBA loans. Start with corner stores, mobile markets and food businesses.`
+      ? `Hold small business loan and coaching clinics in the ${plural(dual, 'neighborhood')} with few SBA loans for their population. Start with corner stores, mobile markets and food businesses.`
       : `Plan small business help next to new pantry sites, so new food stores can follow.`
 
   const narrativeSummary =
     `${cohortLabel}: ${plural(target.length, 'neighborhood')} with ${nf.format(totalResidents)} people. ` +
     `Counties: ${counties.join(', ')}. ` +
-    `Today ${noSite} of them (${safeBaseline}%) have no Second Harvest site inside. ` +
+    `Today ${noSite} of them (${baseline}%) have no Second Harvest site inside. ` +
     `Suppose the food bank serves the ${mobile} with many homes that have no car, and lenders help the ${dual} with few loans. ` +
-    (unaddressed === 0
-      ? `Then every one of them would have a plan.`
-      : `Then ${plural(unaddressed, 'neighborhood')} (${safeWith}%) would still have no plan. That is ${reduction} points lower than today.`)
+    (reduction === 0
+      ? NO_REACH_TEXT
+      : unaddressed === 0
+        ? `Then every one of them would have a plan.`
+        : `Then ${plural(unaddressed, 'neighborhood')} (${withJoint}%) would still have no plan. That is ${reduction} points lower than today.`)
 
   return {
     title: `Action plan: ${cohortLabel}`,
@@ -292,8 +295,8 @@ export function generateCoordinatedActionBrief(input: {
     totalResidentsCovered: totalResidents,
     mobilePriorityTractCount: mobile,
     dualGapTractCount: dual,
-    withoutCoordinationGapPct: safeBaseline,
-    withJointDeploymentGapPct: safeWith,
+    withoutCoordinationGapPct: baseline,
+    withJointDeploymentGapPct: withJoint,
     percentagePointReduction: reduction,
     foodBankAction,
     sbaOfficerAction,
