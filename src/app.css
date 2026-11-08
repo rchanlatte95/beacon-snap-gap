@@ -754,6 +754,10 @@ code {
 .answer p {
   margin: 0 0 6px;
 }
+/* The AI answer is plain text with line breaks (one finding per line); keep them. */
+.answer--ai > p:first-child {
+  white-space: pre-line;
+}
 .filters {
   margin: 0 0 6px;
   padding-left: 18px;

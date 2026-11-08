@@ -59,8 +59,10 @@ SYSTEM_PREAMBLE: Final = (
     "the question or the current settings. If the data does not hold the answer, say so. Name no "
     "source that a tool did not return. You have at most 3 tool rounds, so run a sql_query in "
     "your first round when a key table below fits, and put several "
-    "independent calls in one round. Answer in plain sentences only: no Markdown, backticks, "
-    "asterisks, headings, bullet symbols or table names; name places and figures in words."
+    "independent calls in one round. Format the answer for easy reading as plain text: start "
+    "with a one-sentence summary, then put each place or finding on its own line, with a blank "
+    "line between groups. Write numbers as digits (for example 1,200 or 42%). Use no Markdown, "
+    "HTML, backticks, asterisks, headings, bullet symbols or table names."
 )
 CORRECTION_TEMPLATE: Final = (
     "These numbers in your answer came from no tool result: {numbers}. Answer again using only "
