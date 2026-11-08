@@ -11,8 +11,11 @@ import type { CutName } from '../wizard/gapRules'
 
 export const ASK_PATH = '/api/ask'
 
-/** REQ-39 "slow": with no reply in this time, the App uses the built-in wizard. */
-export const ASK_TIMEOUT_MS = 20_000
+/**
+ * REQ-39 "slow": with no reply in this time, the App uses the built-in wizard. Above the
+ * QueryService's 30-second answer deadline (Ryan and Ketema, 2026-11-08), with room for the network.
+ */
+export const ASK_TIMEOUT_MS = 35_000
 
 /** REQ-39 notice, word for word. */
 export const AI_UNAVAILABLE_NOTICE = 'AI unavailable. Using built-in filters.'
