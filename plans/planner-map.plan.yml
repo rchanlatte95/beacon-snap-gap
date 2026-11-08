@@ -2,7 +2,7 @@
   "schema_version": "1.1",
   "feature_name": "beacon-snap-cliff-planner-map",
   "manifest_path": "requirements/REQUIREMENT_MANIFEST.md",
-  "manifest_hash": "sha256:c4ce93a39ccc883a82873c666e0661a853ff65abaae06cd1ee0f2b7e28f93807",
+  "manifest_hash": "sha256:679f3b2b8935a2856cd2b0ee6c11491b819526256dd3639d9fbeb7124468a335",
   "created": "2026-11-07",
   "last_updated": "2026-11-08",
   "status": "ACTIVE",
@@ -108,25 +108,17 @@
         "REQ-28",
         "REQ-29",
         "REQ-30",
-        "REQ-31",
-        "REQ-32",
-        "REQ-46",
-        "REQ-47",
-        "REQ-48",
-        "REQ-49",
-        "REQ-50"
+        "REQ-31"
       ],
       "clauses_in_scope": [],
       "clauses_deferred": [],
       "negative_constraints": [
-        "INV-23",
-        "INV-24",
-        "INV-45"
+        "INV-23"
       ],
       "status": "PENDING",
       "depends_on": [],
       "issue": "TODO",
-      "pivot_note": "If work stops after SLICE-3, the warehouse exists in the private bucket with every in-scope source, row counts a reader can recount and a provenance row for every table, but nothing queries it yet. No open zone blocks this slice.",
+      "pivot_note": "If work stops after SLICE-3, the warehouse sits in the private bucket with every in-scope source, row counts a reader can recount, a provenance row for every table and a glossary, but nothing queries it yet. No open zone blocks this slice.",
       "deliverable": {
         "surface": "file",
         "capability": "A reader can see every retained source, why each was kept or excluded, and where each table came from.",
@@ -139,6 +131,7 @@
     {
       "id": "SLICE-4",
       "requirement_ids": [
+        "REQ-32",
         "REQ-33",
         "REQ-34",
         "REQ-35",
@@ -146,17 +139,12 @@
         "REQ-37",
         "REQ-38",
         "REQ-39",
-        "REQ-40",
-        "REQ-41",
-        "REQ-51",
-        "REQ-52",
-        "REQ-53"
+        "REQ-40"
       ],
       "clauses_in_scope": [],
       "clauses_deferred": [],
       "negative_constraints": [
-        "INV-33",
-        "INV-48"
+        "INV-32"
       ],
       "status": "PENDING",
       "depends_on": [
@@ -164,12 +152,12 @@
         "SLICE-3"
       ],
       "issue": "TODO",
-      "pivot_note": "Blocked for contracts until the human decides Z-7 (amend INV-06), Z-8 (Vertex model), Z-9 (loan-level rows), Z-10 (outage fallback) and Z-11 (acceptance questions). If work stops after SLICE-4, a Viewer on a private address can ask plain-language questions and get cited answers; the public login is SLICE-5.",
+      "pivot_note": "No open zone remains. If work stops after SLICE-4, a Viewer on a private address can ask plain-language and free-form questions and get cited answers built from the warehouse; the shared login is SLICE-5.",
       "deliverable": {
         "surface": "ui",
         "capability": "A planner or officer can ask a plain-language question about any loaded data and get a cited answer.",
         "use": "Type a question in the AI wizard.",
-        "observe": "The answer matches a recomputation from the source files and shows chips naming each source, publisher, as-of date and origin link.",
+        "observe": "The six baseline questions each match a recomputation from the source files and show chips naming each source, publisher, as-of date and origin link; free-form questions run through the schema tool and read-only SQL.",
         "attested_by": null,
         "attested_at": null
       }
@@ -177,16 +165,15 @@
     {
       "id": "SLICE-5",
       "requirement_ids": [
+        "REQ-41",
         "REQ-42",
         "REQ-43",
-        "REQ-44",
-        "REQ-45",
-        "REQ-54"
+        "REQ-44"
       ],
       "clauses_in_scope": [],
       "clauses_deferred": [],
       "negative_constraints": [
-        "INV-38"
+        "INV-37"
       ],
       "status": "PENDING",
       "depends_on": [
@@ -194,7 +181,7 @@
         "SLICE-4"
       ],
       "issue": "TODO",
-      "pivot_note": "Only REQ-45 (shutdown) depends on the open zone Z-12. If work stops after SLICE-5, the services run behind the login with internal ingress and the Operator removes them by hand.",
+      "pivot_note": "No open zone remains. Ketema handles the teardown with no fixed date (Z-12). If work stops after SLICE-5, the services run behind the login with internal ingress.",
       "deliverable": {
         "surface": "http",
         "capability": "Only people with the shared login can reach the app and the query service.",
@@ -213,7 +200,7 @@
     "SLICE-2 stays BLOCKED until the human has seen the SLICE-1 deliverable and decides on zone Z-3; show a visual mock when the question returns.",
     "After SLICE-1 AUDIT: verify every requirement ID traces to a contract clause and a test, the human attests the deliverable, then ask whether to unblock SLICE-2 or plan the SBDC/CDFI officer view.",
     "REQ-13 (Beacon brand) is verified by human review, not by a test, so SLICE-1 needs a human attestation before it is audited.",
-    "SLICE-3 to SLICE-5 (cycle 13) follow SLICE-1. SLICE-3 has no open zone and can start contracts after the human approves the plan. SLICE-4 waits for Z-7 to Z-11. SLICE-5 waits only for Z-12 on REQ-45."
+    "SLICE-3 to SLICE-5 (cycle 13) follow SLICE-1. All cycle 13 zones are decided. SLICE-3 can start contracts once the human approves the plan."
   ],
   "forgotten_invariants": [
     "INV-01",
@@ -225,7 +212,7 @@
     "INV-08",
     "INV-11",
     "INV-12",
-    "INV-33",
-    "INV-38"
+    "INV-32",
+    "INV-37"
   ]
 }

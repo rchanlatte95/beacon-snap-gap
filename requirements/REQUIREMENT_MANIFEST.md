@@ -20,7 +20,7 @@ A contract executes only when all of its predicates evaluate to TRUE.
 |:------|:-----|
 | Planner | Food bank planner who decides where to send food and mobile pantries |
 | Officer | SBDC, CDFI or SBA program officer who decides where to target small-business lending and technical assistance outreach |
-| Viewer | Anyone who opens the app, including judges and teammates, with no account |
+| Viewer | Anyone with the shared login, including judges and teammates |
 | App | The static web application served from Cloud Run |
 | Build | The offline data-preparation script that turns repo data files into the app's static data |
 | Ingest | The offline script that loads every retained source file into the warehouse (SLICE-3) |
@@ -49,14 +49,15 @@ A contract executes only when all of its predicates evaluate to TRUE.
   > "i want nothing fetched at build. gather all data sources you can from our data sources list. ... the app must be able to cite sources so ensure you are recording the data sources origin in the wharehouse." "again everything that can be retrieved get it. do not infer data. it must have a real source."
   >
   > "our bounds should be time in my opinion. yes no duplicates of course. ... what if we limit it to just 2024 and newer?" Then: "we do not need to delete anything we have already retrieved. base geography is exempt from the 2024 rules. those are just maps. use what is the most recent. same with the nri file. whatever we have is fine. yes skip the pre 2024 pulse waves." Then: "c. stay with the brief instructions." Then: "use a gcp bucket."
+  >
+  > Zone answers, 2026-11-08: "3.8-flash. no contest"; "this is public data. i see no reason to restrict at all. the sba data by default in the insight queries we have defined aggregate, but if a sba loan administrator asks a natural language query wanting row level data it should not be restricted. drop the hackathon demo lens. C."; "A." (outage fallback); "i like these. keep them as the baseline. it highlights a few things: the ai will need a taxonomy file that is given on every query or it will hallucinate what 'Food Desert' is. generate a glossary of terms from the brief content, data source legends or meta data to ensure grounding. also recognize that any free form query should be allowed. the ai must have tools that allow free ad hoc queries. so its a tool that returns the warehouse schema"; "yes this is my responsibility. no hard date. mark as such: ketema will handle teardown."; "A" (no MCP server). Direction on form: "requirements are meant to change ... the invariant text must now state what we need to have a well functioning app. we do not restrict or put ourselves in a straight jacket. ponytail rules."
 - **Trace gap**: The idea list that "ideas 1,2,4" refers to is not in the repo. Add it, or record where it is, so that this trace is complete.
 - **Our Understanding**: SLICE-1 is the "Opportunities to Serve" cross-agency alignment map and AI-guided action wizard for Central Florida (490 tracts). It brings together Food Bank / SNAP planners and SBA / SBDC / CDFI lending officers around the same low-income population, contrasts food need (97 Classic Food Desert tracts) against SBA 7(a)/504 lending (DS-X5, 50 dual-gap tracts with at or below the regional median of 10 loans), household no-vehicle transportation barriers (DS-X7b, 53 tracts in the top quartile at or above 6.90%, yielding 29 triple-gap tracts), and median household income with 90% margins of error (DS-X28, DS-X29), keeps the legend pinned on the map canvas over clean exterior county borders, and provides a Gap-Zapper-style AI briefing, natural-language query/filter wizard, and one-click Coordinated Action Brief generator. The SNAP-loss slider remains stashed in SLICE-2 (Z-3).
-- **Ambiguity Score**: SLICE-1 is 0 (ready for contracts and implementation). SLICE-3 is 0 (its zones are decided). SLICE-4 is 4 (small gaps: Z-7 to Z-11 are open). SLICE-5 is 1 (Z-12 is open). Rationale for SLICE-1: flow, stack, three-persona alignment scope, the high-need rule (Z-1, 97 tracts), the SBA lending contrast rule (DS-X5, 50 dual-gap tracts), the no-vehicle transportation barrier rule (DS-X7b, 53 tracts, 29 triple-gap tracts), median household income and MOE integration (DS-X28, DS-X29), the pantry-coverage load rule (Z-2, Z-2e), the map classes and pinned legend (D-1), the deterministic confidence rule, the AI insight and coordinated action wizard, the Build output path (Z-5), the base map tile source (Z-6, OpenFreeMap Positron vector tiles with REQ-10 fallback) and the deployment target (Z-4) are all decided. Z-3 (slider) is deferred to SLICE-2. 
+- **Ambiguity Score**: 0 for SLICE-1 and for SLICE-3 to SLICE-5 (ready for contracts and implementation). Rationale for SLICE-1: flow, stack, three-persona alignment scope, the high-need rule (Z-1, 97 tracts), the SBA lending contrast rule (DS-X5, 50 dual-gap tracts), the no-vehicle transportation barrier rule (DS-X7b, 53 tracts, 29 triple-gap tracts), median household income and MOE integration (DS-X28, DS-X29), the pantry-coverage load rule (Z-2, Z-2e), the map classes and pinned legend (D-1), the deterministic confidence rule, the AI insight and coordinated action wizard, the Build output path (Z-5), the base map tile source (Z-6, OpenFreeMap Positron vector tiles with REQ-10 fallback) and the deployment target (Z-4) are all decided. Z-3 (slider) is deferred to SLICE-2. 
 
 ## Known Ambiguities
 
-- None for SLICE-1 or SLICE-3. Z-3 (slider) is deferred to SLICE-2.
-- SLICE-4 has five open zones (Z-7 amendment of INV-06, Z-8 Vertex model, Z-9 loan-level exposure, Z-10 AI outage fallback, Z-11 acceptance questions). SLICE-5 has one (Z-12 shutdown trigger). See section 5.
+- None for SLICE-1 or SLICE-3 to SLICE-5. Z-3 (slider) is deferred to SLICE-2.
 
 ## 2. The Actor Matrix
 
@@ -65,7 +66,7 @@ A contract executes only when all of its predicates evaluate to TRUE.
 | Planner | Read the map, switch persona lenses, run the AI wizard, generate a coordinated action brief | Edit source data; see individual people |
 | Officer | Same as Planner | Same as Planner |
 | Viewer | Same as Planner | Same as Planner |
-| App | Read static data files; compute flags in the browser | Call external services at runtime; store user data on a server |
+| App | Read static data files; compute flags in the browser; ask the QueryService | Call a service other than the project's own query service and map tile servers; store user data on a server |
 | Build | Read `data/**`; write static app data | Alter files under `data/hackathon/` or `data/external/` |
 | Ingest | Read `data/**` and `data/cache/**`; write the warehouse | Fetch data over the network; alter any retained source file |
 | QueryService | Read the warehouse; call Vertex AI | Write to the warehouse; return a column the catalog marks private |
@@ -97,6 +98,8 @@ Build DEPENDS ON the ACS S1901/B19013 median household income table (`data/exter
 
 Ingest DEPENDS ON the files listed in `data/cache/MANIFEST.jsonl` and under `data/hackathon/` and `data/external/` for every table it loads. It reads no other input.
 Ingest DEPENDS ON `docs/data-sources.md` for each data source's ID and title.
+Ingest DEPENDS ON the data dictionaries and lookup files it loads for the glossary table.
+QueryService DEPENDS ON `docs/taxonomy.md` for the core taxonomy it sends with every question.
 QueryService DEPENDS ON the warehouse in the private Cloud Storage bucket for every answer.
 QueryService DEPENDS ON Vertex AI for the language model.
 App DEPENDS ON the QueryService for every AI answer and every query result, and on the Build output for the map (unchanged from SLICE-1).
@@ -115,6 +118,7 @@ Gateway DEPENDS ON the App and the QueryService for the content it forwards.
 | SEQ-7 | QueryService | Attach the provenance of each table used | AFTER each tool call and BEFORE the answer text is built | An answer cites no source |
 | SEQ-8 | Gateway | Check the login | BEFORE it forwards any request | An unauthenticated request reaches a backend |
 | SEQ-9 | App | Show the deterministic notice and use the built-in wizard | AFTER the QueryService reports Vertex AI unavailable and BEFORE the next question | The Viewer sees a blank or stale answer |
+| SEQ-10 | QueryService | Attach the core taxonomy to the model request | BEFORE the model's first tool call in a question | The model invents what a term means |
 
 ### Integration Points Checklist
 | ID | Source | Target | Handoff Data | Contract Clause |
@@ -134,6 +138,7 @@ Gateway DEPENDS ON the App and the QueryService for the content it forwards.
 | IP-13 | QueryService | Vertex AI | Tool calls and tool results | pending |
 | IP-14 | QueryService | App | Answer text, result rows, provenance records | pending |
 | IP-15 | Gateway | App and QueryService | Authenticated requests | pending |
+| IP-16 | `docs/taxonomy.md` | QueryService | Core taxonomy text | pending |
 
 ### Lifecycle Paths
 | Component | INIT (created/started by) | CLEANUP (stopped/released by) |
@@ -153,10 +158,10 @@ Gateway DEPENDS ON the App and the QueryService for the content it forwards.
 | INV-01 | Data integrity | REQ-1: The Build shall not alter any file under `data/hackathon/` or `data/external/`. | test | Must | Source data is the evidence base; edits would break citations |
 | INV-03 | Honesty | REQ-3: When a tract has no Second Harvest site inside it (Z-2 A), or none of its block population is within 30 minutes' drive of a site (Z-2 C), the App shall show the text "No Second Harvest site found under this rule. Other food sources may exist." on that tract's card. | test | Must | The site list is one food bank's network only, and the coverage rule (inside-tract count or 30 minutes' drive) is an approximation |
 | INV-11 | Honesty | REQ-16: The App shall not show the phrases "no food access" or "no access" for any tract, anywhere in the App. | test | Must | The site list is one food bank's network only; no site found is not proof of no access |
-| INV-04 | Privacy | REQ-4: The App shall hold only tract-level data: no record about an individual person, no block-level record, and block values only as tract sums. | test | Must | Data is tract and block aggregates only. Block population has differential-privacy noise, so a single block value is not valid |
+| INV-04 | Privacy | REQ-4: The App shall hold in its static files only tract-level data: no block-level record, and block values only as tract sums. | test | Must | Block population has differential-privacy noise, so a single block value is not valid. Query answers may return loan rows (Z-9, Ketema, 2026-11-08); the static files stay tract-level |
 | INV-12 | Privacy | REQ-17: The Build shall write only tract-level fields to the static tract file. | test | Must | The file is served publicly, so a block-level field in it would be published even if the App ignored it |
 | INV-05 | Honesty | REQ-5: The App shall not omit a missing or blank indicator from the tract card. | test | Must | Florida CDC values are blank; hiding that misleads |
-| INV-06 | Scope | REQ-6: The App shall not call an external service at runtime, except map tile servers. | test | Should | Keeps the prototype static and cheap to host |
+| INV-06 | Scope | REQ-6: The App shall get every value it shows from this project's own files and query service, and its map tiles from a tile server. | test | Should | Ketema, 2026-11-08 (Z-7): the app needs its data and AI answers from the project's own services; the earlier ban on any runtime service call is replaced by this need |
 | INV-07 | Attribution | REQ-12: The App shall show, on every view, a credit to DataKind and Beacon with a link to www.datakind.org and the statement that Beacon content is CC BY 4.0. | test | Must | Beacon's license page requires CC BY 4.0 attribution to DataKind with a link to www.datakind.org (`docs/hackathon/linked-pages.md`, "Beacon license") |
 | INV-08 | Brand | REQ-13: The App shall follow `docs/hackathon/resources/beacon-design-brand-guidelines.pdf`. | human review | Must | Decided by Ketema, 2026-11-07 ("we follow the branding"): the team follows the Beacon brand guidelines that DataKind provided. Compliance needs a person to judge it |
 | INV-09 | Display | REQ-14: The App shall color each drawn tract (489 of 490) on the map as Classic Food Desert (high need), No gap flagged, or Insufficient data. | test | Must | Two of the three names are the brief's own; "No gap flagged" was proposed by Ryan's agent. The three classes cover all 490 tracts (97, 391 and 2), but tract `12095990000` (water) has no polygon, so it is listed as Insufficient data and not drawn |
@@ -168,40 +173,30 @@ Gateway DEPENDS ON the App and the QueryService for the content it forwards.
 | INV-17 | Confidence | REQ-22: The App shall show each tract's deterministic confidence level (Not rated when class is Insufficient data, Lower when households are under 500 or group-quarters share exceeds 20%, and Moderate otherwise), median household income with its 90% margin of error (DS-X28), and source IDs on the tract card. | test | Must | Sponsor feedback: surface sources, margins of error and confidence levels |
 | INV-18 | Map clarity | REQ-23: The Build shall emit only exterior county boundary segments with no interior water-sliver or unshared tract edges inside a county. | test | Must | Visual inspection of PR #11 showed interior unshared edges drew confusing blue lines across counties |
 | INV-19 | Map clarity | REQ-24: The App shall render tract fills at overview zoom without overlapping coverage circles obscuring the choropleth. | test | Must | Visual inspection of PR #11 showed 97 dark circles piled over urban Orange County tracts |
-| INV-20 | Data scope | REQ-25: The Ingest shall load into a table every file under `data/cache/`, `data/hackathon/` and `data/external/` whose reference period reaches 2024-01-01 or later, and every base-geography file whatever its date. | test | Must | Ketema, 2026-11-08: limit to 2024 and newer; base geography is exempt because it is only maps |
-| INV-21 | Data scope | REQ-26: The Ingest shall exclude a retained file only for time scope, for a byte-identical duplicate by SHA-256, or for a duplicate format of the same release. | test | Must | Ketema, 2026-11-08: no duplicates; nothing deleted. Excluded files stay on disk and in the file list |
-| INV-22 | Data scope | REQ-27: The Ingest shall keep only the rows for Florida, New York and Utah from a source that has a state field. | test | Must | Ketema, 2026-11-08: "stay with the brief instructions" (the brief offers Central Florida, NYC and Salt Lake City) |
-| INV-23 | Data integrity | REQ-28: The Ingest shall not read data over the network. | test | Must | Ketema, 2026-11-08: nothing fetched at build |
-| INV-24 | Data integrity | REQ-29: The Ingest shall not alter any retained source file. | test | Must | REQ-1 covers `data/hackathon/` and `data/external/`; this adds `data/cache/` |
-| INV-25 | Provenance | REQ-30: The Ingest shall record for every source file its data source ID, origin URL, retrieval method, retrieval time, SHA-256, publisher, license text and as-of date. | test | Must | Ketema, 2026-11-08: the app has to cite sources, so the warehouse records each source's origin |
-| INV-26 | Provenance | REQ-31: The Ingest shall record a provenance field that it cannot read from the file, the manifest or the data sources document as "not recorded". | test | Must | Ketema, 2026-11-08: do not infer data; it needs a real source |
-| INV-27 | Storage | REQ-32: The Operator shall keep the canonical warehouse in a private Google Cloud Storage bucket in project `<gcp-project>`. | tool | Must | Ketema, 2026-11-08: "use a gcp bucket" |
-| INV-28 | Citation | REQ-33: The QueryService shall return with every answer the data source ID, origin URL, publisher, as-of date and applied filter of each table the answer used. | test | Must | Ketema, 2026-11-08: the app has to cite sources |
-| INV-29 | Query safety | REQ-34: The QueryService shall run only read-only SELECT statements. | test | Must | The model writes the SQL, so the service enforces read-only access |
-| INV-30 | Catalog | REQ-35: The QueryService shall provide a catalog tool that lists every loaded dataset and describes each dataset's columns, grain, join keys, as-of date and known caveats. | test | Must | The sources have different grains (block, tract, county, site point, month); the catalog is what lets a join be correct |
-| INV-31 | Query tools | REQ-36: The QueryService shall provide a spatial lookup of the sites within a distance of a tract or point, and a correlation tool that returns the sample size, the coefficient, the method and the caveats. | test | Must | Ketema, 2026-11-08: the data has to be queried to find relationships; the tool computes the statistic so the model does not estimate it |
-| INV-32 | Honesty | REQ-37: The QueryService shall build every number in an answer from a tool result. | execution | Must | A language model can invent a number; a live comparison of answers with a recomputation checks it |
-| INV-33 | Privacy | REQ-38: The QueryService shall not return a column that the catalog marks private, including borrower names and borrower addresses. | test | Must | SBA loan files list borrower names and addresses; FORBIDDEN-PRIV-1 already keeps them out of the Build output |
-| INV-34 | Scope | REQ-39: The QueryService shall call no external service except Vertex AI, using the service's own identity and holding no key in the browser. | test | Must | Ketema, 2026-11-08: Vertex AI is the provider, for the sponsor perks |
-| INV-35 | Fallback | REQ-40: When Vertex AI is unavailable or exceeds its time limit, the App shall use the built-in deterministic wizard and show the notice "AI unavailable. Using built-in filters." | test | Should | Proposed by the agent (CL9-D fallback with an explicit trigger and notice); open as Z-10 |
-| INV-36 | Citation | REQ-41: The App shall show beside every AI answer a chip for each cited data source with its ID, publisher, as-of date and a link to its origin URL. | test | Must | Ketema, 2026-11-08: the app has to cite sources |
-| INV-37 | Access | REQ-42: The Gateway shall require HTTP basic authentication for every request to the App and the QueryService. | test | Must | Ketema, 2026-11-08: authenticated access while the services are up; username [omitted] |
-| INV-38 | Secrets | REQ-43: The Operator shall keep the Gateway password only in Google Secret Manager and never in a repository file, an image layer or a log. | tool | Must | CL16; the password was given in chat and stays out of the repository |
-| INV-39 | Access | REQ-44: The Operator shall set ingress to internal-only for the App and the QueryService, so that a request to either service's own address from outside the Gateway fails. | execution | Must | Ketema, 2026-11-08: option B, login plus a private network |
-| INV-40 | Lifecycle | REQ-45: The Operator shall remove the Gateway, the QueryService, the App and the bucket's access grants after the hackathon ends. | tool | Should | Ketema, 2026-11-08: it comes down after the hackathon; the trigger is open as Z-12 |
-| INV-41 | Data scope | REQ-46: The Ingest shall list every excluded file with its reason. | test | Must | Ketema, 2026-11-08: nothing is deleted, so exclusions must be visible |
-| INV-42 | Data scope | REQ-47: The Ingest shall keep every row of a source that has no state field. | test | Must | A source without a state field cannot be filtered without guessing |
-| INV-43 | Data scope | REQ-48: The Ingest shall record the rows in the source and the rows loaded for each table. | test | Must | A reader can check the filter against a recount |
-| INV-44 | Provenance | REQ-49: The Ingest shall record for every table the file it came from and the filter applied. | test | Must | Ketema, 2026-11-08: the app cites sources down to the file |
-| INV-45 | Provenance | REQ-50: The Ingest shall not infer a provenance field. | test | Must | Ketema, 2026-11-08: do not infer data; it needs a real source |
-| INV-46 | Query safety | REQ-51: The QueryService shall apply a row limit and a time limit to every query. | test | Must | Keeps a model-written query from exhausting the service |
-| INV-47 | Query safety | REQ-52: The QueryService shall reject any statement that is not a read-only SELECT with an error that names the rule broken. | test | Must | The caller learns which rule failed |
-| INV-48 | Honesty | REQ-53: The QueryService shall not state a number that no tool returned. | execution | Must | A language model can invent a number; a live comparison with a recomputation checks it |
-| INV-49 | Access | REQ-54: The Gateway shall answer a request without valid credentials with HTTP 401. | test | Must | Ketema, 2026-11-08: authenticated access while the services are up |
+| INV-20 | Data scope | REQ-25: The Ingest shall load into the warehouse every retained source file with a reference period of 2024-01-01 or later, and every base-geography file at its most recent vintage. | test | Must | Ketema, 2026-11-08: 2024 and newer; base geography is only maps |
+| INV-21 | Data scope | REQ-26: The Ingest shall list each excluded file with its reason: time scope, duplicate content, or duplicate format. | test | Must | Ketema, 2026-11-08: nothing is deleted, and there are no duplicates |
+| INV-22 | Data scope | REQ-27: The Ingest shall keep only the Florida, New York and Utah rows of a source that has a state field, and every row of a source that has none. | test | Must | Ketema, 2026-11-08: stay with the brief's three regions |
+| INV-23 | Data integrity | REQ-28: The Ingest shall read retained source files from local disk only and leave them unaltered. | test | Must | Ketema, 2026-11-08: nothing is fetched at build; raw sources stay as retrieved |
+| INV-24 | Provenance | REQ-29: The Ingest shall record for every table its source file, origin URL, retrieval time, SHA-256, publisher, license, as-of date, applied filter, rows in the source and rows loaded; a field that the sources do not state reads "not recorded". | test | Must | Ketema, 2026-11-08: the app cites its sources and does not infer data |
+| INV-25 | Glossary | REQ-30: The Ingest shall build a glossary table from the data dictionaries and lookup files that it loads. | test | Must | Ketema, 2026-11-08: the model needs grounded definitions of the terms |
+| INV-26 | Storage | REQ-31: The Operator shall keep the canonical warehouse in a private Google Cloud Storage bucket in project `<gcp-project>`. | tool | Must | Ketema, 2026-11-08: "use a gcp bucket" |
+| INV-27 | Citation | REQ-32: The QueryService shall return with every answer the source ID, origin URL, publisher, as-of date and filter of each table the answer used. | test | Must | Ketema, 2026-11-08: the app has to cite sources |
+| INV-28 | Schema | REQ-33: The QueryService shall provide a schema tool that returns the warehouse tables, columns, grain, join keys, as-of dates and glossary terms. | test | Must | Ketema, 2026-11-08: free-form questions need the warehouse schema; the sources differ in grain |
+| INV-29 | Free query | REQ-34: The QueryService shall run any read-only SELECT statement that the model writes, within a row limit and a time limit. | test | Must | Ketema, 2026-11-08: any free-form query is allowed; loan rows are not restricted (Z-9) |
+| INV-30 | Query tools | REQ-35: The QueryService shall provide a spatial lookup of sites near a tract or point and a correlation tool that returns the sample size, coefficient, method and caveats. | test | Must | Ketema, 2026-11-08: the data is queried to find relationships; the tool computes the statistic |
+| INV-31 | Grounding | REQ-36: The QueryService shall send the core taxonomy in `docs/taxonomy.md` to the model with every question. | test | Must | Ketema, 2026-11-08: without it the model invents what "Food Desert" means |
+| INV-32 | Honesty | REQ-37: The QueryService shall build every number in an answer from a tool result. | execution | Must | A language model can invent a number; a live comparison with a recomputation checks it |
+| INV-33 | Provider | REQ-38: The QueryService shall call Vertex AI with a Gemini model named in its configuration, using the service's own identity. | test | Must | Ketema, 2026-11-08 (Z-8): Vertex AI for the sponsor perks, starting with Gemini 3.8 Flash; no key reaches the browser |
+| INV-34 | Fallback | REQ-39: When Vertex AI is unavailable or slow, the App shall use the built-in wizard and show the notice "AI unavailable. Using built-in filters." | test | Must | Ketema, 2026-11-08 (Z-10) |
+| INV-35 | Citation | REQ-40: The App shall show beside every AI answer a chip for each cited source with its ID, publisher, as-of date and origin link. | test | Must | Ketema, 2026-11-08: the app has to cite sources |
+| INV-36 | Access | REQ-41: The Gateway shall require HTTP basic authentication for every request to the App and the QueryService. | test | Must | Ketema, 2026-11-08 (Z-13): username [omitted]; a request without valid credentials gets HTTP 401 |
+| INV-37 | Secrets | REQ-42: The Operator shall keep the Gateway password only in Google Secret Manager. | tool | Must | CL16: the password given in chat stays out of every repository file, image layer and log |
+| INV-38 | Access | REQ-43: The Operator shall set the App and the QueryService to internal-only ingress. | execution | Must | Ketema, 2026-11-08 (Z-13): login plus a private network; a request to a service address from outside the Gateway fails |
+| INV-39 | Lifecycle | REQ-44: The Operator shall remove the Gateway, the QueryService, the App and the bucket's access grants when the hackathon is over. | human review | Should | Ketema, 2026-11-08 (Z-12): "ketema will handle teardown"; no fixed date |
 
 When the slider slice starts, the App shall carry INV-02 (REQ-2, the "assumption-based estimate" label). See "Deferred items" in section 5.
 
-**Pending amendment (Z-7).** INV-06 (REQ-6) and the App row of the Actor Matrix say the App calls no external service at runtime. SLICE-3 to SLICE-5 add a same-origin query API and a login. The text of INV-06 and the Viewer definition ("no account") stay as written until the human decides Z-7. This is not a thin amendment under QS6, because it changes an approved requirement.
+**Cycle 13 amends two approved requirements (Z-7, Z-9).** INV-06 (REQ-6) now states the need instead of a ban, and INV-04 (REQ-4) covers the static files only. Ketema decided both (CL4), 2026-11-08. SLICE-1 behavior stays the same: its App still draws from its static files and a tile server.
 
 ## 5. High-Entropy Zones (Adjudicated)
 | Zone | Question | Resolution | Decided By |
@@ -220,17 +215,17 @@ When the slider slice starts, the App shall carry INV-02 (REQ-2, the "assumption
 | **Z-4** | Which Cloud Run project and region? | **Project `<gcp-project>`, region `us-east1`.** Cloud Run, Artifact Registry and Cloud Build APIs are enabled and the human's account is owner | Ketema (CL4), 2026-11-07 |
 | **Z-5** | Where does the Build write the static tract file? | **`public/data/tracts.geojson`**, the standard Vite static directory. The Vite bundle goes to the standard `dist/`. Both paths are generated and listed in `.gitignore`, so neither is committed. Builds and test suites run in tmux offload | Ketema (CL4), 2026-11-07 |
 | **Z-6** | Which base map tile source does the App use? | **OpenFreeMap Positron vector tiles** (`https://tiles.openfreemap.org/styles/positron`), free and keyless, with the REQ-10 blank-background fallback and "Base map unavailable" banner when tiles fail to load | Ketema (CL4), 2026-11-07 |
-| **Z-7** | Does INV-06 (REQ-6) change to let the App call its own same-origin query API? | **Unresolved.** A) amend INV-06 so that the App calls only its own same-origin query API and map tile servers, and the QueryService calls only Vertex AI (recommended). B) keep INV-06 as written and run the AI in the browser (weaker answers, large downloads). Also decide the Viewer definition: today "no account", now a shared login | pending (CL4) |
-| **Z-8** | Which Vertex AI model and region? | **Unresolved.** The model identifier and its availability in `us-east1` are checked against the Vertex AI documentation before the contract. Recommendation: the current Gemini Flash-class model for cost and speed, with the model name set in configuration | pending (CL4) |
-| **Z-9** | May the QueryService return individual SBA loan rows? | **Unresolved.** A) aggregates and counts only. B) loan rows with borrower name and address removed (recommended: relationships such as lender or loan size by tract need the rows). C) full rows. Borrower names and addresses stay private in A and B | pending (CL4) |
-| **Z-10** | What happens when Vertex AI is down? | **Unresolved.** A) fall back to the built-in deterministic wizard with the notice in REQ-40 (recommended). B) fail with an error and no fallback | pending (CL4) |
-| **Z-11** | Which example questions define "answers natural-language questions about the data"? | **Unresolved.** The Completion Promise for SLICE-4 needs five to eight questions with a recomputed answer for each. The agent proposes them and the human edits | pending (CL4) |
-| **Z-12** | When is the shutdown, and who triggers it? | **Unresolved.** Options: the human triggers it on a stated date, or a scheduled job removes the services on that date. Blocks only REQ-45 | pending (CL4) |
-| **Z-13** | How are the services protected? | **Decided.** HTTP basic authentication at an nginx Gateway (username [omitted], password in Secret Manager, never in the repository), with the App and the QueryService on internal-only ingress. No other protection is added | Ketema (CL4), 2026-11-08 |
-| **Z-14** | Where does the canonical warehouse live, and how do the App and model both reach it? | **Decided.** A private Google Cloud Storage bucket in `<gcp-project>`. The QueryService loads the warehouse at start. New App features read through the QueryService; the static tract file stays for the map | Ketema (CL4), 2026-11-08 |
-| **Z-15** | What data does the warehouse hold? | **Decided.** Every retained source file with a reference period of 2024 or later, plus base geography (any date, the most recent), Florida, New York and Utah rows where a source has a state field, nothing fetched at build, nothing deleted, no duplicates. Retrieved files outside the scope stay on disk and are listed with their reason | Ketema (CL4), 2026-11-08 |
-| **Z-16** | Which model provider and query design? | **Decided.** Vertex AI (Gemini) with a hybrid tool set: a catalog, read-only SQL and a few typed tools. The model never states a number the tools did not return | Ketema (CL4), 2026-11-08 |
-| **Z-17** | Does SLICE-4 include an MCP server? | **Unresolved, deferred.** Recommendation: not in SLICE-4; wrap the same tools in MCP later if there is time. Blocks nothing | pending (CL4) |
+| **Z-7** | Does INV-06 (REQ-6) change to let the App use its own query API? | **Decided.** INV-06 states the need: the App gets its data from this project's own files and query service, and its map tiles from a tile server. A Viewer is someone with the shared login | Ketema (CL4), 2026-11-08 |
+| **Z-8** | Which Vertex AI model? | **Decided.** Gemini 3.8 Flash to start, named in configuration. The model name and its availability in `us-east1` are confirmed with a live call when the contract is written | Ketema (CL4), 2026-11-08 |
+| **Z-9** | May the QueryService return individual SBA loan rows? | **Decided.** Yes, full rows with no column restriction; the data is public. The default insight queries aggregate, and row-level data comes back when the user asks | Ketema (CL4), 2026-11-08 |
+| **Z-10** | What happens when Vertex AI is down? | **Decided.** The App falls back to the built-in wizard and shows the notice in REQ-39 | Ketema (CL4), 2026-11-08 |
+| **Z-11** | Which questions define "answers natural-language questions about the data"? | **Decided.** Six baseline questions, listed in section 8, plus free-form questions through the schema tool and read-only SQL | Ketema (CL4), 2026-11-08 |
+| **Z-12** | When is the shutdown, and who triggers it? | **Decided.** Ketema handles the teardown himself, with no fixed date | Ketema (CL4), 2026-11-08 |
+| **Z-13** | How are the services protected? | **Decided.** HTTP basic authentication at an nginx Gateway (username [omitted], password in Secret Manager, never in the repository) and internal-only ingress for the App and the QueryService | Ketema (CL4), 2026-11-08 |
+| **Z-14** | Where does the canonical warehouse live, and how do the App and the model both reach it? | **Decided.** A private Google Cloud Storage bucket in `<gcp-project>`. The QueryService loads it at start. New App features read through the QueryService; the static tract file stays for the map | Ketema (CL4), 2026-11-08 |
+| **Z-15** | What data does the warehouse hold? | **Decided.** Every retained source file with a reference period of 2024 or later, plus base geography (most recent vintage), Florida, New York and Utah rows where a source has a state field, nothing fetched at build, nothing deleted, no duplicates | Ketema (CL4), 2026-11-08 |
+| **Z-16** | Which provider and query design? | **Decided.** Vertex AI with a schema tool, read-only SQL for free-form queries, a spatial lookup and a correlation tool. The core taxonomy goes with every question | Ketema (CL4), 2026-11-08 |
+| **Z-17** | Is an MCP server in scope? | **Decided.** No. A later slice can wrap the same tools | Ketema (CL4), 2026-11-08 |
 
 **Note on the Z-1 poverty cut.** The cycle 1 review gave 17.1% and cycle 3 gave 17.0%. Both are roundings of the same 75th percentile, computed two ways with Python `statistics.quantiles(n=4)` over the 488 tracts that have a poverty value: exclusive method 17.075%, inclusive method 17.025%. Both cuts give the same 97 tracts (driving-distance LILA) and 68 tracts (straight-line LILA). The only tract between the rounded and the computed cuts is `12069031107` (poverty 17.0%), and it has no LILA flag, so a literal "17.0% or more" rule also gives 97. Do not encode a rounded value. The contract computes the cut and names the method.
 
@@ -294,10 +289,10 @@ These are candidates for each mapping job. They are not chosen and not rejected.
 | computeFlags() | Flag high-need tracts without nearby pantries | NO | App | Page load |
 | buildTractCard(tractId) | Evidence, confidence, limitations | NO | App | Tract click |
 | ingest-warehouse | Load retained files into the warehouse tables | YES (writes the warehouse only) | Ingest | A developer runs it |
-| catalog.list and catalog.describe | List and describe datasets | NO | QueryService | A model tool call |
-| sql.query | Run a read-only SELECT | NO | QueryService | A model tool call |
-| sites.near | Find sites within a distance | NO | QueryService | A model tool call |
-| stats.correlate | Compute a correlation with sample size and caveats | NO | QueryService | A model tool call |
+| schema.describe | Return tables, columns, grain, join keys, as-of dates and glossary terms | NO | QueryService | A model tool call |
+| sql.query | Run a read-only SELECT within the limits | NO | QueryService | A model tool call |
+| sites.near | Find sites within a distance of a tract or point | NO | QueryService | A model tool call |
+| stats.correlate | Compute a correlation with sample size, method and caveats | NO | QueryService | A model tool call |
 | ask | Answer a plain-language question with citations | NO | App | The Viewer submits a question |
 
 ## 6.5 Blocking Dependencies
@@ -311,13 +306,6 @@ These are candidates for each mapping job. They are not chosen and not rejected.
 | Z-5 | Decided (`public/data/tracts.geojson`); contract clause for IP-4, Build, INV-01 test |
 | Z-6 | Decided (OpenFreeMap Positron vector tiles with REQ-10 fallback); blocks nothing |
 | Second Harvest and Feeding America redistribution | Decided by the human in cycle 6: no permission request is needed, because the data was already public. Blocks nothing |
-| Z-7 | The App and QueryService contracts that carry REQ-39 to REQ-41, and any change to INV-06 |
-| Z-8 | The contract for REQ-39 (model identifier, region) |
-| Z-9 | Contracts for REQ-33 and REQ-38 (what a result row may contain) |
-| Z-10 | The contract for REQ-40 |
-| Z-11 | The SLICE-4 Completion Promise and its execution tests |
-| Z-12 | The contract for REQ-45 only |
-| Z-17 | Nothing |
 
 ## 7. Failure Mode Specification (CL9)
 
@@ -328,11 +316,11 @@ These are candidates for each mapping job. They are not chosen and not rejected.
 | REQ-9 | Build input file is missing or has changed columns | Halt: the Build exits non-zero | The Build shall name the file and column |
 | REQ-10 | Map tiles fail to load | FALLBACK: draw tracts on a blank background | The App shall display "Base map unavailable" |
 | REQ-25 | The Ingest cannot read a file in scope | Halt: the Ingest exits non-zero | The Ingest shall name the file and the reader error |
-| REQ-30 | A required provenance field is absent | Record "not recorded" and continue | The files table shows "not recorded" for that field |
-| REQ-34 | A statement is not a read-only SELECT, or exceeds a limit | Reject the statement | The QueryService shall return an error naming the rule broken |
-| REQ-39 | Vertex AI is unreachable or slow | Pending Z-10 (proposed fallback in REQ-40) | The App shall show the notice in REQ-40 |
-| REQ-42 | Credentials are missing or wrong | Reject the request | The Gateway shall answer HTTP 401 |
-| REQ-44 | A request reaches a service address directly | The request fails | The service address returns an error and no content |
+| REQ-29 | A provenance field is absent from the sources | Record "not recorded" and continue | The files table shows "not recorded" for that field |
+| REQ-34 | The model writes a statement that is not a read-only SELECT, or a query exceeds a limit | Reject the statement | The QueryService shall return an error that names the rule broken |
+| REQ-38 | Vertex AI is unreachable or slow | FALLBACK: the built-in wizard (REQ-39) | The App shall show the notice in REQ-39 |
+| REQ-41 | Credentials are missing or wrong | Reject the request | The Gateway shall answer HTTP 401 |
+| REQ-43 | A request reaches a service address directly | The request fails | The service address returns an error and no content |
 
 When the slider slice starts, the App shall carry REQ-11 (slider clamp).
 
@@ -341,13 +329,13 @@ When the slider slice starts, the App shall carry REQ-11 (slider clamp).
 
 Human acceptance remains with the human: whether the map and card are useful to a food bank planner.
 
-> SLICE-3 (warehouse): "The warehouse files table lists every retained source file with its reason for exclusion or its tables; the row counts of the tables equal a recount of the source files after the state filter; no table lacks a provenance row; the Ingest run with the network disabled produces the same tables. A check that passes while a table has no origin URL, or while a count differs from a recount, must fail."
+> SLICE-3 (warehouse): "The files table lists every retained source file as loaded or excluded with its reason; the row counts of the tables equal a recount of the source files after the state filter; every table has an origin URL, SHA-256 and filter; a run with the network disabled produces the same tables. A check that passes while a table has no origin URL, or while a count differs from a recount, must fail."
 >
-> SLICE-4 (query service and AI): pending Z-11. The Viewer asks the agreed questions and each answer matches a recomputation from the source files and cites the sources it used. A check that passes when an answer states a number that the tools did not return must fail.
+> SLICE-4 (query service and AI): "A Viewer asks these six baseline questions, and each answer equals an independent recomputation from the source files and names the sources it used: (1) How many Classic Food Desert tracts are in Orange County, and how many of them had 10 or fewer SBA loans? (2) Which five lenders approved the most SBA 7(a) loans in Florida with an approval date in 2024 or later? (3) Among the Classic Food Desert tracts, which five have the highest FEMA hurricane expected annual loss? (4) Across the 490 Central Florida tracts, how strongly is poverty rate correlated with SBA loan count? (5) Where did the median income for tract 12095016510 come from, and how reliable is it? (6) How many people lost SNAP in Seminole County? For question 6 the correct answer states that the warehouse holds no county-level figure. Free-form questions run through the schema tool and read-only SQL. A check that passes when an answer states a number that no tool returned must fail."
 >
-> SLICE-5 (access): a request without the login gets HTTP 401; a request to a service's own address from outside the Gateway fails; the password appears in no repository file, image layer or log; the Operator removes the services on the shutdown trigger (Z-12).
+> SLICE-5 (access): "A request without the login gets HTTP 401; a request to a service's own address from outside the Gateway fails; the password appears in no repository file, image layer or log."
 
-Human acceptance of SLICE-3 to SLICE-5 remains with the human: whether the answers are useful and trustworthy.
+Human acceptance of SLICE-3 to SLICE-5 remains with the human: whether the answers are useful and trustworthy. Ketema handles the teardown (Z-12).
 
 ## 9. Contract Authority
 **Authoritative Sources**: `contracts/planner_map_contract.py` (Build domain, Python) and `contracts/planner-map.app.contract.ts` (App domain, TypeScript, cross-referenced by clause ID per Idiomatic Per-Ecosystem Distribution)
@@ -379,4 +367,4 @@ src/
 | 2026-11-07 | Ketema, agent | Cycle 10: applied Ryan's agent's review of cycle 9. REQ-3 split into REQ-3 (card text) and REQ-16 (the two phrases never appear anywhere). Added REQ-17 (the Build writes only tract-level fields to the static file). REQ-14 counts the 489 drawn tracts. Three "fact" rewordings became human decisions or expectations. Recorded Z-5 (`public/data/tracts.geojson`, ignored, builds in tmux offload, Ketema) and Z-2e (Ketema confirmed; Ryan to accept). Ambiguity 1: only Z-6 remains. |
 | 2026-11-07 | Ketema, agent | Cycle 11: Z-2e Decided By is now Ketema and Ryan (Ryan accepted on issue #4). Stack row records TypeScript 7 at Ketema's direction; PR #8 moves the scaffolding. |
 | 2026-11-07 | Ketema, agent | Cycle 12: constitutional refactor incorporating sponsor feedback, live visual inspection of PR #11, PR #12 median household income data (DS-X28, DS-X29), and Ketema's Gap Zapper directive. Added Actor Officer and requirements REQ-18 (three persona lenses and KPI cohort cards), REQ-19 (SBA lending contrast, DS-X5, 50 dual-gap tracts), REQ-20 (no-vehicle transport gap, DS-X7b, 53 tracts, 29 triple-gap tracts, mobile deployment recommendation), REQ-21 (AI Insight and Coordinated Action Wizard with counterfactual brief generator), REQ-22 (deterministic confidence level, median household income + 90% MOE, and sources), REQ-23 (exterior-only county boundaries), and REQ-24 (unobscured overview choropleth). Recorded Z-6 (OpenFreeMap Positron with REQ-10 fallback). Ambiguity score 1 to 0. |
-| 2026-11-08 | Ketema, agent | Cycle 13: wiring the data and the AI. Added actors Ingest, QueryService, Gateway and Operator; requirements REQ-25 to REQ-54 (INV-20 to INV-49; each with one SHALL after the lint) for SLICE-3 (warehouse), SLICE-4 (query service and AI) and SLICE-5 (access); dependencies, SEQ-5 to SEQ-9, IP-10 to IP-15, lifecycle rows, interfaces and failure modes. Recorded decided zones Z-13 to Z-16 (login plus internal ingress; GCS bucket; 2024-or-newer scope with Florida, New York and Utah; Vertex AI with hybrid tools). Open zones Z-7 to Z-12 and Z-17 (Z-7 is a pending amendment of INV-06, not thin under QS6). INV-06 and the SLICE-1 text are unchanged. The password given in chat is not recorded here (CL16). |
+| 2026-11-08 | Ketema, agent | Cycle 13: wiring the data and the AI. Added actors Ingest, QueryService, Gateway and Operator; requirements REQ-25 to REQ-44 (INV-20 to INV-39) for SLICE-3 (warehouse), SLICE-4 (query service and AI) and SLICE-5 (access); SEQ-5 to SEQ-10, IP-10 to IP-16, lifecycle rows, interfaces and failure modes; core taxonomy in `docs/taxonomy.md`. Resolved zones Z-7 to Z-17 one at a time with Ketema (CL4). INV-06 now states the need (own files and query service plus tiles) and INV-04 covers the static files only (Z-9: loan rows are not restricted). The first draft of this cycle had 30 requirements; the human asked for need-based statements, not a straitjacket (PONYTAIL), so it was compressed to 20. The password given in chat is not recorded (CL16). Ambiguity 0. |
