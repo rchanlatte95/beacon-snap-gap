@@ -32,6 +32,16 @@ from src.warehouse import office as impl
 
 # Risk tier: HIGH. A misread date or a dropped cell changes every figure built on a workbook.
 
+# Disconnect Matrix B08: a missing tool surfaces as SKIP with the reason, never as a failure.
+NEEDS_LIBREOFFICE = pytest.mark.skipif(
+    shutil.which("soffice") is None,
+    reason="ARRANGE: LibreOffice (soffice) must be on PATH for this integration test",
+)
+NEEDS_POPPLER = pytest.mark.skipif(
+    shutil.which("pdftotext") is None or shutil.which("pdfinfo") is None,
+    reason="ARRANGE: Poppler's pdftotext and pdfinfo must be on PATH for this integration test",
+)
+
 _NS = (
     'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
     'xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" '
@@ -74,6 +84,7 @@ def _convert(src: Path, target: str) -> Path:
     return src.with_suffix(f".{target}")
 
 
+@NEEDS_LIBREOFFICE
 def test_workbook_sheets_keep_typed_cells_with_one_date_format(tmp_path: Path):
     """
     CONTRACT TRACEABILITY:
@@ -182,6 +193,8 @@ def test_workbook_sheets_keep_typed_cells_with_one_date_format(tmp_path: Path):
     )
 
 
+@NEEDS_LIBREOFFICE
+@NEEDS_POPPLER
 def test_slide_deck_is_one_page_per_slide(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """
     CONTRACT TRACEABILITY:

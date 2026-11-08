@@ -283,7 +283,9 @@ def test_delimited_read_keeps_text_reports_encoding_and_fails_fast(tmp_path: Pat
     for label, bad in (("missing", tmp_path / "absent.csv"), ("directory", tmp_path)):
         with pytest.raises(read_impl.SourceReadError) as caught:
             read_impl.read_delimited(con, bad)
-        assert str(bad) in str(caught.value), (
+        # The reader quotes the path with !r, which doubles each backslash of a Windows path.
+        named = (str(bad), str(bad).replace("\\", "\\\\"))
+        assert any(form in str(caught.value) for form in named), (
             "test_delimited_read_keeps_text_reports_encoding_and_fails_fast FAILED\n"
             f"ERRORS-READ-1 violation for {label}: the error does not name the file\n"
             f"EXPECTED: SourceReadError naming {str(bad)!r}\n"

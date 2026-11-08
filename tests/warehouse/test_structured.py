@@ -31,6 +31,24 @@ from src.warehouse import structured as impl
 # feature drops a place from the map's source data.
 
 
+def _spatial_loads() -> bool:
+    """True when DuckDB can LOAD the spatial extension here. No test installs it."""
+    try:
+        with duckdb.connect(":memory:") as con:
+            con.execute(f"LOAD {contract.GEO_EXTENSION}")
+    except duckdb.Error:
+        return False
+    return True
+
+
+# Disconnect Matrix B08: a missing tool surfaces as SKIP with the reason, never as a failure.
+NEEDS_SPATIAL = pytest.mark.skipif(
+    not _spatial_loads(),
+    reason=f"ARRANGE: DuckDB's {contract.GEO_EXTENSION} extension must be installed "
+    f"(INSTALL {contract.GEO_EXTENSION}) for this integration test",
+)
+
+
 def test_json_tables_keep_every_entry_with_values_as_written(tmp_path: Path):
     """
     CONTRACT TRACEABILITY:
@@ -89,6 +107,7 @@ def test_json_tables_keep_every_entry_with_values_as_written(tmp_path: Path):
         )
 
 
+@NEEDS_SPATIAL
 def test_geographic_files_keep_every_feature_with_text_attributes(tmp_path: Path):
     """
     CONTRACT TRACEABILITY:
