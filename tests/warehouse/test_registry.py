@@ -214,24 +214,25 @@ def test_registry_entries_match_only_by_exact_path_and_member_name(tmp_path: Pat
 def test_delimited_read_keeps_text_reports_encoding_and_fails_fast(tmp_path: Path):
     """
     CONTRACT TRACEABILITY:
-    - Contract: warehouse_contract READ_ENCODINGS
-    - Enforces: POST-READ-1, ERRORS-READ-1
+    - Contract: warehouse_contract READ_ENCODINGS, RejectedRow
+    - Enforces: POST-READ-1, ERRORS-READ-1 (Z-22: a malformed row never excludes the file)
     - Category: positive, negative, boundary
     - Risk tier: HIGH
     - Pyramid level: Integration (DuckDB reading real files)
     - Equivalence partition: UTF-8 CSV with leading-zero codes; Latin-1 CSV; pipe-delimited file
-      without a header; missing file; a directory in place of a file.
+      without a header; a CSV with one row of too many columns; missing file; a directory.
     """
     con = duckdb.connect(":memory:")
 
     utf8 = tmp_path / "codes.csv"
     utf8.write_bytes(b"GEO_ID,code,name\n1400000US12095016510,007,Orlando\n")
-    rel, enc = read_impl.read_delimited(con, utf8)
+    rel, enc, rejects = read_impl.read_delimited(con, utf8)
     type_names = {str(t) for t in rel.types}
-    assert (rel.fetchall(), type_names, enc) == (
+    assert (rel.fetchall(), type_names, enc, rejects) == (
         [("1400000US12095016510", "007", "Orlando")],
         {"VARCHAR"},
         "utf-8",
+        (),
     ), (
         "test_delimited_read_keeps_text_reports_encoding_and_fails_fast FAILED\n"
         "POST-READ-1 violation: rows, column types or encoding wrong for a UTF-8 file\n"
@@ -242,7 +243,7 @@ def test_delimited_read_keeps_text_reports_encoding_and_fails_fast(tmp_path: Pat
 
     latin = tmp_path / "latin.csv"
     latin.write_bytes(b"name\ncaf\xe9\n")
-    rel_l, enc_l = read_impl.read_delimited(con, latin)
+    rel_l, enc_l, _ = read_impl.read_delimited(con, latin)
     assert (rel_l.fetchall(), enc_l) == ([("caf\u00e9",)], "latin-1"), (
         "test_delimited_read_keeps_text_reports_encoding_and_fails_fast FAILED\n"
         "POST-READ-1 violation: a Latin-1 file was not decoded after UTF-8 failed\n"
@@ -253,13 +254,30 @@ def test_delimited_read_keeps_text_reports_encoding_and_fails_fast(tmp_path: Pat
 
     piped = tmp_path / "blocks.pl"
     piped.write_bytes(b"PLST|FL|750|12\nPLST|FL|750|13\n")
-    rel_p, _ = read_impl.read_delimited(con, piped, delimiter="|", header=False)
+    rel_p, _, _ = read_impl.read_delimited(con, piped, delimiter="|", header=False)
     assert rel_p.fetchall() == [("PLST", "FL", "750", "12"), ("PLST", "FL", "750", "13")], (
         "test_delimited_read_keeps_text_reports_encoding_and_fails_fast FAILED\n"
         "POST-READ-1 violation: a headerless pipe file did not keep every row\n"
         "EXPECTED: both rows as text\n"
         f"ACTUAL: {rel_p.fetchall()!r}\n"
         "GUIDANCE: a headerless file keeps its first line as data"
+    )
+
+    ragged = tmp_path / "ragged.csv"
+    ragged.write_bytes(b"a,b\n1,2\n3,4,5\n6,7\n")
+    rel_r, _, rejects_r = read_impl.read_delimited(con, ragged)
+    want_reject = contract.RejectedRow(line=3, error_type="TOO MANY COLUMNS", raw="3,4,5")
+    got_view = (rel_r.fetchall(), [(r.line, r.error_type, r.raw) for r in rejects_r])
+    assert got_view == (
+        [("1", "2"), ("6", "7")],
+        [(want_reject.line, want_reject.error_type, want_reject.raw)],
+    ), (
+        "test_delimited_read_keeps_text_reports_encoding_and_fails_fast FAILED\n"
+        "POST-READ-1 violation: a malformed row excluded the file or was not reported\n"
+        "EXPECTED: rows [('1', '2'), ('6', '7')] and one rejected row at line 3, "
+        "'TOO MANY COLUMNS', raw '3,4,5'\n"
+        f"ACTUAL: {got_view!r}\n"
+        "GUIDANCE: load every parsable row and return each unparsable row with its line (Z-22)"
     )
 
     for label, bad in (("missing", tmp_path / "absent.csv"), ("directory", tmp_path)):

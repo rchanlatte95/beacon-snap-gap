@@ -50,6 +50,7 @@ Only Ketema unparks an entry. Decision-model support (jev-1.14, 2026-11-08) is a
 
 - **Decided By: User** (Ketema, 2026-11-08): neither A nor B alone, "the solution is a combination of both. do not let a single row exclude an entire file. allow the placeholders, but log it so that it is surfaced."
 - **Effect on POST-READ-3:** an undecodable byte becomes a replacement character instead of stopping the file; every replacement is recorded (file, page or row, count) and surfaced. POST-READ-3 is amended accordingly and unparked; the same rule applies to delimited files, so one bad row never drops a table.
+- **Design, Decided By: User** (Ketema, 2026-11-08): "A." Decode the whole file with UTF-8, else Latin-1, and report the encoding per file; on real data this keeps "Doña" (census population file), where UTF-8 with replacement gave "Do�a". Malformed delimited rows are set aside and returned with line, error type and raw text (POST-READ-1). Decision model, advisory: A over B 71%.
 
 - **Clause text:** "decoded by the first of READ_ENCODINGS that decodes it without error ... no byte is replaced or dropped".
 - **Conflict:** REQ-28 says "leave them unaltered". The decision model reads that as the files on disk only (support 38% that it covers the loaded text). The first build decoded with `errors="replace"`, which silently changed undecodable bytes in the loaded text.

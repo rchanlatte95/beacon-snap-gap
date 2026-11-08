@@ -347,6 +347,15 @@ class DocumentPage:
     text: str
 
 
+@dataclass(frozen=True)
+class RejectedRow:
+    """Z-22: a delimited row the reader set aside, with its 1-based file line and raw text."""
+
+    line: int
+    error_type: str
+    raw: str
+
+
 # --- 4. Callable validators ----------------------------------------------------------------
 
 
@@ -1284,17 +1293,19 @@ CONTRACT_REGISTRY: Mapping[str, Clause] = {
     ),
     "POST-READ-1": Clause(
         "test",
-        "read_delimited(con, path, delimiter=..., header=...) returns a DuckDB relation whose "
-        "columns are all VARCHAR and whose rows equal the file's rows, decoding with "
-        "READ_ENCODINGS in order, and reports the encoding that succeeded.",
-        ("REQ-25", "REQ-28"),
+        "read_delimited(con, path, delimiter=..., header=...) returns a DuckDB relation of every "
+        "parsable row, all columns VARCHAR; the encoding used, the first of READ_ENCODINGS that "
+        "decodes the whole file, so a Latin-1 fallback is reported and never mixed with UTF-8; and "
+        "one RejectedRow per unparsable row, with its file line, error type and raw text. A "
+        "malformed row never excludes the file (Z-22).",
+        ("REQ-25", "REQ-28", "REQ-53", "REQ-54"),
     ),
     "ERRORS-READ-1": Clause(
         "test",
-        "read_delimited raises SourceReadError naming the file and the reader's message when the "
-        "file is missing or cannot be read with any of READ_ENCODINGS; it never returns an empty "
-        "relation for an unreadable file.",
-        ("REQ-25",),
+        "read_delimited raises SourceReadError naming the file and the reader's message only when "
+        "the file is missing, is not a file, or cannot be read with any of READ_ENCODINGS; a "
+        "malformed row is not a reason to raise (Z-22).",
+        ("REQ-25", "REQ-53"),
     ),
 }
 
@@ -1360,8 +1371,8 @@ CONTRACT_DOCUMENTS: Mapping[str, Clause] = {
         "test",
         "read_text_pages(path) returns one DocumentPage numbered TEXT_PAGE with the file's text "
         "decoded by the first of READ_ENCODINGS that decodes it without error, and that encoding; "
-        "no byte is replaced or dropped. An undecodable or missing file raises SourceReadError "
-        "(ERRORS-READ-1).",
-        ("REQ-25", "REQ-28"),
+        "no byte is replaced or dropped, and the reported encoding is what the Ingest logs for the "
+        "file (Z-22). An undecodable or missing file raises SourceReadError (ERRORS-READ-1).",
+        ("REQ-25", "REQ-28", "REQ-53", "REQ-54"),
     ),
 }

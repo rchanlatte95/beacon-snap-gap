@@ -1,10 +1,10 @@
-"""RED tests for SLICE-3 batch 6c-ii: reading PDF pages.
+"""RED tests for SLICE-3 batch 6c-ii: reading PDF pages and text files.
 
 CONTRACT AUTHORITY RECORD:
 - File: contracts/warehouse_contract.py (CONTRACT_DOCUMENTS)
 - Authority: AUTHORITATIVE for the warehouse and its Ingest (SLICE-3)
-- Clauses covered: POST-READ-2, ERRORS-READ-2 (POST-READ-3 is parked on queue Q-5)
-- Requirements: REQ-25, REQ-28
+- Clauses covered: POST-READ-2, ERRORS-READ-2, POST-READ-3 (unparked: Z-22 design A, Ketema)
+- Requirements: REQ-25, REQ-28, REQ-53, REQ-54
 
 The implementation is src/warehouse/documents.py. It does not import the contract (CL11-F);
 these tests import both.
@@ -175,4 +175,51 @@ def test_unreadable_or_incomplete_pdfs_stop_with_the_file_named(
         "EXPECTED: SourceReadError citing ERRORS-READ-2 with both counts (2 and 5)\n"
         f"ACTUAL: {caught_count.value!s}\n"
         "GUIDANCE: compare pdftotext's pages with pdfinfo's count and stop when they differ"
+    )
+
+
+def test_text_file_is_one_page_decoded_without_replacement(tmp_path: Path):
+    """
+    CONTRACT TRACEABILITY:
+    - Contract: warehouse_contract expected_text_pages(), TEXT_PAGE, READ_ENCODINGS
+    - Enforces: POST-READ-3 (and ERRORS-READ-1 for a missing text file)
+    - Category: positive, boundary (Latin-1 fallback), negative
+    - Risk tier: HIGH: a replaced letter changes a place name the AI quotes
+    - Pyramid level: Unit (files on disk)
+    - Equivalence partition: UTF-8 Markdown; Latin-1 text ("Doña", as in the census file);
+      missing file.
+    """
+    cases = (
+        ("utf8.md", b"# Taxonomy\nClassic Food Desert\n"),
+        ("latin.txt", b"Do\xf1a Ana County\n"),
+    )
+    for name, raw in cases:
+        path = tmp_path / name
+        path.write_bytes(raw)
+        want_pages, want_enc = contract.expected_text_pages(raw)
+        got_pages, got_enc = impl.read_text_pages(path)
+        got_view = ([(p.page, p.text) for p in got_pages], got_enc)
+        assert got_view == ([(p.page, p.text) for p in want_pages], want_enc), (
+            "test_text_file_is_one_page_decoded_without_replacement FAILED\n"
+            f"POST-READ-3 violation for {name}: page, text or encoding differs\n"
+            f"EXPECTED: {([(p.page, p.text) for p in want_pages], want_enc)!r}\n"
+            f"ACTUAL: {got_view!r}\n"
+            "GUIDANCE: one page numbered TEXT_PAGE, decoded whole by the first of READ_ENCODINGS "
+            "that fits, no byte replaced"
+        )
+    assert "\ufffd" not in impl.read_text_pages(tmp_path / "latin.txt")[0][0].text, (
+        "test_text_file_is_one_page_decoded_without_replacement FAILED\n"
+        "POST-READ-3 violation: a replacement character appeared in a Latin-1 file\n"
+        "EXPECTED: 'Doña Ana County'\n"
+        f"ACTUAL: {impl.read_text_pages(tmp_path / 'latin.txt')[0][0].text!r}\n"
+        "GUIDANCE: fall back to Latin-1 for the whole file instead of replacing bytes"
+    )
+    with pytest.raises(impl.SourceReadError) as caught:
+        impl.read_text_pages(tmp_path / "absent.md")
+    assert "absent.md" in str(caught.value), (
+        "test_text_file_is_one_page_decoded_without_replacement FAILED\n"
+        "ERRORS-READ-1 violation: a missing text file was not refused by name\n"
+        "EXPECTED: SourceReadError naming 'absent.md'\n"
+        f"ACTUAL: {caught.value!s}\n"
+        "GUIDANCE: stop with the file name"
     )
