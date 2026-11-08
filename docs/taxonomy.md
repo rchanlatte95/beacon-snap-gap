@@ -28,8 +28,8 @@ Status: draft for human review. Wording marked "project rule" is this project's 
 | Entrepreneurship Infrastructure Gap | "Poverty and/or unemployment rate in the top quartile, SBA loan count per capita in the bottom quartile." | Appendix A (DS-B2) |
 | Credit Access Gap | "Mortgage denial rate ... in the top quartile, SBA loan activity at or above the median." The mortgage denial rate is Mortgage Denials divided by (Denials plus Mortgages Originated). | Appendix A (DS-B2) |
 | Underinvestment Gap | "Median household income and employment rate both at or above the median, SBA loan activity in the bottom quartile" (the "looks fine but isn't" case). No automatic recommendation; Review Required. | Appendix A (DS-B2) |
-| Dual gap (project rule) | A Classic Food Desert tract with at or below the regional median of 10 SBA loans (7(a) plus 504, DS-X5). 50 tracts in Central Florida. | Manifest REQ-19 |
-| Triple gap, "Opportunity to Serve" (project rule) | A dual-gap tract that is also a transport-gap tract. 29 tracts in Central Florida. | Manifest REQ-20 |
+| Dual gap (project rule) | A Classic Food Desert tract with at least 1,200 residents whose SBA 7(a) and 504 loans per 1,000 residents (DS-X5, DS-X24) are at or below the bottom-quartile cut over the populated tracts (inclusive quartile, 0.9427 at the 25th percentile). 26 tracts in Central Florida at the starting settings; the App can move the cut to the 10th or 50th percentile (Z-24). | Manifest REQ-19 (Z-23), REQ-58 |
+| Triple gap, "Opportunity to Serve" (project rule) | A dual-gap tract that is also a transport-gap tract. 12 tracts in Central Florida at the starting settings. | Manifest REQ-20 |
 | JobsSupported | "Total Jobs Created + Jobs Retained as reported by lender on SBA Loan Application." SBA does not review, audit or validate these numbers. | SBA data dictionary (DS-X5) |
 | LoanStatus | CANCLD cancelled, CHGOFF charged off, COMMIT undisbursed, EXEMPT disbursed and not yet cancelled, paid or charged off (exempt from disclosure under FOIA Exemption 4), PIF paid in full. | SBA data dictionary (DS-X5) |
 
