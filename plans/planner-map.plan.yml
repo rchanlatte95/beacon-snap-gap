@@ -126,7 +126,13 @@
         "POST-STATE-3",
         "POST-STATE-4",
         "INV-STATE-1",
-        "ERRORS-STATE-1"
+        "ERRORS-STATE-1",
+        "POST-PROV-1",
+        "POST-PROV-2",
+        "POST-PROV-3",
+        "INV-PROV-1",
+        "FORBIDDEN-PROV-1",
+        "ERRORS-PROV-1"
       ],
       "clauses_deferred": [],
       "negative_constraints": [

@@ -9,9 +9,9 @@ Batches:
 - Batch 1: which files the warehouse loads and which it excludes, with the reason (REQ-25, REQ-26).
 - Batch 2: the state filter for Florida, New York and Utah (REQ-27) and the source and loaded row
   counts it records (REQ-29).
-- Later batches: local disk only and unaltered sources (REQ-28), remaining provenance fields
-  (REQ-29), glossary (REQ-30), publish to the bucket (REQ-31).
-
+- Batch 3: table provenance records with "not recorded" for absent fields (REQ-29) and local-disk
+  only / unaltered retained sources (REQ-28).
+- Later batches: glossary (REQ-30), publish to the bucket (REQ-31).
 The implementation MUST NOT import this module (CL11-F). Tests import both and compare.
 """
 
@@ -57,6 +57,16 @@ GEO_ID_TARGET_PATTERN = re.compile(r"^(0100000US.*|.*US(12|36|49).*)")
 FILTER_NONE = "none (no state field)"
 FORMAT_RANK: Mapping[str, int] = {"csv": 0, "xlsx": 1, "sas": 2}
 
+# Batch 3: table provenance and local-disk-only sources (REQ-28, REQ-29).
+NOT_RECORDED = "not recorded"
+SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+PROVENANCE_TEXT_FIELDS: tuple[str, ...] = (
+    "origin_url",
+    "retrieved_at",
+    "publisher",
+    "license",
+    "as_of",
+)
 
 # --- 2. Domain exceptions (every message names its clause) --------------------------------
 
@@ -79,6 +89,14 @@ class InvalidTableError(WarehouseContractError):
 
 class StateFilterViolationError(WarehouseContractError):
     """POST-STATE-1..4 or INV-STATE-1: the filtered rows or recorded counts disagree."""
+
+
+class InvalidProvenanceInputError(WarehouseContractError):
+    """ERRORS-PROV-1: a table provenance input is outside the contracted domain."""
+
+
+class ProvenanceViolationError(WarehouseContractError):
+    """POST-PROV-1..3, INV-PROV-1 or FORBIDDEN-PROV-1: provenance or source integrity violated."""
 
 
 # --- 3. Immutable typed records ------------------------------------------------------------
@@ -123,6 +141,23 @@ class StateFilterOutcome:
     rows_in_source: int
     rows_loaded: int
     applied_filter: str
+
+
+@dataclass(frozen=True)
+class TableProvenance:
+    """Batch 3 validated provenance record for one warehouse table (REQ-29)."""
+
+    table_name: str
+    source_file: str
+    origin_url: str
+    retrieved_at: str
+    sha256: str
+    publisher: str
+    license: str
+    as_of: str
+    applied_filter: str
+    rows_in_source: int
+    rows_loaded: int
 
 
 # --- 4. Callable validators ----------------------------------------------------------------
@@ -302,6 +337,98 @@ def validate_state_filter_outcome(
         )
 
 
+def expected_table_provenance(
+    *,
+    table_name: str,
+    source_file: str,
+    sha256: str,
+    applied_filter: str,
+    rows_in_source: int,
+    rows_loaded: int,
+    origin_url: str | None = None,
+    retrieved_at: str | None = None,
+    publisher: str | None = None,
+    license_text: str | None = None,
+    as_of: str | None = None,
+) -> TableProvenance:
+    """POST-PROV-1..3, FORBIDDEN-PROV-1, ERRORS-PROV-1 oracle for one table's provenance record."""
+    if not table_name.strip():
+        raise InvalidProvenanceInputError("ERRORS-PROV-1 violation: table_name is empty")
+    if not source_file.strip():
+        raise InvalidProvenanceInputError("ERRORS-PROV-1 violation: source_file is empty")
+    if not SHA256_PATTERN.match(sha256):
+        raise InvalidProvenanceInputError(
+            f"ERRORS-PROV-1 violation: sha256 {sha256!r} is not 64 lowercase hex characters"
+        )
+    if not applied_filter.strip():
+        raise InvalidProvenanceInputError("ERRORS-PROV-1 violation: applied_filter is empty")
+    if rows_in_source < 0 or rows_loaded < 0 or rows_loaded > rows_in_source:
+        raise InvalidProvenanceInputError(
+            f"ERRORS-PROV-1 violation: invalid row counts ({rows_in_source}, {rows_loaded})"
+        )
+
+    def _norm(value: str | None) -> str:
+        if value is None or not value.strip():
+            return NOT_RECORDED
+        return value.strip()
+
+    return TableProvenance(
+        table_name=table_name.strip(),
+        source_file=source_file.strip(),
+        origin_url=_norm(origin_url),
+        retrieved_at=_norm(retrieved_at),
+        sha256=sha256,
+        publisher=_norm(publisher),
+        license=_norm(license_text),
+        as_of=_norm(as_of),
+        applied_filter=applied_filter.strip(),
+        rows_in_source=rows_in_source,
+        rows_loaded=rows_loaded,
+    )
+
+
+def validate_table_provenance(
+    record: TableProvenance,
+    expected: TableProvenance,
+) -> None:
+    """Raise ProvenanceViolationError naming the clause when record disagrees with expected."""
+    for field_name in PROVENANCE_TEXT_FIELDS:
+        actual_val = getattr(record, field_name)
+        if not actual_val.strip():
+            raise ProvenanceViolationError(
+                f"FORBIDDEN-PROV-1 violation: {field_name} is blank; absent fields read "
+                f"{NOT_RECORDED!r}"
+            )
+    if (record.rows_in_source, record.rows_loaded) != (
+        expected.rows_in_source,
+        expected.rows_loaded,
+    ):
+        raise ProvenanceViolationError(
+            f"POST-PROV-3 violation: counts {(record.rows_in_source, record.rows_loaded)} != "
+            f"{(expected.rows_in_source, expected.rows_loaded)}"
+        )
+    if record != expected:
+        raise ProvenanceViolationError(
+            f"POST-PROV-1 / POST-PROV-2 violation: provenance record {record!r} != {expected!r}"
+        )
+
+
+def validate_sources_unaltered(
+    before_hashes: Mapping[str, str],
+    after_hashes: Mapping[str, str],
+) -> None:
+    """INV-PROV-1 gate: verify every retained source file on disk is present and byte-identical."""
+    if set(before_hashes) != set(after_hashes):
+        raise ProvenanceViolationError(
+            "INV-PROV-1 violation: retained source file set changed during ingest"
+        )
+    for path, digest in before_hashes.items():
+        if after_hashes[path] != digest:
+            raise ProvenanceViolationError(
+                f"INV-PROV-1 violation: retained source file {path!r} was modified during ingest"
+            )
+
+
 # --- 5. Traceability map (every clause declares its verification method) -----------------------
 
 CONTRACT_SCOPE: Mapping[str, Clause] = {
@@ -400,5 +527,47 @@ CONTRACT_STATE_FILTER: Mapping[str, Clause] = {
         "validate_table_columns raises InvalidTableError when columns is empty, contains an "
         "empty name, or contains duplicate names.",
         ("REQ-27",),
+    ),
+}
+
+
+CONTRACT_PROVENANCE: Mapping[str, Clause] = {
+    "POST-PROV-1": Clause(
+        "test",
+        "Every loaded table has a TableProvenance record carrying table_name, source_file, "
+        "origin_url, retrieved_at, sha256, publisher, license, as_of, applied_filter, "
+        "rows_in_source and rows_loaded.",
+        ("REQ-29",),
+    ),
+    "POST-PROV-2": Clause(
+        "test",
+        "When any of origin_url, retrieved_at, publisher, license or as_of is None or whitespace, "
+        'the recorded field value is "not recorded" (NOT_RECORDED).',
+        ("REQ-29",),
+    ),
+    "POST-PROV-3": Clause(
+        "test",
+        "rows_in_source and rows_loaded are non-negative integers with "
+        "rows_loaded <= rows_in_source.",
+        ("REQ-29",),
+    ),
+    "INV-PROV-1": Clause(
+        "test",
+        "Reading a retained source file from local disk computes its SHA-256 and leaves the file's "
+        "bytes unaltered.",
+        ("REQ-28", "REQ-29"),
+    ),
+    "FORBIDDEN-PROV-1": Clause(
+        "test",
+        "No provenance text field is empty or whitespace-only, and no unstated value is inferred "
+        'in place of "not recorded".',
+        ("REQ-29",),
+    ),
+    "ERRORS-PROV-1": Clause(
+        "test",
+        "Building a TableProvenance record raises InvalidProvenanceInputError when table_name, "
+        "source_file or applied_filter is blank, sha256 is not 64 lowercase hex characters, or "
+        "row counts are negative or rows_loaded > rows_in_source.",
+        ("REQ-29",),
     ),
 }
