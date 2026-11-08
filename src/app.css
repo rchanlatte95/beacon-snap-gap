@@ -364,6 +364,54 @@ code {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+/* Gap cuts (REQ-59): three choices beside the distance control. */
+.cut-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.cut-controls legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.cut-control {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.cut-control select {
+  width: 100%;
+  min-height: 30px;
+  padding: 3px 6px;
+  font: inherit;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.cut-control select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (max-width: 760px) {
+  .proximity-sliders {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
 .proximity-result,
 .proximity-note {
   margin: 4px 0 0;
@@ -373,6 +421,15 @@ code {
 }
 .proximity-note {
   color: var(--ink-mute);
+}
+/* Drive-time and distance notes inside the map's (i) box; they open and close with its credits. */
+.map-attrib-notes {
+  display: none;
+  max-width: 340px;
+  padding-bottom: 2px;
+}
+.maplibregl-ctrl-attrib.maplibregl-compact-show .map-attrib-notes {
+  display: block;
 }
 .map-wrap,
 .map-canvas,
@@ -645,6 +702,11 @@ code {
 .ask form button:hover {
   background: var(--primary-700);
 }
+.ask .ask-model {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-mute);
+}
 .cta {
   width: 100%;
   background: var(--accent);
@@ -696,6 +758,125 @@ code {
   margin: 0 0 6px;
   padding-left: 18px;
   font-size: 12.5px;
+  color: var(--ink-mute);
+}
+
+/* AI answers (REQ-39, REQ-40) */
+.answer-pending {
+  margin: 12px 0 0;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+.answer-pending::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: ask-pulse 1s var(--ease) infinite alternate;
+}
+@keyframes ask-pulse {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .answer-pending::before {
+    animation: none;
+  }
+}
+.answer .ai-notice {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.answer-table-wrap {
+  margin: 4px 0 8px;
+  overflow-x: auto;
+  /* Scroll shadows: an edge darkens while more columns are off that side. */
+  background:
+    linear-gradient(to right, var(--tint) 40%, transparent) left / 20px 100% no-repeat local,
+    linear-gradient(to left, var(--tint) 40%, transparent) right / 20px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, oklch(0.2 0.03 240 / 0.2), transparent) left / 8px 100%
+      no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, oklch(0.2 0.03 240 / 0.2), transparent) right / 8px
+      100% no-repeat scroll;
+}
+.answer-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.answer-table th,
+.answer-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: bottom;
+}
+.answer-table th {
+  max-width: 7.5em;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink-soft);
+}
+.answer-table td.num,
+.answer-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.answer .answer-table-note {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-mute);
+}
+.cite-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 8px 0 6px;
+  padding: 0;
+  list-style: none;
+}
+.cite-chip {
+  display: inline-block;
+  max-width: 100%;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+a.cite-chip:hover {
+  border-color: var(--primary-500);
+  color: var(--primary-900);
+}
+.cite-chip b {
+  color: var(--primary-900);
+  font-weight: 600;
+}
+.cite-date {
+  color: var(--ink-mute);
+}
+.answer .answer-meta {
+  margin: 0;
+  font-size: 11.5px;
   color: var(--ink-mute);
 }
 
@@ -778,6 +959,7 @@ code {
   font-size: 14px;
 }
 .brief h3 {
+  overflow-wrap: anywhere;
   text-transform: none;
   letter-spacing: 0;
   font-size: 15px;
@@ -793,6 +975,37 @@ code {
 }
 .brief p {
   margin: 4px 0 0;
+}
+.brief-overview {
+  color: var(--ink-soft);
+}
+.action-steps {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+.action-steps li + li {
+  margin-top: 6px;
+}
+.brief-details,
+.evidence-details {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.brief-details summary,
+.evidence-details summary,
+.insight-sources summary {
+  color: var(--primary-700);
+  cursor: pointer;
+  font-size: 12px;
+}
+.brief-details[open] summary,
+.evidence-details[open] summary {
+  margin-bottom: 10px;
+}
+.insight-sources {
+  margin-top: 4px;
 }
 .counterfactual {
   display: grid;
@@ -1130,6 +1343,10 @@ code {
   }
   .gap-emphasis-button {
     width: 100%;
+  }
+  .proximity-sliders {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
   .lenses {
     border-radius: var(--radius-md);

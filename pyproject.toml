@@ -1,0 +1,88 @@
+# Python side of the repo (the Build, the warehouse Ingest, their contracts and tests).
+# The App is TypeScript (package.json). This file configures the four python-mastery gates:
+#   uv run ruff check .  |  uv run ruff format --check .  |  uv run mypy  |  uv run pytest -q
+[project]
+name = "beacon-snap-cliff"
+version = "0.0.0"
+description = "DevFest Florida 2026, Beacon track: SNAP-cliff planner map, warehouse and query service."
+requires-python = ">=3.12"
+# DuckDB is the warehouse engine (REQ-49): the Ingest writes with it and the QueryService reads
+# with it. Pinned to the version that built the warehouse and passed the mount observation.
+dependencies = [
+    "duckdb==2.0.0",
+    "google-genai==3.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "hypothesis>=6",
+    "ruff>=0.14",
+    "mypy>=1.19",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests", "contracts"]
+# Pre-SLICE-3 Python (Build, its contract and tests) predates these gates. Ratchet it in later; never loosen.
+extend-exclude = [
+    "src/data_prep",
+    "contracts/planner_map_contract.py",
+    "tests/data_prep",
+    "data/external/census-acs/extract_median_income.py",
+    "docs",
+    "node_modules",
+]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "UP", "B", "A", "C4", "DTZ", "T20", "G", "LOG", "PIE", "PT", "PTH",
+    "RET", "RUF", "S", "SIM", "TRY", "FBT", "ANN", "ASYNC", "BLE", "N", "PL",
+]
+ignore = [
+    "TRY003",   # long messages in raise: clause-bearing messages are the point (CL11-E)
+    "PLR0913", # too-many-args: validators mirror record fields
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "ANN", "FBT", "PLR2004", "PT011"]
+"contracts/**" = ["FBT001", "FBT002"]  # validators mirror record fields, including booleans
+"src/warehouse/**" = ["FBT001", "FBT002"]  # make_source_file mirrors the contract validator signature
+# Ratchet for scripts/ (Ketema, decision 6a A, 2026-11-08): the findings these files had when they
+# arrived from main (e1ad7f1, 435 in total). Remove a code as soon as a batch fixes it; never add one.
+# A new kind of finding in these files still fails the gate.
+"scripts/analysis/need_vs_sba_lending.py" = [
+    "B023", "E501", "E731", "PLR0915", "PLR2004", "PLW2901", "PT018", "S101", "T201",
+]
+"scripts/analysis/shared_basis.py" = [
+    "ANN001", "ANN202", "B905", "E501", "E712", "F401", "F541", "N806", "PLC0206", "PLR0915",
+    "PLR2004", "PT018", "RUF005", "RUF059", "S101", "T201",
+]
+"scripts/analysis/who_are_we_missing.py" = [
+    "ANN001", "ANN201", "B905", "E501", "E731", "N803", "PTH123", "SIM115", "T201",
+]
+"scripts/data_prep/build_reach_data.py" = [
+    "ANN001", "ANN202", "E501", "E731", "N803", "PLR0912", "PLR0915", "PLR2004", "PT018",
+    "PTH123", "S101", "SIM115", "T201",
+]
+
+[tool.ruff.format]
+docstring-code-format = true
+# Ratchet (decision 6a A): formatted in the batch that first edits each file, then removed here.
+exclude = [
+    "scripts/analysis/need_vs_sba_lending.py",
+    "scripts/analysis/shared_basis.py",
+    "scripts/analysis/who_are_we_missing.py",
+    "scripts/data_prep/build_reach_data.py",
+]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+files = ["src/warehouse", "contracts/warehouse_contract.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+xfail_strict = true

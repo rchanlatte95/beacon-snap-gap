@@ -51,6 +51,24 @@ FORBIDDEN_BLOCK_KEYS = frozenset(
 COUNTIES = {"069": "Lake", "095": "Orange", "097": "Osceola", "117": "Seminole"}
 REACH_MILES = 10.0
 EARTH_RADIUS_MI = 3958.8
+# Cycle 17 / POST-RCH-1 (Z-2 2-A): reach at every 0.5-mile step, from populated 2020 blocks.
+REACH_STEP_MILES = 0.5
+MAX_REACH_MILES = 20.0
+REACH_STEPS_MILES: tuple[float, ...] = tuple(
+    k * REACH_STEP_MILES for k in range(int(MAX_REACH_MILES / REACH_STEP_MILES) + 1)
+)
+# Cycle 17 / POST-CUT-1 (Z-24 A): cuts at the named percentiles, inclusive method.
+TOP_CUT_PERCENTILES: tuple[int, ...] = (50, 75, 90)
+SBA_CUT_PERCENTILES: tuple[int, ...] = (10, 25, 50)
+# Cycle 17 / POST-SRC-1 (REQ-61): the App source catalog in docs/data-sources.md.
+SOURCE_CATALOG_DOC = Path("docs") / "data-sources.md"
+SOURCE_CATALOG_HEADING = "## 9. App source catalog"
+SOURCE_CATALOG_COLUMNS: tuple[str, ...] = ("ID", "Label", "Publisher", "Period", "URL", "Method", "Limits")
+SOURCE_ENTRY_KEYS: tuple[str, ...] = ("id", "label", "publisher", "period", "url", "method", "limits")
+CITED_SOURCE_IDS: tuple[str, ...] = (
+    "DS-H1", "DS-H2", "DS-H6", "DS-X5", "DS-X7b", "DS-X28", "DS-X12",
+    "DS-X24", "DS-X16b", "DS-X15b", "DS-H7", "DS-X3b", "DS-X9b",
+)
 
 
 class BundleSchemaViolation(Exception):
@@ -190,6 +208,78 @@ def assert_tract_only_records(records: Sequence[Mapping[str, Any]]) -> Sequence[
     return records
 
 
+def compute_tract_reach(
+    blocks: Sequence[tuple[float, float, int]], sites: Sequence[tuple[str, float, float]]
+) -> tuple[list[float | None], list[int], float | None]:
+    """POST-RCH-1: a tract's population share and distinct sites within each step, inclusive.
+
+    Only blocks with people count. With no populated block or no site the shares are None (no
+    people) or 0.0, the counts 0, and the nearest distance None.
+    """
+    populated = [(lat, lon, pop) for lat, lon, pop in blocks if pop > 0]
+    total = sum(pop for _, _, pop in populated)
+    if not populated or not sites:
+        empty: float | None = None if total == 0 else 0.0
+        return [empty] * len(REACH_STEPS_MILES), [0] * len(REACH_STEPS_MILES), None
+    site_nearest = [math.inf] * len(sites)
+    block_nearest: list[tuple[float, int]] = []
+    for lat, lon, pop in populated:
+        nearest = math.inf
+        for i, (_, slat, slon) in enumerate(sites):
+            d = _haversine_miles(lat, lon, slat, slon)
+            nearest = min(nearest, d)
+            site_nearest[i] = min(site_nearest[i], d)
+        block_nearest.append((nearest, pop))
+    shares: list[float | None] = [
+        sum(pop for d, pop in block_nearest if d <= step) / total for step in REACH_STEPS_MILES
+    ]
+    counts = [sum(1 for d in site_nearest if d <= step) for step in REACH_STEPS_MILES]
+    return shares, counts, min(d for d, _ in block_nearest)
+
+
+def percentile_cut(values: Sequence[float], percentile: int) -> float:
+    """POST-CUT-1: the inclusive p-th percentile."""
+    return statistics.quantiles(values, n=100, method="inclusive")[percentile - 1]
+
+
+def load_source_catalog(doc_path: Path) -> list[dict[str, str]]:
+    """POST-SRC-1: the cited sources from the catalog table, in CITED_SOURCE_IDS order.
+
+    Raises:
+        BundleSchemaViolation: ERRORS-BLD-2, the file, heading or header is missing or wrong, a
+            row is incomplete, an ID repeats, or a cited ID has no row.
+    """
+    if not doc_path.is_file():
+        raise BundleSchemaViolation(f"ERRORS-BLD-2 violation: {doc_path.name!r} is missing")
+    lines = doc_path.read_text(encoding="utf-8").splitlines()
+    if SOURCE_CATALOG_HEADING not in lines:
+        raise BundleSchemaViolation(
+            f"ERRORS-BLD-2 violation: {doc_path.name!r} has no {SOURCE_CATALOG_HEADING!r}"
+        )
+    table: list[str] = []
+    for line in lines[lines.index(SOURCE_CATALOG_HEADING) + 1 :]:
+        if line.startswith("|"):
+            table.append(line)
+        elif table:
+            break
+    cells = [[c.strip() for c in row.strip().strip("|").split("|")] for row in table]
+    if len(cells) < 2 or tuple(cells[0]) != SOURCE_CATALOG_COLUMNS:
+        raise BundleSchemaViolation(
+            f"ERRORS-BLD-2 violation: the catalog header must be {SOURCE_CATALOG_COLUMNS}"
+        )
+    rows: dict[str, dict[str, str]] = {}
+    for row in cells[2:]:
+        if len(row) != len(SOURCE_CATALOG_COLUMNS) or not all(row):
+            raise BundleSchemaViolation(f"ERRORS-BLD-2 violation: catalog row {row} is incomplete")
+        if row[0] in rows:
+            raise BundleSchemaViolation(f"ERRORS-BLD-2 violation: catalog ID {row[0]} repeats")
+        rows[row[0]] = dict(zip(SOURCE_ENTRY_KEYS, row, strict=True))
+    missing = [i for i in CITED_SOURCE_IDS if i not in rows]
+    if missing:
+        raise BundleSchemaViolation(f"ERRORS-BLD-2 violation: cited sources {missing} have no row")
+    return [rows[i] for i in CITED_SOURCE_IDS]
+
+
 def build_alignment_bundle(repo_root: Path) -> dict[str, Any]:
     """Build the complete 490-tract Opportunities to Serve alignment bundle and GeoJSON layers."""
     ext_dir = repo_root / "data" / "external"
@@ -250,6 +340,7 @@ def build_alignment_bundle(repo_root: Path) -> dict[str, Any]:
     counties_geojson_path = ext_dir / "geography" / "central_fl_counties_2020.geojson"
     if not tracts_geojson_path.is_file() or not counties_geojson_path.is_file():
         raise BundleSchemaViolation("ERRORS-BLD-1 violation: required geography GeoJSON file is missing")
+    sources = load_source_catalog(repo_root / SOURCE_CATALOG_DOC)  # ERRORS-BLD-2 before any output
 
     tracts_fc = json.loads(tracts_geojson_path.read_text(encoding="utf-8"))
     counties_fc = json.loads(counties_geojson_path.read_text(encoding="utf-8"))
@@ -267,6 +358,7 @@ def build_alignment_bundle(repo_root: Path) -> dict[str, Any]:
         for r in site_rows
     ]
     pop_agg: dict[str, dict[str, Any]] = {}
+    blocks_by_tract: dict[str, list[tuple[float, float, int]]] = {}
     for b in block_rows:
         g = b["geoid20"][:11]
         pop = _parse_int(b["pop20"]) or 0
@@ -275,6 +367,7 @@ def build_alignment_bundle(repo_root: Path) -> dict[str, Any]:
         if pop > 0:
             lat = _parse_float(b["lat"]) or 0.0
             lon = _parse_float(b["lon"]) or 0.0
+            blocks_by_tract.setdefault(g, []).append((lat, lon, pop))
             entry["lat_w"] += lat * pop
             entry["lon_w"] += lon * pop
             for sid, slat, slon in site_pts:
@@ -297,6 +390,11 @@ def build_alignment_bundle(repo_root: Path) -> dict[str, Any]:
         v for r in sorted_cov if (v := _parse_float(nv_by_id.get(r["geoid"], {}).get("pct_no_vehicle"))) is not None
     ]
     nv_q75 = statistics.quantiles(nv_vals, n=4, method="inclusive")[2]
+    cuts = {
+        "poverty": {str(p): percentile_cut(poverty_vals, p) for p in TOP_CUT_PERCENTILES},
+        "no_vehicle": {str(p): percentile_cut(nv_vals, p) for p in TOP_CUT_PERCENTILES},
+        "sba_rate_per_1000": {str(p): percentile_cut(sba_rates, p) for p in SBA_CUT_PERCENTILES},
+    }
 
     tracts_out: list[dict[str, Any]] = []
     for r in sorted_cov:
@@ -333,6 +431,9 @@ def build_alignment_bundle(repo_root: Path) -> dict[str, Any]:
         pop2020 = int(pa["pop"])
         sites_in_reach = len(pa["sites"])
         pantry_load = int(round(pop2020 / sites_in_reach)) if sites_in_reach > 0 and pop2020 > 0 else None
+        reach_share, reach_sites, nearest_block_miles = compute_tract_reach(
+            blocks_by_tract.get(g, []), site_pts
+        )
         centroid = (
             [round(pa["lon_w"] / pop2020, 4), round(pa["lat_w"] / pop2020, 4)]
             if pop2020 > 0
@@ -395,6 +496,9 @@ def build_alignment_bundle(repo_root: Path) -> dict[str, Any]:
                 "pop2020": pop2020,
                 "sites_in_tract": sites_in_tract,
                 "sites_in_reach": sites_in_reach,
+                "reach_share": reach_share,
+                "reach_sites": reach_sites,
+                "nearest_block_miles": nearest_block_miles,
                 "pantry_load": pantry_load,
                 "is_dual_gap": is_dual,
                 "is_transport_gap": is_trans,
@@ -473,8 +577,11 @@ def build_alignment_bundle(repo_root: Path) -> dict[str, Any]:
             "sba_min_population": SBA_MIN_POPULATION,
             "no_vehicle_q75": round(nv_q75, 4),
             "drive_time_minutes": 30,
+            "reach_steps_miles": list(REACH_STEPS_MILES),
+            "cuts": cuts,
         },
         "counts": counts,
+        "sources": sources,
         "snap_trend": [
             {"month": r["month"], "participants": _parse_int(r["usda_total_participants"])}
             for r in cbpp_rows
@@ -514,6 +621,7 @@ def write_static_bundle(repo_root: Path) -> dict[str, Any]:
         "counts": bundle["counts"],
         "snap_trend": bundle["snap_trend"],
         "meal_gap": bundle["meal_gap"],
+        "sources": bundle["sources"],
         "tracts": bundle["tracts"],
     }
     (out_dir / "planner-bundle.json").write_text(

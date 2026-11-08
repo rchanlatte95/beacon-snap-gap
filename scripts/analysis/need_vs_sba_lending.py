@@ -144,8 +144,10 @@ def group_table(a: pd.DataFrame, cols: dict[str, str], title: str) -> None:
         x, y = d[c].dropna(), g[c].dropna()
         u, p = stats.mannwhitneyu(x, y, alternative="two-sided")
         nd, cur = (0, "$") if c.startswith("usd") else (1, "")
-        q = lambda s: (f"{cur}{s.median():,.{nd}f} [{cur}{s.quantile(0.25):,.{nd}f} "
-                       f"to {cur}{s.quantile(0.75):,.{nd}f}]")
+        def q(s: pd.Series) -> str:
+            return (f"{cur}{s.median():,.{nd}f} [{cur}{s.quantile(0.25):,.{nd}f} "
+                    f"to {cur}{s.quantile(0.75):,.{nd}f}]")
+
         period = c.rsplit("_", 2)[-2] + "_" + c.rsplit("_", 1)[-1] if "fy" in c else "total"
         zc = f"loans_{period}" if period != "total" else zero_col
         print(

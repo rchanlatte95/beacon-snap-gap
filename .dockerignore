@@ -8,9 +8,9 @@ logs
 data
 docs
 requirements
-contracts
 plans
 coverage
 test-results
 playwright-report
 *.log
+.env*

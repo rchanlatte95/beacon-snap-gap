@@ -1,0 +1,2519 @@
+# Source registry (SLICE-3, REQ-25, REQ-26, REQ-29): the stated facts for every retained source.
+# Matching is by exact path (and exact member name for series archives); an unregistered
+# retained file or member stops the Ingest. A fact the sources do not state is left out and
+# reads "not recorded". Every reference_end carries the basis it rests on.
+# Authority: contracts/warehouse_contract.py, CONTRACT_REGISTRY.
+
+[[source]]
+path = "cache:cbpp/downloadable_data.xlsx"
+ds = "DS-X3b"
+group = "cbpp"
+file_format = "xlsx"
+publisher = "Center on Budget and Policy Priorities"
+as_of = "data updated 2026-10-21 (docs/data-sources.md DS-X3b)"
+
+[[source]]
+path = "cache:census-acs-docs-2024/ACS20245YR_Table_Shells.txt"
+ds = "DS-X28"
+group = "census-acs-docs-2024"
+file_format = "dat"
+
+[[source]]
+path = "cache:census-acs-docs-2024/ACS2024_Table_Shells.xlsx"
+ds = "DS-X28"
+group = "census-acs-docs-2024"
+file_format = "xlsx"
+
+[[source]]
+path = "cache:census-acs-docs-2024/Geos20245YR.txt"
+ds = "DS-X28"
+group = "census-acs-docs-2024"
+file_format = "dat"
+
+[[source]]
+path = "cache:census-acs-docs-2024/README.txt"
+ds = "DS-X28"
+group = "census-acs-docs-2024"
+file_format = "text"
+
+[[source]]
+path = "cache:census-acs/acsdt5y2023-b19013.dat"
+ds = "DS-X29"
+group = "census-acs"
+file_format = "dat"
+reference_end = "2023-12-31"
+reference_basis = "file name acsdt5y2023 (2019-2023 five-year estimates)"
+publisher = "U.S. Census Bureau"
+as_of = "ACS 2024 5-year, 2020-2024 (URL path)"
+
+[[source]]
+path = "cache:census-acs/acsdt5y2024-b08201.dat"
+ds = "DS-X7"
+group = "census-acs"
+file_format = "dat"
+publisher = "U.S. Census Bureau"
+as_of = "ACS 2024 5-year, 2020-2024 (URL path)"
+
+[[source]]
+path = "cache:census-acs/acsdt5y2024-b19013.dat"
+ds = "DS-X28"
+group = "census-acs"
+file_format = "dat"
+publisher = "U.S. Census Bureau"
+as_of = "ACS 2024 5-year, 2020-2024 (URL path)"
+
+[[source]]
+path = "cache:census-acs/acsdt5y2024-b22003.dat"
+ds = "DS-X8"
+group = "census-acs"
+file_format = "dat"
+publisher = "U.S. Census Bureau"
+as_of = "ACS 2024 5-year, 2020-2024 (URL path)"
+
+[[source]]
+path = "cache:census-blocks/2020Census_PL94_171Redistricting_StatesTechDoc_English.pdf"
+ds = "DS-X25"
+group = "census-blocks"
+file_format = "pdf"
+base_geography = true
+publisher = "U.S. Census Bureau"
+as_of = "2020 vintage (file name)"
+
+[[source]]
+path = "cache:census-blocks/fl2020.pl.zip"
+ds = "DS-X25"
+group = "census-blocks"
+file_format = "pl"
+base_geography = true
+publisher = "U.S. Census Bureau"
+as_of = "2020 vintage (file name)"
+
+[[source]]
+path = "cache:census-blocks/tl_2020_12_tabblock20.zip"
+ds = "DS-X24"
+group = "census-blocks"
+file_format = "shapefile"
+base_geography = true
+publisher = "U.S. Census Bureau"
+as_of = "2020 vintage (file name)"
+
+[[source]]
+path = "cache:census-pop/co-est2025-alldata.csv"
+ds = "DS-X26"
+group = "census-pop"
+file_format = "csv"
+publisher = "U.S. Census Bureau"
+as_of = "Vintage 2025 estimates (file name)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_DECEMBER2024_PUF_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "csv"
+release_id = "release:hps-december2024-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_DECEMBER2024_PUF_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "sas"
+release_id = "release:hps-december2024-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_DECEMBER2024_Supplemental_PUF_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "csv"
+release_id = "release:hps-december2024-supplemental-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_DECEMBER2024_Supplemental_PUF_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "sas"
+release_id = "release:hps-december2024-supplemental-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_OCTOBER2024_PUF_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "csv"
+release_id = "release:hps-october2024-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_OCTOBER2024_PUF_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "sas"
+release_id = "release:hps-october2024-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_OCTOBER2024_Supplemental_PUF_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "csv"
+release_id = "release:hps-october2024-supplemental-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_OCTOBER2024_Supplemental_PUF_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "sas"
+release_id = "release:hps-october2024-supplemental-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4-1Cycle04_PUF_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "csv"
+release_id = "release:hps-phase4-1cycle04-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4-1Cycle04_PUF_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "sas"
+release_id = "release:hps-phase4-1cycle04-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4-1Cycle05_PUF_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "csv"
+release_id = "release:hps-phase4-1cycle05-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4-1Cycle05_PUF_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "sas"
+release_id = "release:hps-phase4-1cycle05-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4-1Cycle06_PUF_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "csv"
+release_id = "release:hps-phase4-1cycle06-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4-1Cycle06_PUF_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "sas"
+release_id = "release:hps-phase4-1cycle06-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4-1Cycle07_PUF_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "csv"
+release_id = "release:hps-phase4-1cycle07-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4-1Cycle07_PUF_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "sas"
+release_id = "release:hps-phase4-1cycle07-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4-2Cycle08_PUF_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "csv"
+release_id = "release:hps-phase4-2cycle08-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4-2Cycle08_PUF_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "sas"
+release_id = "release:hps-phase4-2cycle08-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4-2Cycle09_PUF_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "csv"
+release_id = "release:hps-phase4-2cycle09-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4-2Cycle09_PUF_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "sas"
+release_id = "release:hps-phase4-2cycle09-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4Cycle01_PUF_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "csv"
+release_id = "release:hps-phase4cycle01-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4Cycle01_PUF_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "sas"
+release_id = "release:hps-phase4cycle01-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4Cycle02_PUF_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "csv"
+release_id = "release:hps-phase4cycle02-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4Cycle02_PUF_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "sas"
+release_id = "release:hps-phase4cycle02-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4Cycle03_PUF_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "csv"
+release_id = "release:hps-phase4cycle03-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-2024/HPS_Phase4Cycle03_PUF_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-2024"
+file_format = "sas"
+release_id = "release:hps-phase4cycle03-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2024 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HPS_HTOPS_2502_Supplemental_PUF_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "csv"
+release_id = "release:hps-htops-2502-supplemental-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HPS_HTOPS_2502_Supplemental_PUF_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "sas"
+release_id = "release:hps-htops-2502-supplemental-puf-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HTOPS_HPS_2502 CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "csv"
+release_id = "release:htops-hps-2502-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HTOPS_HPS_2502 SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "sas"
+release_id = "release:htops-hps-2502-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HTOPS_HPS_2502_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "csv"
+release_id = "release:htops-hps-2502-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HTOPS_HPS_2502_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "sas"
+release_id = "release:htops-hps-2502-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HTOPS_HPS_2504_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "csv"
+release_id = "release:htops-hps-2504-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HTOPS_HPS_2504_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "sas"
+release_id = "release:htops-hps-2504-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HTOPS_HPS_2506_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "csv"
+release_id = "release:htops-hps-2506-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HTOPS_HPS_2506_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "sas"
+release_id = "release:htops-hps-2506-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HTOPS_HPS_2603_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "csv"
+release_id = "release:htops-hps-2603-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HTOPS_HPS_2603_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "sas"
+release_id = "release:htops-hps-2603-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HTOPS_HPS_2605_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "csv"
+release_id = "release:htops-hps-2605-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HTOPS_HPS_2605_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "sas"
+release_id = "release:htops-hps-2605-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HTOPS_HPS_2607_CSV.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "csv"
+release_id = "release:htops-hps-2607-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:census-pulse-htops/HTOPS_HPS_2607_SAS.zip"
+ds = "DS-X18"
+group = "census-pulse-htops"
+file_format = "sas"
+release_id = "release:htops-hps-2607-csv"
+publisher = "U.S. Census Bureau"
+as_of = "2025-2026 (URL path)"
+
+[[source]]
+path = "cache:feeding-america/mapdata_maptype-county_year-2019_type-child.json"
+ds = "DS-X9"
+group = "feeding-america"
+file_format = "json"
+publisher = "Feeding America"
+as_of = "data year 2024 (request parameter)"
+
+[[source]]
+path = "cache:feeding-america/mapdata_maptype-county_year-2019_type-overall.json"
+ds = "DS-X9"
+group = "feeding-america"
+file_format = "json"
+publisher = "Feeding America"
+as_of = "data year 2024 (request parameter)"
+
+[[source]]
+path = "cache:feeding-america/mapdata_maptype-county_year-2020_type-child.json"
+ds = "DS-X9"
+group = "feeding-america"
+file_format = "json"
+publisher = "Feeding America"
+as_of = "data year 2024 (request parameter)"
+
+[[source]]
+path = "cache:feeding-america/mapdata_maptype-county_year-2021_type-child.json"
+ds = "DS-X9"
+group = "feeding-america"
+file_format = "json"
+publisher = "Feeding America"
+as_of = "data year 2024 (request parameter)"
+
+[[source]]
+path = "cache:feeding-america/mapdata_maptype-county_year-2021_type-overall.json"
+ds = "DS-X9"
+group = "feeding-america"
+file_format = "json"
+publisher = "Feeding America"
+as_of = "data year 2024 (request parameter)"
+
+[[source]]
+path = "cache:feeding-america/mapdata_maptype-county_year-2022_type-child.json"
+ds = "DS-X9"
+group = "feeding-america"
+file_format = "json"
+publisher = "Feeding America"
+as_of = "data year 2024 (request parameter)"
+
+[[source]]
+path = "cache:feeding-america/mapdata_maptype-county_year-2022_type-overall.json"
+ds = "DS-X9"
+group = "feeding-america"
+file_format = "json"
+publisher = "Feeding America"
+as_of = "data year 2024 (request parameter)"
+
+[[source]]
+path = "cache:feeding-america/mapdata_maptype-county_year-2023_type-child.json"
+ds = "DS-X9"
+group = "feeding-america"
+file_format = "json"
+publisher = "Feeding America"
+as_of = "data year 2024 (request parameter)"
+
+[[source]]
+path = "cache:feeding-america/mapdata_maptype-county_year-2023_type-overall.json"
+ds = "DS-X9"
+group = "feeding-america"
+file_format = "json"
+publisher = "Feeding America"
+as_of = "data year 2024 (request parameter)"
+
+[[source]]
+path = "cache:feeding-america/mapdata_maptype-county_year-2024_type-child.json"
+ds = "DS-X9"
+group = "feeding-america"
+file_format = "json"
+publisher = "Feeding America"
+as_of = "data year 2024 (request parameter)"
+
+[[source]]
+path = "cache:feeding-america/mapdata_maptype-county_year-2024_type-overall.json"
+ds = "DS-X9"
+group = "feeding-america"
+file_format = "json"
+publisher = "Feeding America"
+as_of = "data year 2024 (request parameter)"
+
+[[source]]
+path = "cache:fema-nri/NRI_Shapefile_CensusTracts.zip"
+ds = "DS-X16"
+group = "fema-nri"
+file_format = "shapefile"
+publisher = "FEMA"
+as_of = "NRI v1.20, December 2025 (URL path and metadata file name)"
+
+[[source]]
+path = "cache:fema-nri/NRI_Table_CensusTracts.zip"
+ds = "DS-X16"
+group = "fema-nri"
+file_format = "csv"
+publisher = "FEMA"
+as_of = "NRI v1.20, December 2025 (URL path and metadata file name)"
+
+[[source]]
+path = "cache:fema-nri/NRI_Table_Counties.zip"
+ds = "DS-X16"
+group = "fema-nri"
+file_format = "csv"
+publisher = "FEMA"
+as_of = "NRI v1.20, December 2025 (URL path and metadata file name)"
+
+[[source]]
+path = "cache:fema-nri/NRI_Table_States.zip"
+ds = "DS-X16"
+group = "fema-nri"
+file_format = "csv"
+publisher = "FEMA"
+as_of = "NRI v1.20, December 2025 (URL path and metadata file name)"
+
+[[source]]
+path = "cache:fema-nri/NRI_Table_Tribal_Counties.zip"
+ds = "DS-X16"
+group = "fema-nri"
+file_format = "csv"
+publisher = "FEMA"
+as_of = "NRI v1.20, December 2025 (URL path and metadata file name)"
+
+[[source]]
+path = "cache:fl-dcf-ess/53241.xlsx"
+ds = "DS-X2"
+group = "fl-dcf-ess"
+file_format = "xlsx"
+publisher = "Florida Department of Children and Families"
+as_of = "see workbook"
+
+[[source]]
+path = "cache:fl-dcf-ess/57226.xlsx"
+ds = "DS-X2"
+group = "fl-dcf-ess"
+file_format = "xlsx"
+publisher = "Florida Department of Children and Families"
+as_of = "see workbook"
+
+[[source]]
+path = "cache:fl-dcf-ess/flash2005.xlsx"
+ds = "DS-X2"
+group = "fl-dcf-ess"
+file_format = "xlsx"
+publisher = "Florida Department of Children and Families"
+as_of = "see workbook"
+
+[[source]]
+path = "cache:fl-dcf-ess/hardship_ext26.xlsx"
+ds = "DS-X2"
+group = "fl-dcf-ess"
+file_format = "xlsx"
+publisher = "Florida Department of Children and Families"
+as_of = "see workbook"
+
+[[source]]
+path = "cache:fl-dcf-ess/openclose.xlsx"
+ds = "DS-X2"
+group = "fl-dcf-ess"
+file_format = "xlsx"
+publisher = "Florida Department of Children and Families"
+as_of = "see workbook"
+
+[[source]]
+path = "cache:fl-dcf-ess/participation2021bycircuit.xls"
+ds = "DS-X2"
+group = "fl-dcf-ess"
+file_format = "xls"
+reference_end = "2021-12-31"
+reference_basis = "file name 2021 report"
+publisher = "Florida Department of Children and Families"
+as_of = "see workbook"
+
+[[source]]
+path = "cache:license-pages/cdc_places_1.md"
+ds = "LICENSE:cdc_places"
+group = "license-pages"
+file_format = "text"
+
+[[source]]
+path = "cache:license-pages/census_1.md"
+ds = "LICENSE:census"
+group = "license-pages"
+file_format = "text"
+
+[[source]]
+path = "cache:license-pages/census_2.md"
+ds = "LICENSE:census"
+group = "license-pages"
+file_format = "text"
+
+[[source]]
+path = "cache:license-pages/census_3.md"
+ds = "LICENSE:census"
+group = "license-pages"
+file_format = "text"
+
+[[source]]
+path = "cache:license-pages/fema_1.md"
+ds = "LICENSE:fema"
+group = "license-pages"
+file_format = "text"
+
+[[source]]
+path = "cache:license-pages/sba_1.md"
+ds = "LICENSE:sba"
+group = "license-pages"
+file_format = "text"
+
+[[source]]
+path = "cache:license-pages/sba_2.md"
+ds = "LICENSE:sba"
+group = "license-pages"
+file_format = "text"
+
+[[source]]
+path = "cache:license-pages/sba_3.md"
+ds = "LICENSE:sba"
+group = "license-pages"
+file_format = "text"
+
+[[source]]
+path = "cache:license-pages/usda_ers_1.md"
+ds = "LICENSE:usda_ers"
+group = "license-pages"
+file_format = "text"
+
+[[source]]
+path = "cache:license-pages/usda_fns_1.md"
+ds = "LICENSE:usda_fns"
+group = "license-pages"
+file_format = "text"
+
+[[source]]
+path = "cache:report-pdfs/err-358-report-summary.pdf"
+ds = "DS-X10"
+group = "report-pdfs"
+file_format = "pdf"
+publisher = "USDA Economic Research Service"
+as_of = "see document"
+
+[[source]]
+path = "cache:report-pdfs/err-358.pdf"
+ds = "DS-X10"
+group = "report-pdfs"
+file_format = "pdf"
+publisher = "USDA Economic Research Service"
+as_of = "see document"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-current-month/SBA-Monthly-ActivityDashboard7a504.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-current-month"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-current-month/SBA-Monthly-ApprovalsbyCongDistActivity.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-current-month"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-current-month/SBA-Monthly-CDCActivity.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-current-month"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-current-month/SBA-Monthly-Lender7AActivity.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-current-month"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-current-month/SBA-Monthly-MonthlyYearlyActivity7a504.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-current-month"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-current-month/SBA-Monthly-TPLActivity.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-current-month"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2022-year-end/cdcactivity_fy2022_20220930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2022-year-end"
+file_format = "xlsx"
+reference_end = "2022-09-30"
+reference_basis = "file name FY2022 (federal fiscal year)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2022-year-end/lender7aactivity_fy2022_20220930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2022-year-end"
+file_format = "xlsx"
+reference_end = "2022-09-30"
+reference_basis = "file name FY2022 (federal fiscal year)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2022-year-end/monthlyyearlyactivity_7a_504_20220930-1991-to-present.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2022-year-end"
+file_format = "xlsx"
+reference_end = "2022-09-30"
+reference_basis = "file name FY2022 (federal fiscal year)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2022-year-end/sba-approvals-by-congressional-district-as-of-220930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2022-year-end"
+file_format = "xlsx"
+reference_end = "2022-09-30"
+reference_basis = "file name FY2022 (federal fiscal year)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2022-year-end/thirdparty_fy2022_20220930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2022-year-end"
+file_format = "xlsx"
+reference_end = "2022-09-30"
+reference_basis = "file name FY2022 (federal fiscal year)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2022-year-end/websitereport_asof_20220930.pdf"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2022-year-end"
+file_format = "pdf"
+reference_end = "2022-09-30"
+reference_basis = "file name FY2022 (federal fiscal year)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2023-year-end/cdcactivity_fy2023_20230930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2023-year-end"
+file_format = "xlsx"
+reference_end = "2023-09-30"
+reference_basis = "file name FY2023 (federal fiscal year)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2023-year-end/lender7aactivity_fy2023_20230930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2023-year-end"
+file_format = "xlsx"
+reference_end = "2023-09-30"
+reference_basis = "file name FY2023 (federal fiscal year)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2023-year-end/monthlyapprovalsreport_asof_20230930.pdf"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2023-year-end"
+file_format = "pdf"
+reference_end = "2023-09-30"
+reference_basis = "file name FY2023 (federal fiscal year)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2023-year-end/monthlyyearlyactivity_7a_504_-202310-1991-to-present.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2023-year-end"
+file_format = "xlsx"
+reference_end = "2023-09-30"
+reference_basis = "file name FY2023 (federal fiscal year)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2023-year-end/sba-approvals-by-congressional-district-as-of-230930-1.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2023-year-end"
+file_format = "xlsx"
+reference_end = "2023-09-30"
+reference_basis = "file name FY2023 (federal fiscal year)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2023-year-end/thirdparty_fy2023_20230930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2023-year-end"
+file_format = "xlsx"
+reference_end = "2023-09-30"
+reference_basis = "file name FY2023 (federal fiscal year)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2024-year-end/cdcactivity_fy2024_20240930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2024-year-end"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2024-year-end/lender7aactivity_fy2024_20240930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2024-year-end"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2024-year-end/monthlyapprovalsreport_202410.pdf"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2024-year-end"
+file_format = "pdf"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2024-year-end/monthlyyearlyactivity_7a_504_-202410-1991-to-present.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2024-year-end"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2024-year-end/sba-approvals-by-congressional-district-as-of-20240930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2024-year-end"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2024-year-end/thirdparty_fy2024_20240930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2024-year-end"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2025-year-end/approvalsbycongdistactivity-fy2025-20250930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2025-year-end"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2025-year-end/cdcactivity-fy2025-20250930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2025-year-end"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2025-year-end/lender7aactivity-fy2025-20250930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2025-year-end"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2025-year-end/monthlyapprovalsreport_2025_20250930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2025-year-end"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2025-year-end/monthlyyearlyactivity-7a-504-202510-1991-to-present.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2025-year-end"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-activity-reports-fy2025-year-end/tplactivity-fy2025-20250930.xlsx"
+ds = "DS-X6"
+group = "sba-7a-504-activity-reports-fy2025-year-end"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-foia/FOIA_504_FY1991_FY2009_asof_260930.csv"
+ds = "DS-X6"
+group = "sba-7a-504-foia"
+file_format = "csv"
+reference_end = "2009-09-30"
+reference_basis = "file name FY1991 to FY2009 (federal fiscal years)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-foia/FOIA_7a_FY1991_FY1999_asof_260930.csv"
+ds = "DS-X6"
+group = "sba-7a-504-foia"
+file_format = "csv"
+reference_end = "1999-09-30"
+reference_basis = "file name FY1991 to FY1999 (federal fiscal years)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-7a-504-foia/FOIA_7a_FY2000_FY2009_asof_260930.csv"
+ds = "DS-X6"
+group = "sba-7a-504-foia"
+file_format = "csv"
+reference_end = "2009-09-30"
+reference_basis = "file name FY2000 to FY2009 (federal fiscal years)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-ppp/ppp-data-dictionary.xlsx"
+ds = "DS-X6"
+group = "sba-ppp"
+file_format = "xlsx"
+reference_end = "2021-07-19"
+reference_basis = "measured: PPP approvals 2020-04-03 to 2021-07-19, 0 rows 2024 or later (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-ppp/public_150k_plus_240930.csv"
+ds = "DS-X6"
+group = "sba-ppp"
+file_format = "csv"
+reference_end = "2021-07-19"
+reference_basis = "measured: PPP approvals 2020-04-03 to 2021-07-19, 0 rows 2024 or later (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-ppp/public_up_to_150k_10_240930.csv"
+ds = "DS-X6"
+group = "sba-ppp"
+file_format = "csv"
+reference_end = "2021-07-19"
+reference_basis = "measured: PPP approvals 2020-04-03 to 2021-07-19, 0 rows 2024 or later (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-ppp/public_up_to_150k_11_240930.csv"
+ds = "DS-X6"
+group = "sba-ppp"
+file_format = "csv"
+reference_end = "2021-07-19"
+reference_basis = "measured: PPP approvals 2020-04-03 to 2021-07-19, 0 rows 2024 or later (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-ppp/public_up_to_150k_12_240930.csv"
+ds = "DS-X6"
+group = "sba-ppp"
+file_format = "csv"
+reference_end = "2021-07-19"
+reference_basis = "measured: PPP approvals 2020-04-03 to 2021-07-19, 0 rows 2024 or later (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-ppp/public_up_to_150k_1_240930.csv"
+ds = "DS-X6"
+group = "sba-ppp"
+file_format = "csv"
+reference_end = "2021-07-19"
+reference_basis = "measured: PPP approvals 2020-04-03 to 2021-07-19, 0 rows 2024 or later (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-ppp/public_up_to_150k_2_240930.csv"
+ds = "DS-X6"
+group = "sba-ppp"
+file_format = "csv"
+reference_end = "2021-07-19"
+reference_basis = "measured: PPP approvals 2020-04-03 to 2021-07-19, 0 rows 2024 or later (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-ppp/public_up_to_150k_3_240930.csv"
+ds = "DS-X6"
+group = "sba-ppp"
+file_format = "csv"
+reference_end = "2021-07-19"
+reference_basis = "measured: PPP approvals 2020-04-03 to 2021-07-19, 0 rows 2024 or later (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-ppp/public_up_to_150k_4_240930.csv"
+ds = "DS-X6"
+group = "sba-ppp"
+file_format = "csv"
+reference_end = "2021-07-19"
+reference_basis = "measured: PPP approvals 2020-04-03 to 2021-07-19, 0 rows 2024 or later (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-ppp/public_up_to_150k_5_240930.csv"
+ds = "DS-X6"
+group = "sba-ppp"
+file_format = "csv"
+reference_end = "2021-07-19"
+reference_basis = "measured: PPP approvals 2020-04-03 to 2021-07-19, 0 rows 2024 or later (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-ppp/public_up_to_150k_6_240930.csv"
+ds = "DS-X6"
+group = "sba-ppp"
+file_format = "csv"
+reference_end = "2021-07-19"
+reference_basis = "measured: PPP approvals 2020-04-03 to 2021-07-19, 0 rows 2024 or later (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-ppp/public_up_to_150k_7_240930.csv"
+ds = "DS-X6"
+group = "sba-ppp"
+file_format = "csv"
+reference_end = "2021-07-19"
+reference_basis = "measured: PPP approvals 2020-04-03 to 2021-07-19, 0 rows 2024 or later (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-ppp/public_up_to_150k_8_240930.csv"
+ds = "DS-X6"
+group = "sba-ppp"
+file_format = "csv"
+reference_end = "2021-07-19"
+reference_basis = "measured: PPP approvals 2020-04-03 to 2021-07-19, 0 rows 2024 or later (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-ppp/public_up_to_150k_9_240930.csv"
+ds = "DS-X6"
+group = "sba-ppp"
+file_format = "csv"
+reference_end = "2021-07-19"
+reference_basis = "measured: PPP approvals 2020-04-03 to 2021-07-19, 0 rows 2024 or later (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-rrf-foia/rrf-foia-data-dictionary.xlsx"
+ds = "DS-X6"
+group = "sba-rrf-foia"
+file_format = "xlsx"
+reference_end = "2022-12-23"
+reference_basis = "measured: RRF approvals 2021-05-07 to 2022-12-23 (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-rrf-foia/rrf_foia.csv"
+ds = "DS-X6"
+group = "sba-rrf-foia"
+file_format = "csv"
+reference_end = "2022-12-23"
+reference_basis = "measured: RRF approvals 2021-05-07 to 2022-12-23 (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba-sbg-foia/foia-sbgfy2010-fy2019-asof-241231.csv"
+ds = "DS-X6"
+group = "sba-sbg-foia"
+file_format = "csv"
+reference_end = "2019-09-25"
+reference_basis = "measured: approvals 2009-10-01 to 2019-09-25 (measured)"
+publisher = "U.S. Small Business Administration"
+as_of = "2025-09-30 (file name)"
+
+[[source]]
+path = "cache:sba-sbg-foia/foia-sbgfy2020-present-asof-250930.csv"
+ds = "DS-X6"
+group = "sba-sbg-foia"
+file_format = "csv"
+publisher = "U.S. Small Business Administration"
+as_of = "2025-09-30 (file name)"
+
+[[source]]
+path = "cache:sba-sbg-foia/sbg-foia-data-dictionary-2025.xlsx"
+ds = "DS-X6"
+group = "sba-sbg-foia"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+as_of = "2025-09-30 (file name)"
+
+[[source]]
+path = "cache:sba/7a_504_foia_data_dictionary.xlsx"
+ds = "DS-X5"
+group = "sba"
+file_format = "xlsx"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba/FOIA_504_FY2010_Present_asof_260930.csv"
+ds = "DS-X5"
+group = "sba"
+file_format = "csv"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba/FOIA_7a_FY2010_FY2019_asof_260930.csv"
+ds = "DS-X5"
+group = "sba"
+file_format = "csv"
+reference_end = "2019-09-30"
+reference_basis = "measured: approvals 2009-10-01 to 2019-09-30 (measured)"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:sba/FOIA_7a_FY2020_Present_asof_260930.csv"
+ds = "DS-X5"
+group = "sba"
+file_format = "csv"
+publisher = "U.S. Small Business Administration"
+license = "U.S. Government Works (per data/references/sba-foia.json)"
+as_of = "2026-09-30 (file name and AsOfDate column)"
+
+[[source]]
+path = "cache:tiger-tracts/tl_2020_12_tract.zip"
+ds = "DS-X15"
+group = "tiger-tracts"
+file_format = "shapefile"
+base_geography = true
+publisher = "U.S. Census Bureau"
+as_of = "2020 vintage (file name)"
+
+[[source]]
+path = "cache:tiger-tracts/tl_2020_36_tract.zip"
+ds = "DS-X15"
+group = "tiger-tracts"
+file_format = "shapefile"
+base_geography = true
+publisher = "U.S. Census Bureau"
+as_of = "2020 vintage (file name)"
+
+[[source]]
+path = "cache:tiger-tracts/tl_2020_49_tract.zip"
+ds = "DS-X15"
+group = "tiger-tracts"
+file_format = "shapefile"
+base_geography = true
+publisher = "U.S. Census Bureau"
+as_of = "2020 vintage (file name)"
+
+[[source]]
+path = "cache:usda-ers-atlas/2010-food-access-research-atlas-fara-data-and-documentation.zip"
+ds = "DS-X17"
+group = "usda-ers-atlas"
+file_format = "xlsx"
+reference_end = "2010-12-31"
+reference_basis = "file name 2010 release"
+publisher = "USDA Economic Research Service"
+as_of = "2025 SRAM release (file name)"
+
+[[source]]
+path = "cache:usda-ers-atlas/2015-food-access-research-atlas-fara-data-and-documentation.zip"
+ds = "DS-X17"
+group = "usda-ers-atlas"
+file_format = "xlsx"
+reference_end = "2015-12-31"
+reference_basis = "file name 2015 release"
+publisher = "USDA Economic Research Service"
+as_of = "2025 SRAM release (file name)"
+
+[[source]]
+path = "cache:usda-ers-atlas/2019-large-retailer-access-map-lram-formerly-known-as-the-food-access-research-atlas-fara-data.xlsx"
+ds = "DS-X17"
+group = "usda-ers-atlas"
+file_format = "xlsx"
+reference_end = "2019-12-31"
+reference_basis = "file name 2019 release"
+publisher = "USDA Economic Research Service"
+as_of = "2025 SRAM release (file name)"
+
+[[source]]
+path = "cache:usda-ers-atlas/2019-large-retailer-access-map-lram-formerly-known-as-the-food-access-research-atlas-fara-data.zip"
+ds = "DS-X17"
+group = "usda-ers-atlas"
+file_format = "csv"
+reference_end = "2019-12-31"
+reference_basis = "file name 2019 release"
+publisher = "USDA Economic Research Service"
+as_of = "2025 SRAM release (file name)"
+
+[[source]]
+path = "cache:usda-ers-atlas/2025-snap-authorized-retailer-access-map-sram-data.xlsx"
+ds = "DS-X17"
+group = "usda-ers-atlas"
+file_format = "xlsx"
+release_id = "release:2025-snap-authorized-retailer-access-map-sram-data"
+publisher = "USDA Economic Research Service"
+as_of = "2025 SRAM release (file name)"
+
+[[source]]
+path = "cache:usda-ers-atlas/2025-snap-authorized-retailer-access-map-sram-data.zip"
+ds = "DS-X17"
+group = "usda-ers-atlas"
+file_format = "csv"
+release_id = "release:2025-snap-authorized-retailer-access-map-sram-data"
+publisher = "USDA Economic Research Service"
+as_of = "2025 SRAM release (file name)"
+
+[[source]]
+path = "cache:usda-ers-atlas/archived-2006-food-desert-locator.zip"
+ds = "DS-X17"
+group = "usda-ers-atlas"
+file_format = "xls"
+reference_end = "2006-12-31"
+reference_basis = "file name 2006"
+publisher = "USDA Economic Research Service"
+as_of = "2025 SRAM release (file name)"
+
+[[source]]
+path = "cache:usda-fns-snap/snap-4fymonthly-10.xlsx"
+ds = "DS-X1"
+group = "usda-fns-snap"
+file_format = "xlsx"
+publisher = "USDA Food and Nutrition Service"
+as_of = "see workbook"
+
+[[source]]
+path = "cache:usda-fns-snap/snap-annualsummary-10.xlsx"
+ds = "DS-X1"
+group = "usda-fns-snap"
+file_format = "xlsx"
+publisher = "USDA Food and Nutrition Service"
+as_of = "see workbook"
+
+[[source]]
+path = "cache:usda-fns-snap/snap-benefits-10.xlsx"
+ds = "DS-X1"
+group = "usda-fns-snap"
+file_format = "xlsx"
+publisher = "USDA Food and Nutrition Service"
+as_of = "see workbook"
+
+[[source]]
+path = "cache:usda-fns-snap/snap-households-10.xlsx"
+ds = "DS-X1"
+group = "usda-fns-snap"
+file_format = "xlsx"
+publisher = "USDA Food and Nutrition Service"
+as_of = "see workbook"
+
+[[source]]
+path = "cache:usda-fns-snap/snap-persons-10.xlsx"
+ds = "DS-X1"
+group = "usda-fns-snap"
+file_format = "xlsx"
+publisher = "USDA Food and Nutrition Service"
+as_of = "see workbook"
+
+[[source]]
+path = "cache:usda-fns-snap/snap-zip-fns388a-2.zip"
+ds = "DS-X1"
+group = "usda-fns-snap"
+file_format = "xlsx"
+publisher = "USDA Food and Nutrition Service"
+as_of = "see workbook"
+
+  [[source.member]]
+  name = "JAN 1989.xls"
+  file_format = "xls"
+  reference_end = "1989-01-31"
+  reference_basis = "file name JAN 1989"
+
+  [[source.member]]
+  name = "JAN 1990.xls"
+  file_format = "xls"
+  reference_end = "1990-01-31"
+  reference_basis = "file name JAN 1990"
+
+  [[source.member]]
+  name = "JAN 1991.xls"
+  file_format = "xls"
+  reference_end = "1991-01-31"
+  reference_basis = "file name JAN 1991"
+
+  [[source.member]]
+  name = "JAN 1992.xls"
+  file_format = "xls"
+  reference_end = "1992-01-31"
+  reference_basis = "file name JAN 1992"
+
+  [[source.member]]
+  name = "JAN 1993.xls"
+  file_format = "xls"
+  reference_end = "1993-01-31"
+  reference_basis = "file name JAN 1993"
+
+  [[source.member]]
+  name = "JAN 1994.xls"
+  file_format = "xls"
+  reference_end = "1994-01-31"
+  reference_basis = "file name JAN 1994"
+
+  [[source.member]]
+  name = "JAN 1995.xls"
+  file_format = "xls"
+  reference_end = "1995-01-31"
+  reference_basis = "file name JAN 1995"
+
+  [[source.member]]
+  name = "JAN 1996.xls"
+  file_format = "xls"
+  reference_end = "1996-01-31"
+  reference_basis = "file name JAN 1996"
+
+  [[source.member]]
+  name = "JAN 1997.xls"
+  file_format = "xls"
+  reference_end = "1997-01-31"
+  reference_basis = "file name JAN 1997"
+
+  [[source.member]]
+  name = "JAN 1998.xls"
+  file_format = "xls"
+  reference_end = "1998-01-31"
+  reference_basis = "file name JAN 1998"
+
+  [[source.member]]
+  name = "JAN 1999.xls"
+  file_format = "xls"
+  reference_end = "1999-01-31"
+  reference_basis = "file name JAN 1999"
+
+  [[source.member]]
+  name = "JAN 2000.xls"
+  file_format = "xls"
+  reference_end = "2000-01-31"
+  reference_basis = "file name JAN 2000"
+
+  [[source.member]]
+  name = "JAN 2001.xls"
+  file_format = "xls"
+  reference_end = "2001-01-31"
+  reference_basis = "file name JAN 2001"
+
+  [[source.member]]
+  name = "JAN 2002.xls"
+  file_format = "xls"
+  reference_end = "2002-01-31"
+  reference_basis = "file name JAN 2002"
+
+  [[source.member]]
+  name = "JAN 2003.xls"
+  file_format = "xls"
+  reference_end = "2003-01-31"
+  reference_basis = "file name JAN 2003"
+
+  [[source.member]]
+  name = "JAN 2004.xls"
+  file_format = "xls"
+  reference_end = "2004-01-31"
+  reference_basis = "file name JAN 2004"
+
+  [[source.member]]
+  name = "JAN 2005.xls"
+  file_format = "xls"
+  reference_end = "2005-01-31"
+  reference_basis = "file name JAN 2005"
+
+  [[source.member]]
+  name = "JAN 2006.xls"
+  file_format = "xls"
+  reference_end = "2006-01-31"
+  reference_basis = "file name JAN 2006"
+
+  [[source.member]]
+  name = "JAN 2007.xls"
+  file_format = "xls"
+  reference_end = "2007-01-31"
+  reference_basis = "file name JAN 2007"
+
+  [[source.member]]
+  name = "JAN 2008.xls"
+  file_format = "xls"
+  reference_end = "2008-01-31"
+  reference_basis = "file name JAN 2008"
+
+  [[source.member]]
+  name = "JAN 2009.xls"
+  file_format = "xls"
+  reference_end = "2009-01-31"
+  reference_basis = "file name JAN 2009"
+
+  [[source.member]]
+  name = "Jan 2010.xls"
+  file_format = "xls"
+  reference_end = "2010-01-31"
+  reference_basis = "file name Jan 2010"
+
+  [[source.member]]
+  name = "Jan 2011.xls"
+  file_format = "xls"
+  reference_end = "2011-01-31"
+  reference_basis = "file name Jan 2011"
+
+  [[source.member]]
+  name = "Jan 2012.xls"
+  file_format = "xls"
+  reference_end = "2012-01-31"
+  reference_basis = "file name Jan 2012"
+
+  [[source.member]]
+  name = "JAN 2013.xls"
+  file_format = "xls"
+  reference_end = "2013-01-31"
+  reference_basis = "file name JAN 2013"
+
+  [[source.member]]
+  name = "JUL 1989.xls"
+  file_format = "xls"
+  reference_end = "1989-07-31"
+  reference_basis = "file name JUL 1989"
+
+  [[source.member]]
+  name = "JUL 1990.xls"
+  file_format = "xls"
+  reference_end = "1990-07-31"
+  reference_basis = "file name JUL 1990"
+
+  [[source.member]]
+  name = "JUL 1991.xls"
+  file_format = "xls"
+  reference_end = "1991-07-31"
+  reference_basis = "file name JUL 1991"
+
+  [[source.member]]
+  name = "JUL 1992.xls"
+  file_format = "xls"
+  reference_end = "1992-07-31"
+  reference_basis = "file name JUL 1992"
+
+  [[source.member]]
+  name = "JUL 1993.xls"
+  file_format = "xls"
+  reference_end = "1993-07-31"
+  reference_basis = "file name JUL 1993"
+
+  [[source.member]]
+  name = "JUL 1994.xls"
+  file_format = "xls"
+  reference_end = "1994-07-31"
+  reference_basis = "file name JUL 1994"
+
+  [[source.member]]
+  name = "JUL 1995.xls"
+  file_format = "xls"
+  reference_end = "1995-07-31"
+  reference_basis = "file name JUL 1995"
+
+  [[source.member]]
+  name = "JUL 1996.xls"
+  file_format = "xls"
+  reference_end = "1996-07-31"
+  reference_basis = "file name JUL 1996"
+
+  [[source.member]]
+  name = "JUL 1997.xls"
+  file_format = "xls"
+  reference_end = "1997-07-31"
+  reference_basis = "file name JUL 1997"
+
+  [[source.member]]
+  name = "JUL 1998.xls"
+  file_format = "xls"
+  reference_end = "1998-07-31"
+  reference_basis = "file name JUL 1998"
+
+  [[source.member]]
+  name = "JUL 1999.xls"
+  file_format = "xls"
+  reference_end = "1999-07-31"
+  reference_basis = "file name JUL 1999"
+
+  [[source.member]]
+  name = "JUL 2000.xls"
+  file_format = "xls"
+  reference_end = "2000-07-31"
+  reference_basis = "file name JUL 2000"
+
+  [[source.member]]
+  name = "JUL 2001.xls"
+  file_format = "xls"
+  reference_end = "2001-07-31"
+  reference_basis = "file name JUL 2001"
+
+  [[source.member]]
+  name = "JUL 2002.xls"
+  file_format = "xls"
+  reference_end = "2002-07-31"
+  reference_basis = "file name JUL 2002"
+
+  [[source.member]]
+  name = "JUL 2003.xls"
+  file_format = "xls"
+  reference_end = "2003-07-31"
+  reference_basis = "file name JUL 2003"
+
+  [[source.member]]
+  name = "JUL 2004.xls"
+  file_format = "xls"
+  reference_end = "2004-07-31"
+  reference_basis = "file name JUL 2004"
+
+  [[source.member]]
+  name = "JUL 2005.xls"
+  file_format = "xls"
+  reference_end = "2005-07-31"
+  reference_basis = "file name JUL 2005"
+
+  [[source.member]]
+  name = "JUL 2006.xls"
+  file_format = "xls"
+  reference_end = "2006-07-31"
+  reference_basis = "file name JUL 2006"
+
+  [[source.member]]
+  name = "JUL 2007.xls"
+  file_format = "xls"
+  reference_end = "2007-07-31"
+  reference_basis = "file name JUL 2007"
+
+  [[source.member]]
+  name = "JUL 2008.xls"
+  file_format = "xls"
+  reference_end = "2008-07-31"
+  reference_basis = "file name JUL 2008"
+
+  [[source.member]]
+  name = "JUL 2009.xls"
+  file_format = "xls"
+  reference_end = "2009-07-31"
+  reference_basis = "file name JUL 2009"
+
+  [[source.member]]
+  name = "JUL 2010.xls"
+  file_format = "xls"
+  reference_end = "2010-07-31"
+  reference_basis = "file name JUL 2010"
+
+  [[source.member]]
+  name = "Jul 2011.xls"
+  file_format = "xls"
+  reference_end = "2011-07-31"
+  reference_basis = "file name Jul 2011"
+
+  [[source.member]]
+  name = "Jul 2012.xls"
+  file_format = "xls"
+  reference_end = "2012-07-31"
+  reference_basis = "file name Jul 2012"
+
+  [[source.member]]
+  name = "JUL 2013.xls"
+  file_format = "xls"
+  reference_end = "2013-07-31"
+  reference_basis = "file name JUL 2013"
+
+  [[source.member]]
+  name = "JAN 2014.xls"
+  file_format = "xls"
+  reference_end = "2014-01-31"
+  reference_basis = "file name JAN 2014"
+
+  [[source.member]]
+  name = "Jan 2015.xls"
+  file_format = "xls"
+  reference_end = "2015-01-31"
+  reference_basis = "file name Jan 2015"
+
+  [[source.member]]
+  name = "JUL 2014.xls"
+  file_format = "xls"
+  reference_end = "2014-07-31"
+  reference_basis = "file name JUL 2014"
+
+  [[source.member]]
+  name = "Jul 2015.xls"
+  file_format = "xls"
+  reference_end = "2015-07-31"
+  reference_basis = "file name Jul 2015"
+
+  [[source.member]]
+  name = "Jan 2016.xls"
+  file_format = "xls"
+  reference_end = "2016-01-31"
+  reference_basis = "file name Jan 2016"
+
+  [[source.member]]
+  name = "Jan 2017.xls"
+  file_format = "xls"
+  reference_end = "2017-01-31"
+  reference_basis = "file name Jan 2017"
+
+  [[source.member]]
+  name = "Jul 2016.xls"
+  file_format = "xls"
+  reference_end = "2016-07-31"
+  reference_basis = "file name Jul 2016"
+
+  [[source.member]]
+  name = "Jul 2017.xls"
+  file_format = "xls"
+  reference_end = "2017-07-31"
+  reference_basis = "file name Jul 2017"
+
+  [[source.member]]
+  name = "Jan 2018.xls"
+  file_format = "xls"
+  reference_end = "2018-01-31"
+  reference_basis = "file name Jan 2018"
+
+  [[source.member]]
+  name = "JUL 2018.xls"
+  file_format = "xls"
+  reference_end = "2018-07-31"
+  reference_basis = "file name JUL 2018"
+
+  [[source.member]]
+  name = "Jan 2019.xls"
+  file_format = "xls"
+  reference_end = "2019-01-31"
+  reference_basis = "file name Jan 2019"
+
+  [[source.member]]
+  name = "JUL 2019.xls"
+  file_format = "xls"
+  reference_end = "2019-07-31"
+  reference_basis = "file name JUL 2019"
+
+  [[source.member]]
+  name = "Jan 2021.xls"
+  file_format = "xls"
+  reference_end = "2021-01-31"
+  reference_basis = "file name Jan 2021"
+
+  [[source.member]]
+  name = "Jul 2021.xlsx"
+  file_format = "xlsx"
+  reference_end = "2021-07-31"
+  reference_basis = "file name Jul 2021"
+
+  [[source.member]]
+  name = "Jul 2020.xlsx"
+  file_format = "xlsx"
+  reference_end = "2020-07-31"
+  reference_basis = "file name Jul 2020"
+
+  [[source.member]]
+  name = "Jan 2020.xlsx"
+  file_format = "xlsx"
+  reference_end = "2020-01-31"
+  reference_basis = "file name Jan 2020"
+
+  [[source.member]]
+  name = "Jan 2022.xlsx"
+  file_format = "xlsx"
+  reference_end = "2022-01-31"
+  reference_basis = "file name Jan 2022"
+
+  [[source.member]]
+  name = "Jul 2022.xlsx"
+  file_format = "xlsx"
+  reference_end = "2022-07-31"
+  reference_basis = "file name Jul 2022"
+
+  [[source.member]]
+  name = "JUL 2023.xlsx"
+  file_format = "xlsx"
+  reference_end = "2023-07-31"
+  reference_basis = "file name JUL 2023"
+
+  [[source.member]]
+  name = "JAN 2024.xlsx"
+  file_format = "xlsx"
+  reference_end = "2024-01-31"
+  reference_basis = "file name JAN 2024"
+
+  [[source.member]]
+  name = "JAN 2025.xlsx"
+  file_format = "xlsx"
+  reference_end = "2025-01-31"
+  reference_basis = "file name JAN 2025"
+
+  [[source.member]]
+  name = "JAN 2023.xlsx"
+  file_format = "xlsx"
+  reference_end = "2023-01-31"
+  reference_basis = "file name JAN 2023"
+
+  [[source.member]]
+  name = "JUL 2024.xlsx"
+  file_format = "xlsx"
+  reference_end = "2024-07-31"
+  reference_basis = "file name JUL 2024"
+
+  [[source.member]]
+  name = "JUL 2025.xlsx"
+  file_format = "xlsx"
+  reference_end = "2025-07-31"
+  reference_basis = "file name JUL 2025"
+
+[[source]]
+path = "cache:usda-fns-snap/snap-zip-fy69tocurrent-10.zip"
+ds = "DS-X1"
+group = "usda-fns-snap"
+file_format = "xlsx"
+publisher = "USDA Food and Nutrition Service"
+as_of = "see workbook"
+
+  [[source.member]]
+  name = "1969-88  National Level Only--State Level Not Available.xls"
+  file_format = "xls"
+  reference_end = "1988-09-30"
+  reference_basis = "file name 1969-88 (federal fiscal years)"
+
+  [[source.member]]
+  name = "FY00.xls"
+  file_format = "xls"
+  reference_end = "2000-09-30"
+  reference_basis = "file name FY00 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY01.xls"
+  file_format = "xls"
+  reference_end = "2001-09-30"
+  reference_basis = "file name FY01 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY02.xls"
+  file_format = "xls"
+  reference_end = "2002-09-30"
+  reference_basis = "file name FY02 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY03.xls"
+  file_format = "xls"
+  reference_end = "2003-09-30"
+  reference_basis = "file name FY03 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY04.xls"
+  file_format = "xls"
+  reference_end = "2004-09-30"
+  reference_basis = "file name FY04 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY05.xls"
+  file_format = "xls"
+  reference_end = "2005-09-30"
+  reference_basis = "file name FY05 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY06.xls"
+  file_format = "xls"
+  reference_end = "2006-09-30"
+  reference_basis = "file name FY06 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY07.xls"
+  file_format = "xls"
+  reference_end = "2007-09-30"
+  reference_basis = "file name FY07 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY08.xls"
+  file_format = "xls"
+  reference_end = "2008-09-30"
+  reference_basis = "file name FY08 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY09.xls"
+  file_format = "xls"
+  reference_end = "2009-09-30"
+  reference_basis = "file name FY09 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY10.xls"
+  file_format = "xls"
+  reference_end = "2010-09-30"
+  reference_basis = "file name FY10 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY11.xls"
+  file_format = "xls"
+  reference_end = "2011-09-30"
+  reference_basis = "file name FY11 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY12.xls"
+  file_format = "xls"
+  reference_end = "2012-09-30"
+  reference_basis = "file name FY12 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY13.xls"
+  file_format = "xls"
+  reference_end = "2013-09-30"
+  reference_basis = "file name FY13 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY14.xls"
+  file_format = "xls"
+  reference_end = "2014-09-30"
+  reference_basis = "file name FY14 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY15.xls"
+  file_format = "xls"
+  reference_end = "2015-09-30"
+  reference_basis = "file name FY15 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY89.xls"
+  file_format = "xls"
+  reference_end = "2089-09-30"
+  reference_basis = "file name FY89 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY90.xls"
+  file_format = "xls"
+  reference_end = "1990-09-30"
+  reference_basis = "file name FY90 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY91.xls"
+  file_format = "xls"
+  reference_end = "1991-09-30"
+  reference_basis = "file name FY91 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY92.xls"
+  file_format = "xls"
+  reference_end = "1992-09-30"
+  reference_basis = "file name FY92 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY93.xls"
+  file_format = "xls"
+  reference_end = "1993-09-30"
+  reference_basis = "file name FY93 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY94.xls"
+  file_format = "xls"
+  reference_end = "1994-09-30"
+  reference_basis = "file name FY94 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY95.xls"
+  file_format = "xls"
+  reference_end = "1995-09-30"
+  reference_basis = "file name FY95 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY96.xls"
+  file_format = "xls"
+  reference_end = "1996-09-30"
+  reference_basis = "file name FY96 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY97.xls"
+  file_format = "xls"
+  reference_end = "1997-09-30"
+  reference_basis = "file name FY97 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY98.xls"
+  file_format = "xls"
+  reference_end = "1998-09-30"
+  reference_basis = "file name FY98 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY99.xls"
+  file_format = "xls"
+  reference_end = "1999-09-30"
+  reference_basis = "file name FY99 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY16.xls"
+  file_format = "xls"
+  reference_end = "2016-09-30"
+  reference_basis = "file name FY16 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY17.xls"
+  file_format = "xls"
+  reference_end = "2017-09-30"
+  reference_basis = "file name FY17 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY18.xls"
+  file_format = "xls"
+  reference_end = "2018-09-30"
+  reference_basis = "file name FY18 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY19.xls"
+  file_format = "xls"
+  reference_end = "2019-09-30"
+  reference_basis = "file name FY19 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY21.xlsx"
+  file_format = "xlsx"
+  reference_end = "2021-09-30"
+  reference_basis = "file name FY21 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY20.xlsx"
+  file_format = "xlsx"
+  reference_end = "2020-09-30"
+  reference_basis = "file name FY20 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY22.xlsx"
+  file_format = "xlsx"
+  reference_end = "2022-09-30"
+  reference_basis = "file name FY22 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY23.xlsx"
+  file_format = "xlsx"
+  reference_end = "2023-09-30"
+  reference_basis = "file name FY23 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY24.xlsx"
+  file_format = "xlsx"
+  reference_end = "2024-09-30"
+  reference_basis = "file name FY24 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY25.xlsx"
+  file_format = "xlsx"
+  reference_end = "2025-09-30"
+  reference_basis = "file name FY25 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY26.xlsx"
+  file_format = "xlsx"
+  reference_end = "2026-09-30"
+  reference_basis = "file name FY26 (federal fiscal year ends 30 September)"
+
+[[source]]
+path = "cache:usda-fns-snap/snap-zip-pebt-fy20current-10.zip"
+ds = "DS-X1"
+group = "usda-fns-snap"
+file_format = "xlsx"
+publisher = "USDA Food and Nutrition Service"
+as_of = "see workbook"
+
+  [[source.member]]
+  name = "FY22 PEBT.xlsx"
+  file_format = "xlsx"
+  reference_end = "2022-09-30"
+  reference_basis = "file name FY22 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY20 PEBT.xlsx"
+  file_format = "xlsx"
+  reference_end = "2020-09-30"
+  reference_basis = "file name FY20 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY21 PEBT.xlsx"
+  file_format = "xlsx"
+  reference_end = "2021-09-30"
+  reference_basis = "file name FY21 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY23 PEBT.xlsx"
+  file_format = "xlsx"
+  reference_end = "2023-09-30"
+  reference_basis = "file name FY23 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY24 PEBT.xlsx"
+  file_format = "xlsx"
+  reference_end = "2024-09-30"
+  reference_basis = "file name FY24 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY25 PEBT.xlsx"
+  file_format = "xlsx"
+  reference_end = "2025-09-30"
+  reference_basis = "file name FY25 (federal fiscal year ends 30 September)"
+
+  [[source.member]]
+  name = "FY26 PEBT.xlsx"
+  file_format = "xlsx"
+  reference_end = "2026-09-30"
+  reference_basis = "file name FY26 (federal fiscal year ends 30 September)"
+
+[[source]]
+path = "repo:data/external/cbpp-snap-tracker/cbpp_florida_snap_monthly.csv"
+ds = "DS-X3b"
+group = "repo_external_cbpp_snap_tracker"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/external/cbpp-snap-tracker/cbpp_snap_tracker_downloadable_data.xlsx"
+ds = "DS-X3b"
+group = "repo_external_cbpp_snap_tracker"
+file_format = "xlsx"
+
+[[source]]
+path = "repo:data/external/census-2020-blocks/README.md"
+ds = "DS-X24"
+group = "repo_external_census_2020_blocks"
+file_format = "text"
+base_geography = true
+
+[[source]]
+path = "repo:data/external/census-2020-blocks/central-fl-blocks-2020.csv"
+ds = "DS-X24"
+group = "repo_external_census_2020_blocks"
+file_format = "csv"
+base_geography = true
+
+[[source]]
+path = "repo:data/external/census-acs/acs2024_b08201_no_vehicle_central_fl_tracts.csv"
+ds = "DS-X7b"
+group = "repo_external_census_acs"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/external/census-acs/acs2024_b19013_median_household_income_central_fl_counties.csv"
+ds = "DS-X28"
+group = "repo_external_census_acs"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/external/census-acs/acs2024_s1901_median_household_income_central_fl_tracts.csv"
+ds = "DS-X28"
+group = "repo_external_census_acs"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/external/feeding-america/feeding_america_map_the_meal_gap_2024_central_fl_counties.csv"
+ds = "DS-X9b"
+group = "repo_external_feeding_america"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/external/fema-nri/fema_nri_central_fl_tracts.csv"
+ds = "DS-X16b"
+group = "repo_external_fema_nri"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/external/geography/central_fl_counties_2020.geojson"
+ds = "DS-X15b"
+group = "repo_external_geography"
+file_format = "geojson"
+base_geography = true
+
+[[source]]
+path = "repo:data/external/geography/central_fl_tracts_2020.geojson"
+ds = "DS-X15b"
+group = "repo_external_geography"
+file_format = "geojson"
+base_geography = true
+
+[[source]]
+path = "repo:data/external/sba-loans/README.md"
+ds = "DS-X5"
+group = "repo_external_sba_loans"
+file_format = "text"
+
+[[source]]
+path = "repo:data/external/sba-loans/sba_loans_by_tract_central_fl.csv"
+ds = "DS-X5"
+group = "repo_external_sba_loans"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/external/second-harvest-food-finder/central_fl_tract_pantry_coverage.csv"
+ds = "DS-X12"
+group = "repo_external_second_harvest_food_finder"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/external/second-harvest-food-finder/second_harvest_food_finder_locations.csv"
+ds = "DS-X12"
+group = "repo_external_second_harvest_food_finder"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/external/second-harvest-food-finder/second_harvest_food_finder_raw_stores.json"
+ds = "DS-X12"
+group = "repo_external_second_harvest_food_finder"
+file_format = "json"
+
+[[source]]
+path = "repo:data/hackathon/beacon-example-datasets/Employed and Unemployed, 16+ Labor Force.zip"
+ds = "DS-H5"
+group = "repo_hackathon_beacon_example_datasets"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/hackathon/beacon-example-datasets/Household Income, Median.zip"
+ds = "DS-H3"
+group = "repo_hackathon_beacon_example_datasets"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/hackathon/beacon-example-datasets/Households and Households Receiving SNAP Census, S2201.zip"
+ds = "DS-H1"
+group = "repo_hackathon_beacon_example_datasets"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/hackathon/beacon-example-datasets/Low Grocery Access - 1_2 or 10 miles_2025-sram-fara-data.zip"
+ds = "DS-H6"
+group = "repo_hackathon_beacon_example_datasets"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/hackathon/beacon-example-datasets/Population - Below Poverty Level.zip"
+ds = "DS-H2"
+group = "repo_hackathon_beacon_example_datasets"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/hackathon/beacon-example-datasets/SNAP_Retailer_Location_data.csv"
+ds = "DS-H8"
+group = "repo_hackathon_beacon_example_datasets"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/hackathon/beacon-example-datasets/Small Business FL.pdf"
+ds = "DS-H10"
+group = "repo_hackathon_beacon_example_datasets"
+file_format = "pdf"
+
+[[source]]
+path = "repo:data/hackathon/beacon-example-datasets/Small Business NY.pdf"
+ds = "DS-H10"
+group = "repo_hackathon_beacon_example_datasets"
+file_format = "pdf"
+
+[[source]]
+path = "repo:data/hackathon/beacon-example-datasets/SmallBusinessUtah.pdf"
+ds = "REPO"
+group = "repo_hackathon_beacon_example_datasets"
+file_format = "pdf"
+
+[[source]]
+path = "repo:data/hackathon/beacon-example-datasets/Total Population.zip"
+ds = "DS-H4"
+group = "repo_hackathon_beacon_example_datasets"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/hackathon/beacon-example-datasets/Transportation_PLACES__Census_Tract_Data_(GIS_Friendly_Format),_2025_release .csv"
+ds = "DS-H7"
+group = "repo_hackathon_beacon_example_datasets"
+file_format = "csv"
+
+[[source]]
+path = "repo:data/hackathon/beacon-example-datasets/mortgage_denials_originations_by_tract.xlsx"
+ds = "DS-H9"
+group = "repo_hackathon_beacon_example_datasets"
+file_format = "xlsx"
+
+[[source]]
+path = "repo:data/references/sba-foia.json"
+ds = "DS-X5"
+group = "repo_references"
+file_format = "json"
+
+[[source]]
+path = "repo:docs/agent-coordination.md"
+ds = "REPO-DOC"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/data-references.md"
+ds = "REPO-DOC"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/data-sources.md"
+ds = "REPO-DOC"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/hackathon/beacon-appendices.md"
+ds = "DS-B2"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/hackathon/beacon-challenge-brief.md"
+ds = "DS-B1"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/hackathon/3-Minute Hackathon Pitch Skeleton (DevFest Florida Teams).md"
+ds = "REPO-DOC"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/hackathon/blocked-pages-text.md"
+ds = "DS-X10b/X11b/X9c/X23b/X22b/X3c"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/hackathon/census-tract-median-income.md"
+ds = "REPO-DOC"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/hackathon/data-manifest.md"
+ds = "DS-H*"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/hackathon/devfest-hackathon-challenges.md"
+ds = "DS-B3"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/hackathon/external-data-retrieved.md"
+ds = "project"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/hackathon/linked-pages.md"
+ds = "DS-B7"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/hackathon/second-harvest-food-finder-data.md"
+ds = "DS-X12"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/hackathon/resources/beacon-design-brand-guidelines.pdf"
+ds = "DS-B4"
+group = "docs"
+file_format = "pdf"
+
+[[source]]
+path = "repo:docs/hackathon/resources/cdfi-fund-infographic.pdf"
+ds = "DS-B9"
+group = "docs"
+file_format = "pdf"
+
+[[source]]
+path = "repo:docs/hackathon/resources/presentation-template.pptx"
+ds = "DS-B5"
+group = "docs"
+file_format = "pptx"
+
+[[source]]
+path = "repo:docs/taxonomy.md"
+ds = "REPO-DOC"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/analysis/high_need_low_lending_tracts.csv"
+ds = "REPO-DOC"
+group = "docs_analysis"
+file_format = "csv"
+
+[[source]]
+path = "repo:docs/analysis/need-vs-sba-lending.md"
+ds = "REPO-DOC"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/analysis/shared-basis.md"
+ds = "REPO-DOC"
+group = "docs"
+file_format = "text"
+
+[[source]]
+path = "repo:docs/analysis/tract_gap_types.csv"
+ds = "REPO-DOC"
+group = "docs_analysis"
+file_format = "csv"
+
+[[not_a_source]]
+path = "repo:data/external/census-acs/extract_median_income.py"
+reason = "project code that produced the committed ACS median income extract; the extract is the source"
+
+# Data dictionaries and lookup files for the glossary (REQ-30, POST-GLOSS-3). Columns are the
+# labels of each worksheet's first non-empty row, read on 2026-11-08 with src/warehouse/office.py.
+
+[[glossary]]
+path = "cache:sba-sbg-foia/sbg-foia-data-dictionary-2025.xlsx"
+part = "SBG Data Dictionary"
+term = "Field Name"
+definition = "Definition"
+
+[[glossary]]
+path = "cache:sba/7a_504_foia_data_dictionary.xlsx"
+part = "7(a) Data Dictionary"
+term = "Field Name"
+definition = "Definition"
+
+[[glossary]]
+path = "cache:sba/7a_504_foia_data_dictionary.xlsx"
+part = "504 Data Dictionary"
+term = "Field Name"
+definition = "Definition"
+
+[[glossary]]
+path = "cache:census-acs-docs-2024/ACS2024_Table_Shells.xlsx"
+part = "2024"
+term = "UniqueID"
+definition = "Stub"

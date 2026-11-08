@@ -49,6 +49,7 @@ OPERATIONAL = [
     "Dockerfile",
     "**/.dockerignore",
     "nginx/**",
+    "deploy/**",
 ]
 
 PRODUCTION_CODE = [

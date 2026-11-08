@@ -1,6 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Map as MapLibre, NavigationControl, setWorkerUrl } from 'maplibre-gl'
-import type { ExpressionSpecification, LngLatBoundsLike, StyleSpecification } from 'maplibre-gl'
+import type {
+  ExpressionSpecification,
+  GeoJSONSource,
+  LngLatBoundsLike,
+  StyleSpecification,
+} from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
@@ -10,7 +16,38 @@ import { CLASS_HIGH_NEED, CLASS_INSUFFICIENT } from '../wizard/alignmentWizard'
 // MapLibre 6 resolves its worker next to its own module URL; Vite relocates the module.
 setWorkerUrl(workerUrl)
 
+import { emphasisStates } from './emphasis'
 import { BASE_MAP_UNAVAILABLE_TEXT, COLORS, OPENFREEMAP_STYLE_URL } from './mapConstants'
+
+const FLAG_KEYS = ['tract_class', 'is_dual_gap', 'is_transport_gap', 'is_triple_gap'] as const
+
+/**
+ * REQ-65: the tract shapes with the class and gap flags of the current records, so the fills follow
+ * the chosen cuts. Returns null when every shape already carries them.
+ */
+function withRecordFlags(
+  tracts: GeoJSON.FeatureCollection,
+  records: readonly TractRecord[],
+): GeoJSON.FeatureCollection | null {
+  const byGeoid = new Map(records.map((r) => [r.geoid, r]))
+  let changed = false
+  const features = tracts.features.map((f) => {
+    const r = byGeoid.get(String(f.properties?.geoid))
+    if (!r || FLAG_KEYS.every((k) => f.properties?.[k] === r[k])) return f
+    changed = true
+    return {
+      ...f,
+      properties: {
+        ...f.properties,
+        tract_class: r.tract_class,
+        is_dual_gap: r.is_dual_gap,
+        is_transport_gap: r.is_transport_gap,
+        is_triple_gap: r.is_triple_gap,
+      },
+    }
+  })
+  return changed ? { ...tracts, features } : null
+}
 
 const BLANK_STYLE: StyleSpecification = {
   version: 8,
@@ -140,11 +177,14 @@ export interface OpportunityMapProps {
   readonly emphasizeGaps: boolean
   readonly selectedGeoid: string | null
   readonly onSelect: (geoid: string | null) => void
+  readonly showOverlap?: boolean
   readonly overlays: {
     readonly sba: boolean
     readonly transport: boolean
     readonly sites: boolean
   }
+  /** Notes shown inside the map's (i) credits box, after the base map credits. */
+  readonly attributionNotes?: ReactNode
 }
 
 export function OpportunityMap(props: OpportunityMapProps) {
@@ -158,11 +198,20 @@ export function OpportunityMap(props: OpportunityMapProps) {
     selectedGeoid,
     onSelect,
     overlays,
+    showOverlap = true,
   } = props
   const el = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibre | null>(null)
   const [ready, setReady] = useState(false)
   const [tilesFailed, setTilesFailed] = useState(false)
+  // MapLibre rewrites only its own inner credits element, so this sibling keeps what React puts in it.
+  const [notesHost] = useState(() => {
+    const host = document.createElement('div')
+    host.className = 'map-attrib-notes'
+    return host
+  })
+  // True while the tract source holds flags that differ from tractsGeojson.
+  const recoloredRef = useRef(false)
   const selectRef = useRef(onSelect)
   useEffect(() => {
     selectRef.current = onSelect
@@ -179,7 +228,9 @@ export function OpportunityMap(props: OpportunityMapProps) {
       dragRotate: false,
     })
     mapRef.current = map
+    recoloredRef.current = false
     map.addControl(new NavigationControl({ showCompass: false }), 'top-left')
+    el.current.querySelector('.maplibregl-ctrl-attrib')?.append(notesHost)
 
     let fellBack = false
     const fallback = () => {
@@ -405,24 +456,37 @@ export function OpportunityMap(props: OpportunityMapProps) {
       map.remove()
       mapRef.current = null
     }
-  }, [tractsGeojson, countiesGeojson, sitesGeojson])
+  }, [tractsGeojson, countiesGeojson, sitesGeojson, notesHost])
+
+  // The fills follow the class and gap flags under the chosen cuts.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready) return
+    const data = withRecordFlags(tractsGeojson, records)
+    if (!data && !recoloredRef.current) return
+    ;(map.getSource('tracts') as GeoJSONSource | undefined)?.setData(data ?? tractsGeojson)
+    recoloredRef.current = data !== null
+  }, [tractsGeojson, records, ready])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready) return
+    map.setPaintProperty('tract-fill', 'fill-color', [
+      'case',
+      ['all', showOverlap, ['==', ['get', 'is_triple_gap'], true]],
+      COLORS.triple,
+      ['==', ['get', 'tract_class'], CLASS_HIGH_NEED],
+      COLORS.highNeed,
+      COLORS.noGap,
+    ])
+  }, [showOverlap, ready])
 
   // The map and shortlist follow the same cohort or question results.
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready) return
-    const include = new Set(focusedGeoids)
-    const active = emphasizeGaps && include.size > 0
-    for (const r of records) {
-      if (!r.drawn) continue
-      map.setFeatureState(
-        { source: 'tracts', id: Number(r.geoid.slice(2)) },
-        {
-          dimmed: !include.has(r.geoid),
-          emphasized: active && include.has(r.geoid),
-          muted: active && !include.has(r.geoid),
-        },
-      )
+    for (const [geoid, state] of emphasisStates(records, focusedGeoids, emphasizeGaps)) {
+      map.setFeatureState({ source: 'tracts', id: Number(geoid.slice(2)) }, state)
     }
   }, [focusedGeoids, emphasizeGaps, records, ready])
 
@@ -464,6 +528,7 @@ export function OpportunityMap(props: OpportunityMapProps) {
     <div className="map-wrap">
       <div ref={el} className="map-canvas" aria-label="Map of Central Florida neighborhoods" />
       {tilesFailed && <div className="map-badge">{BASE_MAP_UNAVAILABLE_TEXT}</div>}
+      {props.attributionNotes !== undefined && createPortal(props.attributionNotes, notesHost)}
     </div>
   )
 }
