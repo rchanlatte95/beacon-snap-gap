@@ -2184,12 +2184,6 @@ as_of = "see workbook"
   reference_basis = "file name FY26 (federal fiscal year ends 30 September)"
 
 [[source]]
-path = "derived:/tmp/route/out.json"
-ds = "DS-X27b"
-group = "routes_matrix"
-file_format = "json"
-
-[[source]]
 path = "repo:data/external/cbpp-snap-tracker/cbpp_florida_snap_monthly.csv"
 ds = "DS-X3b"
 group = "repo_external_cbpp_snap_tracker"
