@@ -116,6 +116,29 @@ TABLE_NAME_PATTERN = re.compile(r"^[a-z_][a-z0-9_]*$")
 # data table lives in its own Parquet file named by table_location().
 BASE_TABLES: tuple[str, ...] = ("files", "catalog", "sources", "columns", "documents", "glossary")
 CATALOG_REQUIRED_COLUMNS: tuple[str, ...] = ("table_name", "parquet", "status")
+# Batch 7 (Ingest command) and SLICE-4 reader: the columns of each base table, in order. The
+# QueryService reads catalog, columns, sources and glossary by these names (POST-BASE-1).
+BASE_TABLE_COLUMNS: Mapping[str, tuple[str, ...]] = {
+    "files": ("path", "ds", "file_format", "sha256", "status", "reason"),
+    "catalog": ("table_name", "parquet", "status", "source_file", "dataset_id"),
+    "sources": (
+        "table_name",
+        "dataset_id",
+        "source_file",
+        "origin_url",
+        "retrieved_at",
+        "sha256",
+        "publisher",
+        "license",
+        "as_of",
+        "applied_filter",
+        "rows_in_source",
+        "rows_loaded",
+    ),
+    "columns": ("table_name", "column_name", "ordinal", "column_type"),
+    "documents": ("source_file", "page", "text"),
+    "glossary": ("source_table", "dataset_id", "term", "definition"),
+}
 
 # Batch 6b: source registry and reading (REQ-25, REQ-26, REQ-29).
 REGISTRY_FILE = "data/warehouse/source_registry.toml"  # relative to the repository root
@@ -1456,6 +1479,16 @@ CONTRACT_WRITER: Mapping[str, Clause] = {
         "build, when finalize is missing a BASE_TABLES table, or when the catalog base table "
         "lacks a CATALOG_REQUIRED_COLUMNS column.",
         ("REQ-48",),
+    ),
+    "POST-BASE-1": Clause(
+        "test",
+        "The Ingest writes each base table with exactly the "
+        "columns of BASE_TABLE_COLUMNS, in order: "
+        "one catalog and one sources row per data table (sources holds the table's provenance with "
+        "its registry ID as dataset_id, NOT_RECORDED for an "
+        "unstated field), one columns row per data "
+        "table column (ordinal from 1), and glossary rows as GLOSSARY_COLUMNS.",
+        ("REQ-29", "REQ-30", "REQ-48"),
     ),
 }
 

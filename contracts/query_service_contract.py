@@ -32,6 +32,12 @@ from contracts.planner_map_contract import (
     SBA_CUT_PERCENTILES,
     TOP_CUT_PERCENTILES,
 )
+from contracts.warehouse_contract import (
+    BASE_TABLE_COLUMNS,
+    NOT_RECORDED,
+    WAREHOUSE_DB_FILE,
+    WAREHOUSE_LOCATION_ENV,
+)
 
 # --- 1. Importable constants (specification values) --------------------------------------
 
@@ -43,6 +49,32 @@ DEFAULT_ROW_LIMIT = 200
 MAX_ROW_LIMIT = 1_000
 DEFAULT_TIMEOUT_SECONDS = 5.0
 MAX_TIMEOUT_SECONDS = 15.0
+
+# Batch 1 redo: the engine reads the warehouse through the data adapter (SLICE-3). The base-table
+# names and columns are the warehouse contract's (BASE_TABLE_COLUMNS, POST-BASE-1).
+ENGINE_LOCATION_ENV = WAREHOUSE_LOCATION_ENV
+ENGINE_DB_FILE = WAREHOUSE_DB_FILE
+ENGINE_BASE_COLUMNS = BASE_TABLE_COLUMNS
+# Geographic key column names (lowercase) and the level each identifies (POST-SCHEMA-1).
+KEY_GRAINS: Mapping[str, str] = {
+    "geoid20": "block",
+    "block_geoid": "block",
+    "geoid": "tract",
+    "geo_id": "tract",
+    "tractfips": "tract",
+    "censustract20": "tract",
+    "censustract": "tract",
+    "tract_geoid": "tract",
+    "stcofips": "county",
+    "countyfips": "county",
+    "county_fips": "county",
+    "county": "county",
+    "statefips": "state",
+    "state_fips": "state",
+    "state": "state",
+    "borrstate": "state",
+}
+GRAIN_ORDER: tuple[str, ...] = ("block", "tract", "county", "state")
 
 # Batch 2 / Z-26: the ask interface. Threshold values are the Build contract's
 # (planner_map_contract).
@@ -118,7 +150,11 @@ class RejectedSqlError(QueryServiceContractError):
 
 
 class UnconnectedWarehouseError(QueryServiceContractError):
-    """SEQ-6: a query or tool call was attempted before connecting to the bucket warehouse."""
+    """SEQ-6: a query or tool call was attempted before open()."""
+
+
+class QueryTimeoutError(QueryServiceContractError):
+    """ERRORS-SQL-2: a query ran past its time limit and was interrupted."""
 
 
 class QueryServiceViolationError(QueryServiceContractError):
@@ -308,6 +344,30 @@ def validate_schema_description(desc: TableSchemaDescription) -> None:
         )
 
 
+def expected_grain_and_keys(columns: tuple[str, ...]) -> tuple[str, tuple[str, ...]]:
+    """POST-SCHEMA-1 oracle (jev at Ketema's direction, 0.62: derived at describe time).
+
+    join_keys are the table's columns whose lowercase name is in KEY_GRAINS, in column order; the
+    grain is the most specific level among them (GRAIN_ORDER), or NOT_RECORDED when none.
+    """
+    keys = tuple(c for c in columns if c.lower() in KEY_GRAINS)
+    levels = {KEY_GRAINS[k.lower()] for k in keys}
+    grain = next((g for g in GRAIN_ORDER if g in levels), NOT_RECORDED)
+    return grain, keys
+
+
+def expected_table_citation(sources_row: Mapping[str, object]) -> SourceCitation:
+    """SEQ-7 oracle: a table's citation from its row in the sources base table."""
+    return SourceCitation(
+        table_name=str(sources_row["table_name"]),
+        dataset_id=str(sources_row["dataset_id"]),
+        origin_url=str(sources_row["origin_url"]),
+        publisher=str(sources_row["publisher"]),
+        as_of=str(sources_row["as_of"]),
+        applied_filter=str(sources_row["applied_filter"]),
+    )
+
+
 def expected_ask_request(raw: object) -> AskRequest:
     """PRE-ASK-1 / ERRORS-ASK-1 oracle: parse an ask request body (already decoded from JSON).
 
@@ -419,42 +479,59 @@ def validate_ask_reply(
 CONTRACT_QUERY_CORE: Mapping[str, Clause] = {
     "SEQ-6": Clause(
         "test",
-        "The QueryService connects to the canonical warehouse from WAREHOUSE_GCS_URI in read-only "
-        "mode BEFORE accepting its first tool call or query, never rebuilds the warehouse, and "
-        "raises UnconnectedWarehouseError if queried before connect().",
-        ("REQ-46",),
+        "WarehouseQueryEngine(env).open() takes the warehouse "
+        "location only from WAREHOUSE_LOCATION "
+        "through the data adapter (REQ-47), opens WAREHOUSE_DB_FILE there read-only, creates one "
+        "TEMP view per catalog row over its Parquet file at the "
+        "location, then limits file access to "
+        "the location, disables other external access and locks the configuration. It never writes "
+        "or rebuilds the warehouse (the files' SHA-256 are "
+        "unchanged). Before open(), every tool call "
+        "raises UnconnectedWarehouseError; a missing or invalid location propagates the adapter's "
+        "error.",
+        ("REQ-46", "REQ-47", "REQ-49", "REQ-50", "REQ-52"),
     ),
     "POST-SCHEMA-1": Clause(
         "test",
-        "schema.describe returns each requested warehouse table's table_name, dataset_id, "
-        "columns, grain, join_keys, as_of, applied_filter and matching glossary_terms.",
+        "describe_schema(table_names=None) returns, for each requested catalog table (all when "
+        "None, in catalog order), its table_name and dataset_id from the catalog, its columns in "
+        "ordinal order from the columns base table, grain and join_keys equal to "
+        "expected_grain_and_keys(columns), as_of and applied_filter from its sources row, and its "
+        "glossary rows as (term, definition) pairs. An unknown table name raises RejectedSqlError.",
         ("REQ-33",),
     ),
     "POST-SQL-1": Clause(
         "test",
-        "sql.query runs a validated read-only SELECT statement against the connected warehouse "
-        "and returns columns, rows capped at row_limit (<= MAX_ROW_LIMIT), row_count, truncated "
-        "and referenced_tables.",
-        ("REQ-34",),
+        "execute_sql(sql, row_limit, timeout_seconds) runs the statement only when DuckDB's parser "
+        "finds exactly one SELECT statement; it returns columns, at most row_limit rows as "
+        "dictionaries, row_count = len(rows), truncated True exactly when more rows exist, and "
+        "referenced_tables = extract_referenced_tables(sql, catalog table names).",
+        ("REQ-34", "REQ-49", "REQ-50"),
     ),
     "SEQ-7": Clause(
         "test",
-        "After each sql.query or schema.describe call and before returning the result, the "
-        "QueryService attaches a SourceCitation (table_name, dataset_id, origin_url, publisher, "
-        "as_of, applied_filter) for every referenced warehouse table.",
+        "Before execute_sql returns, the result carries expected_table_citation of each referenced "
+        "table's sources row, in referenced_tables order.",
         ("REQ-32",),
     ),
     "FORBIDDEN-SQL-1": Clause(
         "test",
-        "sql.query never executes a non-SELECT statement, multi-statement string, SQL comment, or "
-        "any FORBIDDEN_SQL_KEYWORDS token, and never modifies the warehouse.",
-        ("REQ-34", "REQ-46"),
+        "execute_sql never runs a statement other than one SELECT (no COPY, ATTACH, CREATE, "
+        "INSERT, SET, PRAGMA or multiple statements), never reads a file outside the warehouse "
+        "location (for example read_csv of /etc/hosts fails), and never changes the warehouse.",
+        ("REQ-34", "REQ-46", "REQ-50"),
     ),
     "ERRORS-SQL-1": Clause(
         "test",
-        "validate_readonly_sql and sql.query raise RejectedSqlError naming the broken rule when "
-        "the statement is empty, not a single SELECT/WITH..SELECT, contains a forbidden keyword "
-        "or comment, or when row_limit or timeout_seconds is outside the contracted bounds.",
+        "validate_readonly_sql and execute_sql raise RejectedSqlError naming the broken rule when "
+        "the statement is empty, is not exactly one SELECT, reads outside the location, fails in "
+        "DuckDB, or when row_limit or timeout_seconds is outside the contracted bounds.",
+        ("REQ-34",),
+    ),
+    "ERRORS-SQL-2": Clause(
+        "test",
+        "A query still running at timeout_seconds is interrupted and raises QueryTimeoutError "
+        "naming ERRORS-SQL-2; the engine answers the next query normally.",
         ("REQ-34",),
     ),
 }
