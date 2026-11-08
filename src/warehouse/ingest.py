@@ -10,7 +10,6 @@ Run: WAREHOUSE_LOCATION=<empty directory> python -m src.warehouse.ingest --worke
 """
 
 import argparse
-import fcntl
 import hashlib
 import json
 import logging
@@ -25,7 +24,7 @@ from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import Final
+from typing import IO, Final
 
 import duckdb
 
@@ -248,6 +247,31 @@ def _text_table(
     return con.table(name)
 
 
+if sys.platform == "win32":
+    import msvcrt
+
+    def _lock(lock: IO[str]) -> None:
+        # LK_LOCK gives up after about 10 seconds; a conversion can take longer, so try again.
+        while True:
+            try:
+                msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
+            except OSError:
+                continue
+            return
+
+    def _unlock(lock: IO[str]) -> None:
+        msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+
+else:
+    import fcntl
+
+    def _lock(lock: IO[str]) -> None:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+
+    def _unlock(lock: IO[str]) -> None:
+        fcntl.flock(lock, fcntl.LOCK_UN)
+
+
 def _office[T](staging: Path, read: Callable[[Path], T], source: Path) -> T:
     """Run one LibreOffice conversion at a time across worker processes.
 
@@ -255,11 +279,11 @@ def _office[T](staging: Path, read: Callable[[Path], T], source: Path) -> T:
     directory serializes only the conversions, so other formats still read in parallel.
     """
     with (staging / "office.lock").open("w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+        _lock(lock)
         try:
             return read(source)
         finally:
-            fcntl.flock(lock, fcntl.LOCK_UN)
+            _unlock(lock)
 
 
 def read_unit(args: tuple[str, str, str | None, str, str]) -> UnitResult:
