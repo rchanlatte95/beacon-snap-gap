@@ -939,6 +939,7 @@ a.cite-chip:hover {
   font-size: 14px;
 }
 .brief h3 {
+  overflow-wrap: anywhere;
   text-transform: none;
   letter-spacing: 0;
   font-size: 15px;
