@@ -3,8 +3,8 @@
  *
  * CONTRACT AUTHORITY RECORD:
  * - File: contracts/planner-map.app.contract.ts
- * - Clauses covered: POST-APP-6, FORBIDDEN-APP-2, POST-APP-8, POST-APP-9
- * - Requirements: REQ-56, REQ-64, REQ-57, REQ-59, REQ-65, REQ-62 (Z-24 A, Z-25 A)
+ * - Clauses covered: POST-APP-6, FORBIDDEN-APP-2 (amended, cycle 20), POST-APP-8, POST-APP-9, POST-APP-16
+ * - Requirements: REQ-56, REQ-64, REQ-57, REQ-59, REQ-65, REQ-62, REQ-67 (Z-24 A, Z-25 A, Z-28)
  *
  * FOUR-CRITERIA TEST VALIDITY GATE:
  * - C1 VALID: expected values come from the contract oracles (expectedReachFacts, expectedGapFlags) or constants.
@@ -24,6 +24,8 @@ import {
   DISTANCE_SLIDER_NAME,
   expectedGapFlags,
   expectedReachFacts,
+  DRIVE_TIME_HEADLINE,
+  validateDriveTimeLabel,
   validateNoTravelTime,
   type CutName,
   type TractRecordShape,
@@ -40,6 +42,15 @@ function slider() {
 function openFocusTract() {
   fireEvent.click(screen.getByTestId('kpi-card-high_need'))
   fireEvent.click(screen.getByTestId(`tract-row-${FOCUS}`))
+}
+
+/** The element's text with every drive-time estimate (POST-APP-16) left out. */
+function textOutsideDriveTimeEstimates(element: HTMLElement): string {
+  const copy = element.cloneNode(true) as HTMLElement
+  for (const status of Array.from(copy.querySelectorAll('[role="status"]'))) {
+    if ((status.textContent ?? '').trim().startsWith(DRIVE_TIME_HEADLINE)) status.remove()
+  }
+  return copy.textContent ?? ''
 }
 
 function groupCounts(
@@ -110,7 +121,7 @@ describe('SLICE-1 cycle 17: reach, cuts and sources come from the Build', () => 
     }
   })
 
-  it('enforces FORBIDDEN-APP-2: reach is shown in straight-line miles and never as a travel time', () => {
+  it('enforces FORBIDDEN-APP-2: the reach controls and the tract card state no travel time outside the drive-time estimate', () => {
     render(<OpportunitiesApp initialBundle={loadBundle()} enableMap={false} />)
     openFocusTract()
     expect(
@@ -118,10 +129,29 @@ describe('SLICE-1 cycle 17: reach, cuts and sources come from the Build', () => 
       'FORBIDDEN-APP-2 violation: a time slider is present',
     ).toBeNull()
     const controls = screen.getByTestId(APP_TEST_IDS.reachControls)
-    expect(controls).toHaveTextContent(/miles/i)
-    expect(() => validateNoTravelTime(controls.textContent ?? '')).not.toThrow()
+    expect(
+      controls,
+      'FORBIDDEN-APP-2 violation: the reach controls must read in miles',
+    ).toHaveTextContent(/miles/i)
+    expect(() => validateNoTravelTime(textOutsideDriveTimeEstimates(controls))).not.toThrow()
     const panel = screen.getByTestId('tract-evidence-panel')
-    expect(() => validateNoTravelTime(panel.textContent ?? '')).not.toThrow()
+    expect(() => validateNoTravelTime(textOutsideDriveTimeEstimates(panel))).not.toThrow()
+  })
+
+  it('enforces POST-APP-16: each drive-time estimate names itself and, with no routed result, is marked heuristic', () => {
+    // The test environment serves no routing cache, so every estimate is the heuristic fallback (Z-28).
+    render(<OpportunitiesApp initialBundle={loadBundle()} enableMap={false} />)
+    openFocusTract()
+    const estimates = screen
+      .queryAllByRole('status')
+      .filter((s) => /\bdrive\b/i.test(s.textContent ?? ''))
+    expect(
+      estimates.length,
+      'POST-APP-16 violation: the selected tract shows no drive-time estimate (Z-28: the App shows drive times)',
+    ).toBeGreaterThan(0)
+    for (const estimate of estimates) {
+      expect(() => validateDriveTimeLabel(estimate.textContent ?? '', false)).not.toThrow()
+    }
   })
 
   it('enforces POST-APP-8: three cut controls with the Build percentiles recount every group', () => {
