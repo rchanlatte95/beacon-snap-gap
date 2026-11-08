@@ -33,7 +33,7 @@ TRACT_CLASSES = (CLASS_HIGH_NEED, CLASS_NO_GAP, CLASS_INSUFFICIENT)
 
 LILA_FLAG_COLUMN = "DD_SRAM_LILATracts_halfAnd10"
 QUANTILE_N = 4
-QUANTILE_METHOD = "inclusive"
+QUANTILE_METHOD: Literal["inclusive", "exclusive"] = "inclusive"
 POVERTY_CUT_INDEX = 2  # statistics.quantiles(..., n=4) returns Q1, Q2, Q3 at indexes 0, 1, 2.
 MEDIAN_INDEX = 1  # Q2 (50th percentile) at index 1.
 BOTTOM_QUARTILE_INDEX = 0  # Q1 (25th percentile) at index 0.
@@ -291,7 +291,11 @@ def expected_classification(indicators: TractIndicators, cut: float) -> TractCla
         missing.append(LILA_FLAG_COLUMN)
     if missing:
         return TractClassification(indicators.geoid, CLASS_INSUFFICIENT, tuple(missing))
-    if indicators.pct_poverty >= cut and indicators.lila_flag == 1:
+    if (
+        indicators.pct_poverty is not None
+        and indicators.pct_poverty >= cut
+        and indicators.lila_flag == 1
+    ):
         return TractClassification(indicators.geoid, CLASS_HIGH_NEED, ())
     return TractClassification(indicators.geoid, CLASS_NO_GAP, ())
 

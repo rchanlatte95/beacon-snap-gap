@@ -246,7 +246,16 @@
         "POST-SQL-1",
         "SEQ-7",
         "FORBIDDEN-SQL-1",
-        "ERRORS-SQL-1"
+        "ERRORS-SQL-1",
+        "PRE-ASK-1",
+        "ERRORS-ASK-1",
+        "POST-ASK-1",
+        "ERRORS-ASK-2",
+        "POST-APP-11",
+        "POST-APP-12",
+        "POST-APP-13",
+        "POST-APP-14",
+        "POST-APP-15"
       ],
       "clauses_deferred": [],
       "negative_constraints": [

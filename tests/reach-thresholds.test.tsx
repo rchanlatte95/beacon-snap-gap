@@ -13,8 +13,6 @@
  * - C3 NON-DUPLICATIVE: app.test.tsx covers the fixed cohorts; these cover the adjustable behaviour.
  * - C4 NOT FUTURE-EDIT: selectors are APP_TEST_IDS and DISTANCE_SLIDER_NAME from the contract.
  */
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
@@ -24,72 +22,16 @@ import {
   DEFAULT_GROUP_COUNTS,
   DEFAULT_PERCENTILES,
   DISTANCE_SLIDER_NAME,
-  MAX_REACH_MILES,
-  REACH_STEP_MILES,
   expectedGapFlags,
   expectedReachFacts,
   validateNoTravelTime,
   type CutName,
-  type CutsShape,
-  type SourceEntryShape,
   type TractRecordShape,
 } from '../contracts/planner-map.app.contract'
-import { OpportunitiesApp, type PlannerBundle } from '../src/App'
+import { OpportunitiesApp } from '../src/App'
+import { CUTS, SOURCES, loadCycle17Bundle as loadBundle, tractsOf } from './fixtures/cycle17Bundle'
 
-const STEPS = Math.round(MAX_REACH_MILES / REACH_STEP_MILES) + 1
 const FOCUS = '12095016510'
-
-// Real cuts from the Build oracle (POST-CUT-1) over the committed tracts.
-const CUTS: CutsShape = {
-  poverty: { '50': 10.0, '75': 17.025, '90': 23.13 },
-  no_vehicle: { '50': 3.55, '75': 6.9, '90': 12.63 },
-  sba_rate_per_1000: {
-    '10': 0.44915923508772565,
-    '25': 0.9427292010370022,
-    '50': 1.7944535073409462,
-  },
-}
-
-const SOURCES: SourceEntryShape[] = [
-  {
-    id: 'DS-T1',
-    label: 'Fixture label one',
-    publisher: 'Fixture publisher one',
-    period: 'Fixture period one',
-    url: 'https://example.org/one',
-    method: 'Fixture method one',
-    limits: 'Fixture limits one',
-  },
-  {
-    id: 'DS-T2',
-    label: 'Fixture label two',
-    publisher: 'Fixture publisher two',
-    period: 'Fixture period two',
-    url: 'https://example.org/two',
-    method: 'Fixture method two',
-    limits: 'Fixture limits two',
-  },
-]
-
-function loadBundle(): PlannerBundle {
-  const raw = JSON.parse(
-    readFileSync(resolve(process.cwd(), 'public/data/planner-bundle.json'), 'utf8'),
-  )
-  // Synthetic reach: no distance computation can produce these values (POST-APP-6).
-  raw.tracts = raw.tracts.map((t: Record<string, unknown>, i: number) => ({
-    ...t,
-    reach_share: Array.from({ length: STEPS }, (_, k) => k / (STEPS - 1)),
-    reach_sites: Array.from({ length: STEPS }, (_, k) => 100 + k),
-    nearest_block_miles: i % 5 === 0 ? null : i % 2 === 0 ? 2.0 : 15.5,
-  }))
-  raw.thresholds = { ...raw.thresholds, cuts: CUTS }
-  raw.sources = SOURCES
-  return raw as PlannerBundle
-}
-
-function tractsOf(bundle: PlannerBundle): TractRecordShape[] {
-  return (bundle as unknown as { tracts: TractRecordShape[] }).tracts
-}
 
 function slider() {
   return screen.getByRole('slider', { name: DISTANCE_SLIDER_NAME })
