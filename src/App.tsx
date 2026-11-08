@@ -692,6 +692,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                     />
                     <button type="submit">Ask</button>
                   </form>
+                  <p className="ask-model">Powered by Gemini 3.8 Flash</p>
                   <div className="chips">
                     {PROMPT_CHIPS.map((c) => (
                       <button key={c} type="button" className="chip" onClick={() => runQuery(c)}>
