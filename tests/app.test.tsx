@@ -31,7 +31,8 @@ interface BundleFile {
   readonly thresholds: {
     readonly poverty_cut_q75: number
     readonly poverty_cut_method: string
-    readonly sba_loans_median: number
+    readonly sba_rate_cut_per_1000: number
+    readonly sba_min_population: number
     readonly no_vehicle_q75: number
     readonly drive_time_minutes: number
   }
@@ -56,16 +57,16 @@ describe('SLICE-1 batch 3: Opportunities to Serve AI Wizard & App UI', () => {
     // POST-APP-1: exact cohort counts from the 490-tract dataset
     expect(
       filterTractsByCohort(bundle.tracts, 'triple').length,
-      'POST-APP-1 violation: triple-gap cohort must equal 29 tracts',
-    ).toBe(29)
+      'POST-APP-1 violation: triple-gap cohort must equal 12 tracts',
+    ).toBe(12)
     expect(
       filterTractsByCohort(bundle.tracts, 'high_need').length,
       'POST-APP-1 violation: high_need cohort must equal 97 tracts',
     ).toBe(97)
     expect(
       filterTractsByCohort(bundle.tracts, 'dual').length,
-      'POST-APP-1 violation: dual-gap (food + SBA <= 10 loans) cohort must equal 50 tracts',
-    ).toBe(50)
+      'POST-APP-1 violation: dual-gap (food desert, SBA loans per 1,000 residents in the bottom quartile) cohort must equal 26 tracts',
+    ).toBe(26)
     expect(
       filterTractsByCohort(bundle.tracts, 'transport').length,
       'POST-APP-1 violation: transport-gap (no-vehicle >= 6.9%) cohort must equal 53 tracts',
@@ -82,13 +83,16 @@ describe('SLICE-1 batch 3: Opportunities to Serve AI Wizard & App UI', () => {
     )
     expect(
       nlResult.matchedTracts.length,
-      'POST-APP-3 violation: Orange County high-need tracts with 0 sites inside and <=10 SBA loans must be non-empty',
+      'POST-APP-3 violation: Orange County high-need tracts with 0 sites inside and a lending gap (REQ-19) must be non-empty',
     ).toBeGreaterThan(0)
     for (const t of nlResult.matchedTracts) {
       expect(t.county).toBe('Orange')
       expect(t.tract_class).toBe(appContract.CLASS_HIGH_NEED)
       expect(t.sites_in_tract).toBe(0)
-      expect(t.sba_loans_total).toBeLessThanOrEqual(10)
+      expect(
+        t.is_dual_gap,
+        `POST-APP-3 violation: tract ${t.geoid} matched a low-SBA-loans query but is not a REQ-19 lending gap`,
+      ).toBe(true)
     }
     appContract.validateNoForbiddenPhrases(nlResult.answerText)
 
@@ -99,9 +103,9 @@ describe('SLICE-1 batch 3: Opportunities to Serve AI Wizard & App UI', () => {
       personaId: 'alignment',
     })
     appContract.validateCoordinatedBrief(brief)
-    expect(brief.targetTractCount).toBe(29)
-    expect(brief.mobilePriorityTractCount).toBe(29)
-    expect(brief.dualGapTractCount).toBe(29)
+    expect(brief.targetTractCount).toBe(12)
+    expect(brief.mobilePriorityTractCount).toBe(12)
+    expect(brief.dualGapTractCount).toBe(12)
   })
 
   it('enforces POST-APP-3: a brief whose joint action reaches no more tracts shows a zero reduction and says so (Z-21)', () => {

@@ -10,7 +10,7 @@ CONTRACT AUTHORITY RECORD:
 
 FOUR-CRITERIA TEST VALIDITY GATE:
 - C1 VALID: cites POST-ALN-1..4, POST-GEO-1, FORBIDDEN-PRIV-1, ERRORS-BLD-1 in contracts/planner_map_contract.py
-- C2 VALUABLE: asserts exact Central Florida cohort counts (97, 391, 2, 50, 53, 29, 4 counties x 1 ring) and exact failure exception
+- C2 VALUABLE: asserts exact Central Florida cohort counts (97, 391, 2, 26, 53, 12, 4 counties x 1 ring) and exact failure exception
 - C3 NON-DUPLICATIVE: test 1 covers full 490-tract dataset alignment/confidence/geometry; test 2 covers missing-input error & privacy guard
 - C4 NOT FUTURE-EDIT: exercises only the contracted batch-2 Build pipeline
 """
@@ -31,7 +31,8 @@ def test_build_alignment_bundle_exact_cohorts_and_exterior_counties() -> None:
     """
     CONTRACT TRACEABILITY:
     - Contract: planner_map_contract (POST-ALN-1, POST-ALN-2, POST-ALN-3, POST-ALN-4, POST-GEO-1, FORBIDDEN-PRIV-1)
-    - Enforces: exact 490-tract cohort counts (97 high need, 50 dual-gap, 53 transport-gap, 29 triple-gap, 2 insufficient),
+    - Enforces: exact 490-tract cohort counts (97 high need, 26 dual-gap, 53 transport-gap, 12 triple-gap, 2 insufficient),
+      the per-capita SBA cut and its floor (REQ-19, Z-23) under the contracted bundle keys,
       deterministic confidence & recommendations, median household income + 90% MOE join, and single-ring exterior county polygons
     - Category: integration / positive / boundary
     - Risk tier: High — drives the KPI cohort strip, map overlays, and AI action wizard
@@ -49,10 +50,25 @@ def test_build_alignment_bundle_exact_cohorts_and_exterior_counties() -> None:
     contract.validate_tract_only_payload(bundle["tracts"])
     contract.validate_county_boundaries(bundle["counties_geojson"])
 
-    sba_med = bundle["thresholds"]["sba_loans_median"]
-    nv_q75 = bundle["thresholds"]["no_vehicle_q75"]
-    assert sba_med == 10.0 and pytest.approx(nv_q75, abs=1e-6) == 6.9, (
-        f"POST-ALN-1 / POST-ALN-2 violation: unexpected thresholds sba_med={sba_med}, nv_q75={nv_q75}"
+    thresholds = bundle["thresholds"]
+    sba_cut = thresholds.get(contract.BUNDLE_SBA_RATE_CUT_KEY)
+    sba_floor = thresholds.get(contract.BUNDLE_SBA_MIN_POPULATION_KEY)
+    nv_q75 = thresholds["no_vehicle_q75"]
+    want_cut = contract.expected_sba_rate_cut(
+        [t["sba_loans_total"] for t in bundle["tracts"]],
+        [t["pop2020"] or 0 for t in bundle["tracts"]],
+    )
+    assert (sba_cut, sba_floor) == (pytest.approx(want_cut, abs=1e-9), contract.SBA_MIN_POPULATION), (
+        f"test_build_alignment_bundle_exact_cohorts_and_exterior_counties FAILED\n"
+        f"POST-ALN-1 violation: the bundle's SBA cut or floor is wrong or missing\n"
+        f"EXPECTED: thresholds[{contract.BUNDLE_SBA_RATE_CUT_KEY!r}] == {want_cut} (bottom-quartile loans per 1,000 "
+        f"residents over populated tracts) and thresholds[{contract.BUNDLE_SBA_MIN_POPULATION_KEY!r}] == "
+        f"{contract.SBA_MIN_POPULATION}\n"
+        f"ACTUAL: cut={sba_cut!r}, floor={sba_floor!r}, thresholds keys={sorted(thresholds)}\n"
+        f"GUIDANCE: flag the dual gap by loans per 1,000 residents, not by the raw loan count"
+    )
+    assert pytest.approx(nv_q75, abs=1e-6) == 6.9, (
+        f"POST-ALN-2 violation: unexpected no-vehicle threshold nv_q75={nv_q75}"
     )
 
     dual_count = 0
@@ -67,6 +83,7 @@ def test_build_alignment_bundle_exact_cohorts_and_exterior_counties() -> None:
             geoid=t["geoid"],
             tract_class=t["tract_class"],
             sba_loans_total=t["sba_loans_total"],
+            pop2020=t["pop2020"] or 0,
             sba_gross_usd_total=t["sba_gross_usd_total"],
             pct_no_vehicle=t["pct_no_vehicle"],
             households=t["households"],
@@ -79,7 +96,7 @@ def test_build_alignment_bundle_exact_cohorts_and_exterior_counties() -> None:
             confidence_level=t["confidence_level"],
             recommended_action=t["recommended_action"],
         )
-        contract.validate_alignment_record(rec, sba_median=sba_med, no_vehicle_q75=nv_q75)
+        contract.validate_alignment_record(rec, sba_rate_cut=sba_cut, no_vehicle_q75=nv_q75)
         if rec.tract_class == contract.CLASS_HIGH_NEED:
             high_count += 1
         elif rec.tract_class == contract.CLASS_NO_GAP:
