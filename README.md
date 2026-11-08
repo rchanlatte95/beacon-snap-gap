@@ -278,6 +278,11 @@ The app follows the Beacon design brand guidelines in `docs/hackathon/resources/
   `ketema/beacon-snap-cliff` (`docs/agent-coordination.md`).
 - Commit messages use Conventional Commits with a scope, for example `feat(app): ...`.
 
+## Authors
+
+- [Ryan Chanlatte](https://github.com/rchanlatte95)
+- [Ketema Harris](https://github.com/ketema)
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
