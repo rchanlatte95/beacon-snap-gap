@@ -26,7 +26,7 @@
 | B05 | Source citations | The source list comes from the registry and the warehouse provenance (REQ-29), written into the bundle by the Build; the App renders it. | Hand-typed: `src/dataSources.ts` exports 13 sources (id, label, publisher, period, url, method, limits); all 13 IDs match the registry and `docs/data-sources.md` today (O5), but the facts are a second copy. | OVERRIDE | `src/dataSources.ts`, `src/SourceCitations.tsx` | P2 |
 | B06 | Taxonomy sent to the model (REQ-36) | Defines the dual gap by the Z-23 rule. | `docs/taxonomy.md:31` still says "at or below the regional median of 10 SBA loans ... 50 tracts" (O3); a REQ-19 follow-up missed in cycle 16. | OVERRIDE | `docs/taxonomy.md:31` | P1 |
 | B07 | Pitch outline in `docs/` | Registered so the retained-source rule passes (ERRORS-RET-2). | Unregistered since the merge; the Ingest stops on it (Ryan's agent, comment 6724086682). | NEW | `data/warehouse/source_registry.toml` | P1 |
-| B08 | Tests that need Poppler, LibreOffice or DuckDB spatial | Skip with a stated reason when the tool is absent (design-by-contract: a missing dependency surfaces as SKIP). | They fail on Ryan's Windows machine (7 failures reported, including an adapter test that needs no tool, possibly a path defect; evidence requested). | OVERRIDE | `tests/warehouse/` | P2 |
+| B08 | Tests that need Poppler, LibreOffice or DuckDB spatial | Skip with a stated reason when the tool is absent (design-by-contract: a missing dependency surfaces as SKIP). | 7 fail on Windows 11 (Ryan's agent, comment 6724167114): 5 for absent `pdfinfo`, `soffice` or the spatial extension; 2 for path portability: `test_adapter.py` builds a drive-letter path that `PurePosixPath` never treats as absolute, and `test_registry.py:286` looks for `str(path)` in a message formatted with `!r`. Neither affects Cloud Run. | OVERRIDE | `tests/warehouse/` | P2 |
 | B09 | The three new test files | Each test cites a clause in the contract. | `tests/gap-emphasis.test.tsx`, `tests/proximity.test.tsx`, `tests/proximity-details.test.tsx` cite none. | NEW (map to clauses) | `tests/` | P2 |
 
 ## Evidence
@@ -37,10 +37,11 @@
 - **O4**: full gates at `4a37356` (Build first): vitest 15 of 15, typecheck, lint, format, build pass.
 - **O5**: `src/dataSources.ts` `DATA_SOURCES`: 13 IDs, all present in the registry and `docs/data-sources.md`.
 
-## Open zones (for Ketema, CL4)
+## Zones (decided)
 
-- **Z-24**: which taxonomy thresholds become adjustable (B03).
-- **Z-25**: how time is shown until #16 supplies drive time (B02).
+- **Z-24 A** (Ketema, "1 - A"): reach plus the poverty, no-vehicle and SBA-per-1,000 cuts adjustable as percentiles. REQ-55 to REQ-65.
+- **Z-25 A** (Ketema, "2 - A"): miles only, no minutes. REQ-57.
+- Implementation details chosen by jev at Ketema's direction (highest rated): reach 0 to 20 miles by 0.5 (0.88); within the limit when any populated block is in reach (0.71); cuts at named percentiles 50/75/90 and 10/25/50 (0.73).
 
 ## Next
 
