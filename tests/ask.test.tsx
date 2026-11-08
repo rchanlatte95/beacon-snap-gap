@@ -175,7 +175,9 @@ describe('POST-APP-11 to POST-APP-15: the question box', () => {
       .slice(0, 250)
       .map((t) => t.geoid)
     const answer = answerWith(tracts)
-    const service = vi.fn(async () => ({ ok: true, answer }) as const)
+    const service = vi.fn<(r: AskRequestShape, s: AbortSignal) => Promise<AskOutcomeShape>>(
+      async () => ({ ok: true, answer }),
+    )
     ask(service)
 
     expect(await screen.findByTestId(ASK_TEST_IDS.aiAnswer)).toHaveTextContent(answer.answer)
