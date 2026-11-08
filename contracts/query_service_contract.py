@@ -646,6 +646,10 @@ TOOL_NAMES: tuple[str, ...] = ("schema_describe", "sql_query", "sites_near", "st
 MAX_TOOL_ROUNDS = 4  # Z-31: model calls per question; the last one answers without tools
 ANSWER_DEADLINE_SECONDS = 30.0  # Z-31: below the App's 50-second limit (Z-30)
 FINAL_CALL_MODE = "NONE"  # Z-31: function calling mode of the last model call
+FINAL_ANSWER_PROMPT = (
+    "Answer the question now from the tool results above. Do not call any tool. If they do not "
+    "hold the answer, say so."
+)
 MODEL_ENV = "QUERY_SERVICE_MODEL"
 PROJECT_ENV = "GOOGLE_CLOUD_PROJECT"
 LOCATION_ENV = "GOOGLE_CLOUD_LOCATION"
@@ -978,8 +982,9 @@ CONTRACT_QUERY_ANSWER: Mapping[str, Clause] = {
     "POST-ANS-4": Clause(
         "test",
         "The MAX_TOOL_ROUNDS-th model request of a question sets function calling mode "
-        "FINAL_CALL_MODE, so the model answers from the tool results it has; reaching that "
-        "request is never an error (Z-31). Its answer goes through POST-ANS-2 and POST-ANS-3.",
+        "FINAL_CALL_MODE and ends with a user turn whose text is FINAL_ANSWER_PROMPT, so the model "
+        "answers from the tool results it has; reaching that request is never an error (Z-31). "
+        "Its answer goes through POST-ANS-2 and POST-ANS-3.",
         ("REQ-37", "REQ-39"),
     ),
     "POST-ANS-2": Clause(

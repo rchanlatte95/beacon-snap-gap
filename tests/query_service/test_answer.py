@@ -271,6 +271,11 @@ def test_vertex_errors_and_the_deadline_end_the_answer_and_the_last_call_answers
     ]
     assert modes[-1] == contract.FINAL_CALL_MODE, f"POST-ANS-4 violation: last mode {modes[-1]}"
     assert contract.FINAL_CALL_MODE not in modes[:-1], f"POST-ANS-4 violation: modes {modes}"
+    last_turn = script.requests[-1][1]["contents"][-1]
+    assert last_turn["role"] == "user", f"POST-ANS-4 violation: last turn {last_turn['role']}"
+    assert [p.get("text") for p in last_turn["parts"]] == [contract.FINAL_ANSWER_PROMPT], (
+        f"POST-ANS-4 violation: the final request must end with FINAL_ANSWER_PROMPT: {last_turn}"
+    )
 
     ticks = iter([0.0, 1.0, contract.ANSWER_DEADLINE_SECONDS + 0.1, 100.0, 100.0, 100.0])
     answerer, _ = parts(
