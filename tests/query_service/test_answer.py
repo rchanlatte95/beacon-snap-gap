@@ -140,23 +140,7 @@ def test_loop_sends_taxonomy_and_settings_runs_tools_itself_and_returns_a_cited_
     answerer, script = parts(script)
     reply = answerer.answer(_request())
 
-    index = contract.expected_schema_payload(
-        tuple(
-            contract.TableSchemaDescription(
-                d.table_name,
-                d.dataset_id,
-                tuple(d.columns),
-                d.grain,
-                tuple(d.join_keys),
-                d.as_of,
-                d.applied_filter,
-                tuple(tuple(t) for t in d.glossary_terms),
-            )
-            for d in parts.engine.describe_schema()  # type: ignore[attr-defined]
-        ),
-        detailed=False,
-    )
-    want_instruction = contract.expected_system_instruction(TAXONOMY, _applied(), index)
+    want_instruction = contract.expected_system_instruction(TAXONOMY, _applied())
     for url, body in script.requests:
         assert url.endswith(f"/publishers/google/models/{MODEL}:generateContent"), url
         assert "aiplatform.googleapis.com" in url, f"POST-ANS-1 violation: not Vertex AI: {url}"
