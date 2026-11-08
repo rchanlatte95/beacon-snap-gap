@@ -4,7 +4,7 @@ import type { ExpressionSpecification, LngLatBoundsLike, StyleSpecification } fr
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
-import type { CohortId, TractRecord } from '../wizard/alignmentWizard'
+import type { TractRecord } from '../wizard/alignmentWizard'
 import { CLASS_HIGH_NEED, CLASS_INSUFFICIENT } from '../wizard/alignmentWizard'
 
 // MapLibre 6 resolves its worker next to its own module URL; Vite relocates the module.
@@ -136,7 +136,8 @@ export interface OpportunityMapProps {
   readonly countiesGeojson: GeoJSON.FeatureCollection
   readonly sitesGeojson: GeoJSON.FeatureCollection
   readonly records: readonly TractRecord[]
-  readonly cohortId: CohortId
+  readonly focusedGeoids: readonly string[]
+  readonly emphasizeGaps: boolean
   readonly selectedGeoid: string | null
   readonly onSelect: (geoid: string | null) => void
   readonly overlays: {
@@ -146,34 +147,14 @@ export interface OpportunityMapProps {
   }
 }
 
-function cohortFilter(cohortId: CohortId): ExpressionSpecification | null {
-  switch (cohortId) {
-    case 'all':
-      return null
-    case 'triple':
-      return ['==', ['get', 'is_triple_gap'], true]
-    case 'high_need':
-      return ['==', ['get', 'tract_class'], CLASS_HIGH_NEED]
-    case 'dual':
-      return ['==', ['get', 'is_dual_gap'], true]
-    case 'transport':
-      return ['==', ['get', 'is_transport_gap'], true]
-    case 'insufficient':
-      return ['==', ['get', 'tract_class'], CLASS_INSUFFICIENT]
-    default: {
-      const exhaustive: never = cohortId
-      return exhaustive
-    }
-  }
-}
-
 export function OpportunityMap(props: OpportunityMapProps) {
   const {
     tractsGeojson,
     countiesGeojson,
     sitesGeojson,
     records,
-    cohortId,
+    focusedGeoids,
+    emphasizeGaps,
     selectedGeoid,
     onSelect,
     overlays,
@@ -226,8 +207,7 @@ export function OpportunityMap(props: OpportunityMapProps) {
       map.addSource('outside', { type: 'geojson', data: outsideMask(countiesGeojson) })
       const firstSymbol = map.getStyle().layers?.find((l) => l.type === 'symbol')?.id
 
-      // Only the food deserts carry color. Tracts with no gap stay clear, so the basemap shows
-      // through, but they still take a hover tint and a click.
+      // Keep the class colors visible, including when other groups are faded.
       const isHighNeed: ExpressionSpecification = ['==', ['get', 'tract_class'], CLASS_HIGH_NEED]
       map.addLayer(
         {
@@ -248,6 +228,10 @@ export function OpportunityMap(props: OpportunityMapProps) {
               'case',
               ['boolean', ['feature-state', 'hover'], false],
               0.95,
+              ['boolean', ['feature-state', 'muted'], false],
+              0.14,
+              ['boolean', ['feature-state', 'emphasized'], false],
+              0.98,
               ['!', isHighNeed],
               ['case', ['boolean', ['feature-state', 'dimmed'], false], 0.4, 0.7],
               ['boolean', ['feature-state', 'dimmed'], false],
@@ -264,7 +248,10 @@ export function OpportunityMap(props: OpportunityMapProps) {
           type: 'fill',
           source: 'tracts',
           filter: ['==', ['get', 'tract_class'], CLASS_INSUFFICIENT],
-          paint: { 'fill-pattern': 'hatch', 'fill-opacity': 0.9 },
+          paint: {
+            'fill-pattern': 'hatch',
+            'fill-opacity': ['case', ['boolean', ['feature-state', 'muted'], false], 0.14, 0.9],
+          },
         },
         firstSymbol,
       )
@@ -276,7 +263,14 @@ export function OpportunityMap(props: OpportunityMapProps) {
           paint: {
             'line-color': ['case', isHighNeed, '#FFFFFF', COLORS.soft],
             'line-width': ['case', isHighNeed, 0.6, 0.4],
-            'line-opacity': ['case', isHighNeed, 0.9, 0.5],
+            'line-opacity': [
+              'case',
+              ['boolean', ['feature-state', 'muted'], false],
+              0.18,
+              isHighNeed,
+              0.9,
+              0.5,
+            ],
           },
         },
         firstSymbol,
@@ -300,6 +294,32 @@ export function OpportunityMap(props: OpportunityMapProps) {
           filter: ['==', ['get', 'is_transport_gap'], true],
           layout: { visibility: 'none' },
           paint: { 'fill-pattern': 'hatch', 'fill-opacity': 0.55 },
+        },
+        firstSymbol,
+      )
+      map.addLayer(
+        {
+          id: 'gap-emphasis-halo',
+          type: 'line',
+          source: 'tracts',
+          paint: {
+            'line-color': '#FFFFFF',
+            'line-width': 5,
+            'line-opacity': ['case', ['boolean', ['feature-state', 'emphasized'], false], 1, 0],
+          },
+        },
+        firstSymbol,
+      )
+      map.addLayer(
+        {
+          id: 'gap-emphasis-outline',
+          type: 'line',
+          source: 'tracts',
+          paint: {
+            'line-color': COLORS.ink,
+            'line-width': 2.4,
+            'line-opacity': ['case', ['boolean', ['feature-state', 'emphasized'], false], 1, 0],
+          },
         },
         firstSymbol,
       )
@@ -387,35 +407,24 @@ export function OpportunityMap(props: OpportunityMapProps) {
     }
   }, [tractsGeojson, countiesGeojson, sitesGeojson])
 
-  // Cohort dimming
+  // The map and shortlist follow the same cohort or question results.
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready) return
-    const filter = cohortFilter(cohortId)
-    const include = new Set<string>()
-    if (filter) {
-      for (const r of records) {
-        const inCohort =
-          cohortId === 'triple'
-            ? r.is_triple_gap
-            : cohortId === 'high_need'
-              ? r.tract_class === CLASS_HIGH_NEED
-              : cohortId === 'dual'
-                ? r.is_dual_gap
-                : cohortId === 'transport'
-                  ? r.is_transport_gap
-                  : r.tract_class === CLASS_INSUFFICIENT
-        if (inCohort) include.add(r.geoid)
-      }
-    }
+    const include = new Set(focusedGeoids)
+    const active = emphasizeGaps && include.size > 0
     for (const r of records) {
       if (!r.drawn) continue
       map.setFeatureState(
         { source: 'tracts', id: Number(r.geoid.slice(2)) },
-        { dimmed: filter !== null && !include.has(r.geoid) },
+        {
+          dimmed: !include.has(r.geoid),
+          emphasized: active && include.has(r.geoid),
+          muted: active && !include.has(r.geoid),
+        },
       )
     }
-  }, [cohortId, records, ready])
+  }, [focusedGeoids, emphasizeGaps, records, ready])
 
   // Overlay toggles
   useEffect(() => {

@@ -310,6 +310,7 @@ export interface Insight {
   readonly text: string
   /** Matches the map color: triple = red, high = orange. */
   readonly tone: 'plain' | 'high' | 'triple'
+  readonly sourceIds: readonly string[]
 }
 
 export interface BriefingContext {
@@ -370,6 +371,7 @@ export function buildExecutiveBriefing(
       const change = (last.participants - before.participants) / before.participants
       out.push({
         figure: `${Math.abs(Math.round(change * 100))}%`,
+        sourceIds: ['DS-X3b'],
         tone: 'plain',
         text: `${change < 0 ? 'fewer' : 'more'} Floridians got SNAP in ${monthName(last.month)} than a year before. ${change < 0 ? 'More families may turn to food banks.' : ''}`.trim(),
       })
@@ -384,6 +386,7 @@ export function buildExecutiveBriefing(
     const name = top.county.charAt(0).toUpperCase() + top.county.slice(1)
     out.push({
       figure: nf.format(Math.round(people / 1000) * 1000),
+      sourceIds: ['DS-X9b'],
       tone: 'plain',
       text: `people in these four counties may not have enough to eat (2024). ${name} County has the highest rate: ${top.rate}.`,
     })
@@ -398,6 +401,7 @@ export function buildExecutiveBriefing(
   if (highPop > 0) {
     out.push({
       figure: `1 in ${Math.round(pop / highPop)}`,
+      sourceIds: ['DS-H2', 'DS-H6', 'DS-X7b', 'DS-X24'],
       tone: 'high',
       text:
         `people here live in a food desert. ` +
@@ -411,6 +415,7 @@ export function buildExecutiveBriefing(
   const tripleResidents = triple.reduce((s, t) => s + t.pop2020, 0)
   out.push({
     figure: nf.format(triple.length),
+    sourceIds: ['DS-H2', 'DS-H6', 'DS-X5', 'DS-X7b', 'DS-X24'],
     tone: 'triple',
     text: `neighborhoods have all three gaps. ${nf.format(tripleResidents)} people live there. They are a good place to start.`,
   })
