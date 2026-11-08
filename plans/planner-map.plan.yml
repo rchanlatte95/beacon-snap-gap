@@ -153,7 +153,14 @@
         "POST-WRITE-1",
         "POST-WRITE-2",
         "INV-WRITE-1",
-        "ERRORS-WRITE-1"
+        "ERRORS-WRITE-1",
+        "POST-REG-1",
+        "ERRORS-REG-1",
+        "POST-REG-2",
+        "ERRORS-REG-2",
+        "FORBIDDEN-REG-1",
+        "POST-READ-1",
+        "ERRORS-READ-1"
       ],
       "clauses_deferred": [],
       "negative_constraints": [

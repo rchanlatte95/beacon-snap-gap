@@ -17,6 +17,8 @@ Batches:
   relative to it (REQ-47, REQ-48).
 - Batch 6a: the warehouse writer: tables written through the adapter, relative catalog
   locations, base tables only and no views in warehouse.duckdb (REQ-48, REQ-51).
+- Batch 6b: the committed source registry (exact-path matching, reference end with its basis,
+  "not recorded" for unstated facts) and fail-fast reading (REQ-25, REQ-26, REQ-29).
 
 The implementation MUST NOT import this module (CL11-F). Tests import both and compare.
 """
@@ -62,7 +64,22 @@ GEO_ID_COLUMN = "GEO_ID"
 # ACS GEO_ID: national row (0100000US...) or state/county/tract in FL (12), NY (36), UT (49).
 GEO_ID_TARGET_PATTERN = re.compile(r"^(0100000US.*|.*US(12|36|49).*)")
 FILTER_NONE = "none (no state field)"
-FORMAT_RANK: Mapping[str, int] = {"csv": 0, "xlsx": 1, "sas": 2}
+# Content formats; the lowest rank of a release is loaded (POST-SCOPE-5). Batch 6b extended the
+# set to every format among the retained sources without changing the earlier ranks.
+FORMAT_RANK: Mapping[str, int] = {
+    "csv": 0,
+    "tsv": 0,
+    "dat": 0,
+    "pl": 0,
+    "xlsx": 1,
+    "xls": 1,
+    "sas": 2,
+    "json": 3,
+    "geojson": 3,
+    "shapefile": 3,
+    "pdf": 4,
+    "text": 4,
+}
 
 # Batch 3: table provenance and local-disk-only sources (REQ-28, REQ-29).
 NOT_RECORDED = "not recorded"
@@ -92,6 +109,10 @@ TABLE_NAME_PATTERN = re.compile(r"^[a-z_][a-z0-9_]*$")
 # data table lives in its own Parquet file named by table_location().
 BASE_TABLES: tuple[str, ...] = ("files", "catalog", "sources", "columns", "documents", "glossary")
 CATALOG_REQUIRED_COLUMNS: tuple[str, ...] = ("table_name", "parquet", "status")
+
+# Batch 6b: source registry and reading (REQ-25, REQ-26, REQ-29).
+REGISTRY_FILE = "data/warehouse/source_registry.toml"  # relative to the repository root
+READ_ENCODINGS: tuple[str, ...] = ("utf-8", "latin-1")  # tried in this order
 
 # --- 2. Domain exceptions (every message names its clause) --------------------------------
 
@@ -138,6 +159,18 @@ class WarehouseLocationError(WarehouseContractError):
 
 class WarehouseWriteError(WarehouseContractError):
     """ERRORS-WRITE-1 or POST-WRITE-1..2 / INV-WRITE-1: the written warehouse is wrong."""
+
+
+class RegistryError(WarehouseContractError):
+    """ERRORS-REG-1: a source registry entry is outside the contracted domain."""
+
+
+class UnregisteredSourceError(RegistryError):
+    """ERRORS-REG-2 / FORBIDDEN-REG-1: a retained file or archive member has no exact entry."""
+
+
+class SourceReadError(WarehouseContractError):
+    """ERRORS-READ-1: a retained source file cannot be read."""
 
 
 # --- 3. Immutable typed records ------------------------------------------------------------
@@ -236,6 +269,34 @@ class WrittenWarehouse:
     base_tables: tuple[str, ...]
     views: tuple[str, ...]
     catalog: tuple[tuple[str, str], ...]
+
+
+@dataclass(frozen=True)
+class RegistryMember:
+    """Batch 6b scope facts for one member of a series archive, matched by exact name."""
+
+    name: str
+    file_format: str
+    reference_end: str | None
+    reference_basis: str
+
+
+@dataclass(frozen=True)
+class RegistryEntry:
+    """Batch 6b facts for one retained source file, matched by exact path."""
+
+    path: str
+    ds: str
+    group: str
+    file_format: str
+    reference_end: str | None
+    reference_basis: str
+    is_base_geography: bool
+    release_id: str | None
+    publisher: str
+    license: str
+    as_of: str
+    members: tuple[RegistryMember, ...]
 
 
 # --- 4. Callable validators ----------------------------------------------------------------
@@ -665,6 +726,122 @@ def validate_no_location_in_values(values: Sequence[str], location: WarehouseLoc
             )
 
 
+def _reference(where: str, raw: Mapping[str, object]) -> tuple[str | None, str]:
+    end = raw.get("reference_end")
+    basis = raw.get("reference_basis")
+    if end is None:
+        return None, NOT_RECORDED
+    if not isinstance(end, str) or not DATE_PATTERN.match(end):
+        raise RegistryError(f"ERRORS-REG-1 violation: {where} reference_end {end!r} is not a date")
+    try:
+        date.fromisoformat(end)
+    except ValueError as exc:
+        raise RegistryError(
+            f"ERRORS-REG-1 violation: {where} reference_end {end!r} is not a real date"
+        ) from exc
+    if not isinstance(basis, str) or not basis.strip():
+        raise RegistryError(
+            f"ERRORS-REG-1 violation: {where} has reference_end but no reference_basis"
+        )
+    return end, basis.strip()
+
+
+def _text(raw: Mapping[str, object], key: str) -> str:
+    value = raw.get(key)
+    return value.strip() if isinstance(value, str) and value.strip() else NOT_RECORDED
+
+
+def validate_registry(data: Mapping[str, object]) -> tuple[RegistryEntry, ...]:
+    """POST-REG-1 / ERRORS-REG-1 oracle over a parsed registry ({"source": [ ... ]})."""
+    sources = data.get("source")
+    if not isinstance(sources, list) or not sources:
+        raise RegistryError("ERRORS-REG-1 violation: the registry has no [[source]] entries")
+    entries: list[RegistryEntry] = []
+    seen: set[str] = set()
+    for raw in sources:
+        path = raw.get("path") if isinstance(raw, dict) else None
+        if not isinstance(path, str) or not path.strip():
+            raise RegistryError(f"ERRORS-REG-1 violation: entry {raw!r} has no path")
+        if path in seen:
+            raise RegistryError(f"ERRORS-REG-1 violation: path {path!r} is listed twice")
+        seen.add(path)
+        for key in ("ds", "group"):
+            if not isinstance(raw.get(key), str) or not raw[key].strip():
+                raise RegistryError(f"ERRORS-REG-1 violation: entry {path!r} has no {key}")
+        fmt = raw.get("file_format")
+        if fmt not in FORMAT_RANK:
+            raise RegistryError(
+                f"ERRORS-REG-1 violation: entry {path!r} file_format {fmt!r} is not one of "
+                f"{sorted(FORMAT_RANK)}"
+            )
+        end, basis = _reference(f"entry {path!r}", raw)
+        release = raw.get("release_id")
+        if release is not None and (not isinstance(release, str) or not release.strip()):
+            raise RegistryError(f"ERRORS-REG-1 violation: entry {path!r} has an empty release_id")
+        members: list[RegistryMember] = []
+        names: set[str] = set()
+        for m in raw.get("member", []) or []:
+            name = m.get("name") if isinstance(m, dict) else None
+            if not isinstance(name, str) or not name or name in names:
+                raise RegistryError(
+                    f"ERRORS-REG-1 violation: entry {path!r} member name {name!r} is empty or "
+                    "repeated"
+                )
+            names.add(name)
+            mfmt = m.get("file_format")
+            if mfmt not in FORMAT_RANK:
+                raise RegistryError(
+                    f"ERRORS-REG-1 violation: member {name!r} of {path!r} file_format {mfmt!r} "
+                    "is unknown"
+                )
+            mend, mbasis = _reference(f"member {name!r} of {path!r}", m)
+            members.append(RegistryMember(name, str(mfmt), mend, mbasis))
+        entries.append(
+            RegistryEntry(
+                path=path,
+                ds=str(raw["ds"]).strip(),
+                group=str(raw["group"]).strip(),
+                file_format=str(fmt),
+                reference_end=end,
+                reference_basis=basis,
+                is_base_geography=raw.get("base_geography") is True,
+                release_id=release if isinstance(release, str) else None,
+                publisher=_text(raw, "publisher"),
+                license=_text(raw, "license"),
+                as_of=_text(raw, "as_of"),
+                members=tuple(members),
+            )
+        )
+    return tuple(entries)
+
+
+def expected_registry_entry(entries: Sequence[RegistryEntry], path: str) -> RegistryEntry:
+    """POST-REG-2 / ERRORS-REG-2 / FORBIDDEN-REG-1 oracle: exact path equality, nothing else."""
+    for entry in entries:
+        if entry.path == path:
+            return entry
+    raise UnregisteredSourceError(
+        f"ERRORS-REG-2 violation: retained file {path!r} has no exact entry in {REGISTRY_FILE}"
+    )
+
+
+def expected_member_scope(entry: RegistryEntry, member: str) -> tuple[str, str | None]:
+    """POST-REG-2 / ERRORS-REG-2 oracle: (file_format, reference_end) for an archive member.
+
+    An entry without listed members passes its own facts to every member; an entry with listed
+    members requires an exact listing for each member.
+    """
+    if not entry.members:
+        return entry.file_format, entry.reference_end
+    for m in entry.members:
+        if m.name == member:
+            return m.file_format, m.reference_end
+    raise UnregisteredSourceError(
+        f"ERRORS-REG-2 violation: member {member!r} of {entry.path!r} has no exact entry in "
+        f"{REGISTRY_FILE}"
+    )
+
+
 # --- 5. Traceability map (every clause declares its verification method) -----------------------
 
 CONTRACT_SCOPE: Mapping[str, Clause] = {
@@ -932,5 +1109,57 @@ CONTRACT_WRITER: Mapping[str, Clause] = {
         "build, when finalize is missing a BASE_TABLES table, or when the catalog base table "
         "lacks a CATALOG_REQUIRED_COLUMNS column.",
         ("REQ-48",),
+    ),
+}
+
+
+CONTRACT_REGISTRY: Mapping[str, Clause] = {
+    "POST-REG-1": Clause(
+        "test",
+        "load_registry returns one RegistryEntry per [[source]] entry, with reference_end and its "
+        "reference_basis, and NOT_RECORDED for an unstated publisher, license, as_of or basis.",
+        ("REQ-25", "REQ-29"),
+    ),
+    "ERRORS-REG-1": Clause(
+        "test",
+        "load_registry raises RegistryError naming the entry when the registry has no entries, an "
+        "entry lacks path, ds or group, a path is listed twice, a file_format is not in "
+        "FORMAT_RANK, a reference_end is not a real date or has no reference_basis, a release_id "
+        "is empty, or a member name is empty or repeated.",
+        ("REQ-25", "REQ-29"),
+    ),
+    "POST-REG-2": Clause(
+        "test",
+        "registry_entry(entries, path) returns the entry whose path equals the retained file's "
+        "path; member_scope(entry, member) returns the member's own facts when the entry lists "
+        "members, and the entry's facts otherwise.",
+        ("REQ-25", "REQ-26"),
+    ),
+    "ERRORS-REG-2": Clause(
+        "test",
+        "registry_entry raises UnregisteredSourceError naming the file when no entry has its exact "
+        "path, and member_scope raises it naming the member when the entry lists members but not "
+        "this one; the Ingest stops rather than loading or excluding an unregistered source.",
+        ("REQ-25", "REQ-26"),
+    ),
+    "FORBIDDEN-REG-1": Clause(
+        "test",
+        "A registry entry never matches a file or member by substring, prefix, case-insensitive "
+        "comparison or pattern; only exact equality matches.",
+        ("REQ-26",),
+    ),
+    "POST-READ-1": Clause(
+        "test",
+        "read_delimited(con, path, delimiter=..., header=...) returns a DuckDB relation whose "
+        "columns are all VARCHAR and whose rows equal the file's rows, decoding with "
+        "READ_ENCODINGS in order, and reports the encoding that succeeded.",
+        ("REQ-25", "REQ-28"),
+    ),
+    "ERRORS-READ-1": Clause(
+        "test",
+        "read_delimited raises SourceReadError naming the file and the reader's message when the "
+        "file is missing or cannot be read with any of READ_ENCODINGS; it never returns an empty "
+        "relation for an unreadable file.",
+        ("REQ-25",),
     ),
 }
