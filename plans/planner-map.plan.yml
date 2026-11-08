@@ -2,7 +2,7 @@
   "schema_version": "1.1",
   "feature_name": "beacon-snap-cliff-planner-map",
   "manifest_path": "requirements/REQUIREMENT_MANIFEST.md",
-  "manifest_hash": "sha256:679f3b2b8935a2856cd2b0ee6c11491b819526256dd3639d9fbeb7124468a335",
+  "manifest_hash": "sha256:aa7d977f818e19b6324cd85e4681fc229d71335691de7a4dbbf440a8df86da4b",
   "created": "2026-11-07",
   "last_updated": "2026-11-08",
   "status": "ACTIVE",
@@ -117,7 +117,7 @@
       ],
       "status": "PENDING",
       "depends_on": [],
-      "issue": "TODO",
+      "issue": "ketema/beacon-snap-cliff#13",
       "pivot_note": "If work stops after SLICE-3, the warehouse sits in the private bucket with every in-scope source, row counts a reader can recount, a provenance row for every table and a glossary, but nothing queries it yet. No open zone blocks this slice.",
       "deliverable": {
         "surface": "file",
@@ -139,7 +139,8 @@
         "REQ-37",
         "REQ-38",
         "REQ-39",
-        "REQ-40"
+        "REQ-40",
+        "REQ-46"
       ],
       "clauses_in_scope": [],
       "clauses_deferred": [],
@@ -152,7 +153,7 @@
         "SLICE-3"
       ],
       "issue": "TODO",
-      "pivot_note": "No open zone remains. If work stops after SLICE-4, a Viewer on a private address can ask plain-language and free-form questions and get cited answers built from the warehouse; the shared login is SLICE-5.",
+      "pivot_note": "No open zone remains. If work stops after SLICE-4, a Viewer on a private address can ask plain-language and free-form questions and get cited answers built from the warehouse; the shared login is SLICE-5. REQ-39 (the outage fallback) is flagged by Ketema: it may change the UI, and he wants to see the rendered result before accepting it.",
       "deliverable": {
         "surface": "ui",
         "capability": "A planner or officer can ask a plain-language question about any loaded data and get a cited answer.",
@@ -168,7 +169,8 @@
         "REQ-41",
         "REQ-42",
         "REQ-43",
-        "REQ-44"
+        "REQ-44",
+        "REQ-45"
       ],
       "clauses_in_scope": [],
       "clauses_deferred": [],
@@ -200,7 +202,8 @@
     "SLICE-2 stays BLOCKED until the human has seen the SLICE-1 deliverable and decides on zone Z-3; show a visual mock when the question returns.",
     "After SLICE-1 AUDIT: verify every requirement ID traces to a contract clause and a test, the human attests the deliverable, then ask whether to unblock SLICE-2 or plan the SBDC/CDFI officer view.",
     "REQ-13 (Beacon brand) is verified by human review, not by a test, so SLICE-1 needs a human attestation before it is audited.",
-    "SLICE-3 to SLICE-5 (cycle 13) follow SLICE-1. All cycle 13 zones are decided. SLICE-3 can start contracts once the human approves the plan."
+    "SLICE-3 to SLICE-5 (cycle 13) follow SLICE-1. All cycle 13 zones are decided. SLICE-3 can start contracts once the human approves the plan.",
+    "Approval recorded 2026-11-08: Ketema approved the amended manifest and the plan for SLICE-3 to SLICE-5 with caveats (session login, warehouse built once, REQ-39 flagged). The SLICE-1 amendments (INV-04, INV-06) are covered by that approval. Approval is bound to the manifest_hash in this file; any later change to these slices' requirements ends it until Ketema renews it."
   ],
   "forgotten_invariants": [
     "INV-01",
