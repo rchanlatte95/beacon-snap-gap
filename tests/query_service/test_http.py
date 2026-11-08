@@ -151,7 +151,7 @@ def test_ask_returns_the_reply_body_and_maps_failures_to_their_statuses(serve) -
     assert _post(base + "/api/other", json.dumps(BODY).encode())[0] == 404
     assert _post(base + contract.ASK_PATH, None, method="GET")[0] == 405
 
-    down, _ = serve(Script([503]))
+    down, _ = serve(Script([503] * (contract.CALL_RETRIES + 1)))  # ERRORS-ANS-1: one retry
     status, body, _ = _post(down + contract.ASK_PATH, json.dumps(BODY).encode())
     assert (status, "ERRORS-ASK-2" in str(body.get("error"))) == (
         contract.ASK_STATUS_UNAVAILABLE,

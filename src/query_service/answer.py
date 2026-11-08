@@ -8,6 +8,7 @@ contract module; tests bridge the two (CL11-F).
 """
 
 import json
+import logging
 import math
 import re
 import threading
@@ -25,10 +26,13 @@ from .ask import AppliedThresholds, AskReply, AskRequest, SqlQueryResult
 from .engine import QueryServiceError, WarehouseQueryEngine
 from .tools import CORRELATION_CAVEATS, ToolArgumentError, WarehouseTools
 
+LOG: Final = logging.getLogger("query_service")
 PROJECT_ENV: Final = "GOOGLE_CLOUD_PROJECT"
 LOCATION_ENV: Final = "GOOGLE_CLOUD_LOCATION"
 MAX_TOOL_ROUNDS: Final = 4
-ANSWER_DEADLINE_SECONDS: Final = 30.0
+ANSWER_DEADLINE_SECONDS: Final = 45.0
+CALL_TIMEOUT_SECONDS: Final = 12.0
+CALL_RETRIES: Final = 1
 MAX_DESCRIBE_TABLES: Final = 10
 GLOSSARY_PAGE_TERMS: Final = 200
 TAXONOMY_PATH: Final = "docs/taxonomy.md"
@@ -36,7 +40,10 @@ SYSTEM_PREAMBLE: Final = (
     "You answer questions about Central Florida public data for food bank planners and small "
     "business lenders. Use only the tools. Every number you state must come from a tool result, "
     "the question or the current settings. If the data does not hold the answer, say so. Name no "
-    "source that a tool did not return."
+    "source that a tool did not return. You have at most 3 tool rounds, so run a sql_query in "
+    "your first round when a key table below fits, and put several "
+    "independent calls in one round. Answer in plain sentences only: no Markdown, backticks, "
+    "asterisks, headings, bullet symbols or table names; name places and figures in words."
 )
 CORRECTION_TEMPLATE: Final = (
     "These numbers in your answer came from no tool result: {numbers}. Answer again using only "
@@ -76,9 +83,7 @@ def vertex_client(
     for name in (PROJECT_ENV, LOCATION_ENV):
         if not env.get(name):
             raise KeyError(f"SEQ-11 violation: {name} is not set")
-    options = types.HttpOptions(
-        timeout=int(ANSWER_DEADLINE_SECONDS * 1000), httpx_client=http_client
-    )
+    options = types.HttpOptions(timeout=int(CALL_TIMEOUT_SECONDS * 1000), httpx_client=http_client)
     return genai.Client(
         vertexai=True,
         project=env[PROJECT_ENV],
@@ -88,12 +93,33 @@ def vertex_client(
     )
 
 
-def system_instruction(taxonomy_text: str, applied: AppliedThresholds, index_json: str) -> str:
-    """The instruction sent with every question: preamble, taxonomy, table index, settings."""
+KEY_TABLES_TEXT: Final = (
+    "## Key tables (every value is text: CAST numbers, e.g. CAST(sba_loans_all_years AS INTEGER))\n"
+    "- repo_doc_tract_gap_types, one row per Central Florida tract: geoid, county (Lake, Orange, "
+    "Osceola, Seminole), food_class (Classic Food Desert, No gap flagged, Insufficient data), "
+    "capital_access_gap, entrepreneurship_infrastructure_gap, credit_access_gap, "
+    "underinvestment_gap, population_2020, sba_loans_all_years, sba_loans_per_1000, "
+    "poverty_rate_pct, snap_share_pct, lila_driving_flag, median_household_income, "
+    "income_status, snap_retailers.\n"
+    "- ds_x12_central_fl_tract_pantry_coverage: geoid, NAME, households, snap_households, "
+    "pct_hh_snap, pct_poverty, second_harvest_sites (0 means no pantry site).\n"
+    "- ds_x5_sba_loans_by_tract_central_fl: geoid, loans_7a_fy2020_2026, loans_504_fy2020_2026, "
+    "loans_total, gross_usd_total, jobs_supported_total.\n"
+    "- ds_x5_foia_7a_fy2020_present_asof_260930, one row per SBA 7(a) loan: BankName, "
+    "GrossApproval, ApprovalDate, BorrState, ProjectCounty, JobsSupported.\n"
+    "- ds_x16_nri_table_censustracts_nri_table_censustracts, FEMA National Risk Index: TRACTFIPS "
+    "(the tract geoid), COUNTY, HRCN_EALT (hurricane expected annual loss, dollars), RISK_SCORE.\n"
+    "- ds_x28_acs2024_s1901_median_household_income_central_fl_tracts: geoid, county, "
+    "median_household_income, median_household_income_moe90, income_status, period.\n"
+    "For any other table call schema_describe."
+)
+
+
+def system_instruction(taxonomy_text: str, applied: AppliedThresholds) -> str:
+    """The instruction sent with every question: preamble, taxonomy, key tables, settings."""
     return (
         f"{SYSTEM_PREAMBLE}\n\n## Core taxonomy ({TAXONOMY_PATH})\n{taxonomy_text.strip()}\n\n"
-        f"## Warehouse table index (schema_describe without table_names)\n{index_json}\n\n"
-        + settings_text(applied)
+        f"{KEY_TABLES_TEXT}\n\n" + settings_text(applied)
     )
 
 
@@ -413,7 +439,7 @@ class Answerer:
             self._answers[key] = reply
         return reply
 
-    def _answer_fresh(self, request: AskRequest) -> AskReply:
+    def _answer_fresh(self, request: AskRequest) -> AskReply:  # noqa: PLR0912, PLR0915 - one loop
         """Answer one question under its thresholds.
 
         Raises:
@@ -422,17 +448,19 @@ class Answerer:
             AnswerNotGroundedError: ERRORS-ASK-3, an ungrounded number survived one correction.
         """
         start = self._clock()
-        instruction = system_instruction(self._taxonomy, request.thresholds, self._index_json())
+        instruction = system_instruction(self._taxonomy, request.thresholds)
         config = types.GenerateContentConfig(
             system_instruction=instruction,
             tools=[TOOL_DECLARATIONS],
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW),
         )
         # Z-31: the last allowed model call answers from the results it has (POST-ANS-4).
         final_config = types.GenerateContentConfig(
             system_instruction=instruction,
             tools=[TOOL_DECLARATIONS],
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW),
             tool_config=types.ToolConfig(
                 function_calling_config=types.FunctionCallingConfig(
                     mode=types.FunctionCallingConfigMode.NONE
@@ -459,14 +487,23 @@ class Answerer:
                 contents.append(
                     types.Content(role="user", parts=[types.Part(text=FINAL_ANSWER_PROMPT)])
                 )
-            try:
-                response = self._client.models.generate_content(
-                    model=self._model, contents=contents, config=final_config if final else config
-                )
-            except (errors.APIError, httpx2.HTTPError) as exc:
-                raise ModelUnavailableError(
-                    f"ERRORS-ASK-2 violation: Vertex AI failed: {exc}"
-                ) from exc
+            response = None
+            for attempt in range(CALL_RETRIES + 1):
+                try:
+                    response = self._client.models.generate_content(
+                        model=self._model,
+                        contents=contents,
+                        config=final_config if final else config,
+                    )
+                    break
+                except (errors.APIError, httpx2.HTTPError) as exc:
+                    if attempt == CALL_RETRIES:
+                        raise ModelUnavailableError(
+                            f"ERRORS-ASK-2 violation: Vertex AI failed: {exc}"
+                        ) from exc
+                    LOG.warning("Vertex call failed, retrying once: %s", exc)
+            if response is None:
+                raise ModelUnavailableError("ERRORS-ASK-2 violation: Vertex AI gave no reply")
             requests_made += 1
             calls = response.function_calls or []
             if calls:

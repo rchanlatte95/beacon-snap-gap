@@ -22,7 +22,6 @@ Batches:
 The implementation MUST NOT import this module (CL11-F). Tests import both and compare.
 """
 
-import json
 import math
 import re
 import statistics
@@ -644,8 +643,10 @@ GLOSSARY_PAGE_TERMS = 200
 
 TOOL_NAMES: tuple[str, ...] = ("schema_describe", "sql_query", "sites_near", "stats_correlate")
 MAX_TOOL_ROUNDS = 4  # Z-31: model calls per question; the last one answers without tools
-ANSWER_DEADLINE_SECONDS = 30.0  # Z-31: below the App's 50-second limit (Z-30)
+ANSWER_DEADLINE_SECONDS = 45.0  # Ryan's choice: 45 s with 4 rounds (below the App's 50 s)
 FINAL_CALL_MODE = "NONE"  # Z-31: function calling mode of the last model call
+CALL_TIMEOUT_SECONDS = 12.0  # one Vertex call; a stalled call is cut here and retried once
+CALL_RETRIES = 1
 FINAL_ANSWER_PROMPT = (
     "Answer the question now from the tool results above. Do not call any tool. If they do not "
     "hold the answer, say so."
@@ -658,7 +659,10 @@ SYSTEM_PREAMBLE = (
     "You answer questions about Central Florida public data for food bank planners and small "
     "business lenders. Use only the tools. Every number you state must come from a tool result, "
     "the question or the current settings. If the data does not hold the answer, say so. Name no "
-    "source that a tool did not return."
+    "source that a tool did not return. You have at most 3 tool rounds, so run a sql_query in "
+    "your first round when a key table below fits, and put several "
+    "independent calls in one round. Answer in plain sentences only: no Markdown, backticks, "
+    "asterisks, headings, bullet symbols or table names; name places and figures in words."
 )
 CORRECTION_TEMPLATE = (
     "These numbers in your answer came from no tool result: {numbers}. Answer again using only "
@@ -821,19 +825,37 @@ def expected_schema_payload(
     return out
 
 
-def expected_system_instruction(
-    taxonomy_text: str,
-    applied: AppliedThresholds,
-    schema_index: list[dict[str, object]],
-) -> str:
-    """POST-ANS-1 oracle: the system instruction sent with every question (REQ-36, REQ-60, Z-31).
+KEY_TABLES_TEXT = (
+    "## Key tables (every value is text: CAST numbers, e.g. CAST(sba_loans_all_years AS INTEGER))\n"
+    "- repo_doc_tract_gap_types, one row per Central Florida tract: geoid, county (Lake, Orange, "
+    "Osceola, Seminole), food_class (Classic Food Desert, No gap flagged, Insufficient data), "
+    "capital_access_gap, entrepreneurship_infrastructure_gap, credit_access_gap, "
+    "underinvestment_gap, population_2020, sba_loans_all_years, sba_loans_per_1000, "
+    "poverty_rate_pct, snap_share_pct, lila_driving_flag, median_household_income, "
+    "income_status, snap_retailers.\n"
+    "- ds_x12_central_fl_tract_pantry_coverage: geoid, NAME, households, snap_households, "
+    "pct_hh_snap, pct_poverty, second_harvest_sites (0 means no pantry site).\n"
+    "- ds_x5_sba_loans_by_tract_central_fl: geoid, loans_7a_fy2020_2026, loans_504_fy2020_2026, "
+    "loans_total, gross_usd_total, jobs_supported_total.\n"
+    "- ds_x5_foia_7a_fy2020_present_asof_260930, one row per SBA 7(a) loan: BankName, "
+    "GrossApproval, ApprovalDate, BorrState, ProjectCounty, JobsSupported.\n"
+    "- ds_x16_nri_table_censustracts_nri_table_censustracts, FEMA National Risk Index: TRACTFIPS "
+    "(the tract geoid), COUNTY, HRCN_EALT (hurricane expected annual loss, dollars), RISK_SCORE.\n"
+    "- ds_x28_acs2024_s1901_median_household_income_central_fl_tracts: geoid, county, "
+    "median_household_income, median_household_income_moe90, income_status, period.\n"
+    "For any other table call schema_describe."
+)
 
-    schema_index is expected_schema_payload of every catalog table, detailed False (POST-TOOL-3).
+
+def expected_system_instruction(taxonomy_text: str, applied: AppliedThresholds) -> str:
+    """POST-ANS-1 oracle: the system instruction sent with every question (REQ-36, REQ-60).
+
+    It carries KEY_TABLES_TEXT instead of the full table index (advice from three model families:
+    the 16K-token index slowed every call and the model still explored before querying).
     """
     return (
         f"{SYSTEM_PREAMBLE}\n\n## Core taxonomy ({TAXONOMY_PATH})\n{taxonomy_text.strip()}\n\n"
-        "## Warehouse table index (schema_describe without table_names)\n"
-        f"{json.dumps(schema_index, separators=(',', ':'))}\n\n"
+        f"{KEY_TABLES_TEXT}\n\n"
         "## Current settings\n"
         f"Reach distance: {applied.reach_miles:g} miles, straight-line.\n"
         f"Poverty cut: the {applied.poverty}th percentile.\n"
@@ -1005,8 +1027,10 @@ CONTRACT_QUERY_ANSWER: Mapping[str, Clause] = {
     ),
     "ERRORS-ANS-1": Clause(
         "test",
-        "A Vertex AI error (google.genai errors.APIError), a transport timeout, or no final "
-        "answer within ANSWER_DEADLINE_SECONDS raises ModelUnavailableError naming ERRORS-ASK-2; "
+        "Each Vertex AI call has CALL_TIMEOUT_SECONDS; a failed call (google.genai errors.APIError "
+        "or a transport timeout) is retried CALL_RETRIES time. A call that still fails, or no "
+        "final answer within ANSWER_DEADLINE_SECONDS, raises ModelUnavailableError naming "
+        "ERRORS-ASK-2; "
         "no partial answer is returned.",
         ("REQ-39", "REQ-37"),
     ),
