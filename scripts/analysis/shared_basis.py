@@ -24,7 +24,6 @@ import statistics
 import zipfile
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 from scipy import stats
 
@@ -403,13 +402,13 @@ def main() -> None:
         vc = a[k].value_counts()
         print(f"| {nm} | {rules[k]} | {vc.get(YES, 0)} | {vc.get(NO, 0)} | {vc.get(INSUF, 0)} |")
     n_types = sum((a[k] == YES).astype(int) for k in GAP_TYPES)
-    print(f"\nTracts by number of gap types: " + ", ".join(f"{i}: {int((n_types == i).sum())}" for i in range(5)) + ".")
-    nlow = int((sba_low[A] == True).sum())
+    print("\nTracts by number of gap types: " + ", ".join(f"{i}: {int((n_types == i).sum())}" for i in range(5)) + ".")
+    nlow = int(sba_low[A].isin([True]).sum())
     print(f"Tracts with SBA loans per 1,000 in the bottom quartile: {nlow} of {len(a)} ({nlow / len(a):.1%}).")
 
     # --- 2. Overlap with Classic Food Desert -----------------------------------------------
     top = a.pctPoverty >= pov_q[2]
-    print(f"\n## 2. Overlap with Classic Food Desert\n")
+    print("\n## 2. Overlap with Classic Food Desert\n")
     print(f"Top poverty quartile (poverty >= {pov_q[2]:.3f}%): {int(top.sum())} tracts "
           f"(desert {int((top & (a.cls == 'desert')).sum())}, nogap {int((top & (a.cls == 'nogap')).sum())}). "
           f"Every desert tract is in it by the class rule: {bool((a[a.cls == 'desert'].pctPoverty >= pov_q[2]).all())}. "
@@ -439,14 +438,14 @@ def main() -> None:
         overlap[(k, "top")] = fisher_row(nm, f"Top poverty quartile ({int(top.sum())})", a.loc[top, k].reindex(a.index))
 
     d_eig = a[a.cls == "desert"]
-    same = ((d_eig.entrepreneurship_infrastructure_gap == YES) == (sba_low[d_eig.index] == True)).all()
+    same = ((d_eig.entrepreneurship_infrastructure_gap == YES) == sba_low[d_eig.index].isin([True])).all()
     print(f"\nIn desert tracts, Entrepreneurship Infrastructure Gap = yes exactly when loans per 1,000 is in the bottom "
           f"quartile: {bool(same)}. So its desert overlap is the desert share of bottom-quartile lending: "
-          f"{int((sba_low[d_eig.index] == True).sum())} of {len(d_eig)}.")
+          f"{int(sba_low[d_eig.index].isin([True]).sum())} of {len(d_eig)}.")
     nog = a[a.cls == "nogap"]
-    print(f"Nogap tracts meeting the poverty-or-unemployment part: {int((or3(pov_hi, unemp_hi)[nog.index] == True).sum())} "
-          f"of {len(nog)} (by poverty {int((pov_hi[nog.index] == True).sum())}, by unemployment only "
-          f"{int(((pov_hi[nog.index] == False) & (unemp_hi[nog.index] == True)).sum())}).")
+    print(f"Nogap tracts meeting the poverty-or-unemployment part: {int(or3(pov_hi, unemp_hi)[nog.index].isin([True]).sum())} "
+          f"of {len(nog)} (by poverty {int(pov_hi[nog.index].isin([True]).sum())}, by unemployment only "
+          f"{int((pov_hi[nog.index].isin([False]) & unemp_hi[nog.index].isin([True])).sum())}).")
     eig_all = a.entrepreneurship_infrastructure_gap == YES
     print(f"Entrepreneurship Infrastructure Gap tracts: {int(eig_all.sum())}; of these, desert {int((eig_all & (a.cls == 'desert')).sum())} "
           f"({(eig_all & (a.cls == 'desert')).sum() / eig_all.sum():.1%}).")
@@ -554,7 +553,7 @@ def main() -> None:
           f"{int((m.cls == 'desert').sum())} ({(hi_den & (m.cls == 'desert')).sum() / (m.cls == 'desert').sum():.1%}), "
           f"nogap {int((hi_den & (m.cls == 'nogap')).sum())} of {int((m.cls == 'nogap').sum())} "
           f"({(hi_den & (m.cls == 'nogap')).sum() / (m.cls == 'nogap').sum():.1%}).")
-    print(f"Of the top-quartile denial-rate tracts, {int((hi_den & (sba_mid[m.index] == True)).sum())} have SBA loans per "
+    print(f"Of the top-quartile denial-rate tracts, {int((hi_den & sba_mid[m.index].isin([True])).sum())} have SBA loans per "
           f"1,000 at or above the median (Credit Access Gap).")
 
     # --- 5. Data quality ------------------------------------------------------------------
@@ -568,8 +567,8 @@ def main() -> None:
     print(f"Median household income: median MOE / estimate = {inc_info['rel_moe_median']:.3f}.")
     print(f"Denial-rate tracts with 20 to 49 applications: {int(((m.total_applications >= 20) & (m.total_applications < 50)).sum())}.")
     print(f"Desert tracts with 0 SNAP retailers: {zt[0][0]}; with 1: {int((d.retailers == 1).sum())}.")
-    print(f"Unemployment top-quartile tracts: {int((unemp_hi[A] == True).sum())}; of these also top-quartile poverty: "
-          f"{int(((unemp_hi[A] == True) & (pov_hi[A] == True)).sum())}.")
+    print(f"Unemployment top-quartile tracts: {int(unemp_hi[A].isin([True]).sum())}; of these also top-quartile poverty: "
+          f"{int((unemp_hi[A].isin([True]) & pov_hi[A].isin([True])).sum())}.")
     rho_pu, p_pu = stats.spearmanr(a.pctPoverty, a.unemployment_rate, nan_policy="omit")
     print(f"Spearman, poverty vs unemployment rate: rho {rho_pu:.3f} (p = {fmt_p(p_pu)}).")
 

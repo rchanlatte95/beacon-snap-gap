@@ -104,7 +104,12 @@ print(f"\nshare of loans in desert tracts: {100*loans_d:.1f}%; share of people b
 NV_CUT = 6.9  # stand-in no-vehicle cut from T7 rule S1 (needs human approval, H-5)
 D = [T[g] for g in desert]
 none = [t for t in D if t["sitesInTract"] == 0]
-hh = lambda L, k: sum(t.get(k) or 0 for t in L)
+
+
+def hh(rows: list[dict], key: str) -> float:
+    return sum(t.get(key) or 0 for t in rows)
+
+
 print(f"\nhigh-need tracts: {len(D)}; households {hh(D, 'households'):,}; SNAP households {hh(D, 'snapHouseholds'):,}")
 print(f"  with no Second Harvest site inside: {len(none)} tracts; households {hh(none, 'households'):,}; SNAP households {hh(none, 'snapHouseholds'):,}")
 nv = [t for t in none if (t.get("noVehiclePct") or 0) >= NV_CUT]
