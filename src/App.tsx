@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
+import { AiAnswerCard, AiUnavailableNotice, AskPending } from './ai/AiAnswer'
+import { tractGeoidsInResults, type AskAnswer, type AskService } from './ai/askClient'
 import { OpportunityMap } from './map/OpportunityMap'
 import { ProximityControls } from './map/ProximityControls'
 import {
@@ -74,6 +76,8 @@ export interface OpportunitiesAppProps {
   readonly initialSites?: GeoJSON.FeatureCollection
   readonly initialLoadError?: string
   readonly enableMap?: boolean
+  /** The QueryService `ask` client. Without it, questions use the built-in wizard only. */
+  readonly askService?: AskService
 }
 
 const BUNDLE_FILES = {
@@ -137,6 +141,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
     initialBundle,
     initialLoadError,
     enableMap = typeof window !== 'undefined' && !('__vitest_worker__' in globalThis),
+    askService,
   } = props
   const [bundle, setBundle] = useState<PlannerBundle | null>(initialBundle ?? null)
   const [geo, setGeo] = useState<GeoLayers | null>(null)
@@ -152,6 +157,12 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
   const [proximityEnabled, setProximityEnabled] = useState(false)
   const [proximityMiles, setProximityMiles] = useState(DEFAULT_REACH_MILES)
   const [panelTab, setPanelTab] = useState<'briefing' | 'evidence'>('briefing')
+  const [asking, setAsking] = useState(false)
+  const [aiAnswer, setAiAnswer] = useState<AskAnswer | null>(null)
+  const [aiUnavailable, setAiUnavailable] = useState(false)
+  const askRun = useRef<AbortController | null>(null)
+
+  useEffect(() => () => askRun.current?.abort(), [])
 
   useEffect(() => {
     if (initialBundle || initialLoadError) return
@@ -194,6 +205,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
   }, [enableMap, bundle, loadError])
 
   const tracts = useMemo(() => bundle?.tracts ?? [], [bundle])
+  const knownGeoids = useMemo(() => new Set(tracts.map((t) => t.geoid)), [tracts])
   const briefing = useMemo(
     () =>
       tracts.length
@@ -246,13 +258,54 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
     insufficient: bundle?.counts.insufficient ?? 0,
   } as const
 
+  const resetAsk = () => {
+    askRun.current?.abort()
+    askRun.current = null
+    setAsking(false)
+    setAiAnswer(null)
+    setAiUnavailable(false)
+  }
+  const askAi = async (service: AskService, q: string) => {
+    const run = new AbortController()
+    askRun.current = run
+    setAsking(true)
+    const outcome = await service(q.trim(), run.signal).catch(() => ({ ok: false as const }))
+    if (askRun.current !== run) return
+    askRun.current = null
+    setAsking(false)
+    if (outcome.ok) {
+      // A tract list in the reply focuses the map and the shortlist, like a built-in answer.
+      const geoids = new Set(tractGeoidsInResults(outcome.answer.results, knownGeoids))
+      setAiAnswer(outcome.answer)
+      setAnswer(
+        geoids.size > 0
+          ? {
+              matchedTracts: tracts.filter((t) => geoids.has(t.geoid)),
+              answerText: outcome.answer.answer,
+              appliedFilters: [],
+            }
+          : null,
+      )
+    } else {
+      // REQ-39 / SEQ-9: the built-in wizard answers, with the notice.
+      setAiUnavailable(true)
+      setAnswer(answerWizardQuery(tracts, q))
+    }
+  }
   const runQuery = (q: string) => {
+    resetAsk()
     setQuery(q)
-    setAnswer(q.trim() ? answerWizardQuery(tracts, q) : null)
     setBrief(null)
     setPanelTab('briefing')
+    if (!q.trim() || !askService) {
+      setAnswer(q.trim() ? answerWizardQuery(tracts, q) : null)
+      return
+    }
+    setAnswer(null)
+    void askAi(askService, q)
   }
   const chooseCohort = (id: CohortId) => {
+    resetAsk()
     setCohort(id)
     setAnswer(null)
     setBrief(null)
@@ -549,8 +602,23 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                     </button>
                   ))}
                 </div>
-                {answer && (
+                {asking && <AskPending />}
+                {aiAnswer && (
+                  <AiAnswerCard
+                    answer={aiAnswer}
+                    knownGeoids={knownGeoids}
+                    onClear={() => runQuery('')}
+                    extra={
+                      answer &&
+                      proximityActive && (
+                        <p>Of these, {cohortTracts.length} are beyond the proximity limit.</p>
+                      )
+                    }
+                  />
+                )}
+                {answer && !aiAnswer && (
                   <div className="answer" role="status">
+                    {aiUnavailable && <AiUnavailableNotice />}
                     <p>{answer.answerText}</p>
                     {proximityActive && (
                       <p>Of these, {cohortTracts.length} are beyond the proximity limit.</p>
