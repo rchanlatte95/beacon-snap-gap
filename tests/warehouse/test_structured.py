@@ -126,6 +126,8 @@ def test_geographic_files_keep_every_feature_with_text_attributes(tmp_path: Path
     )
     shp_dir = tmp_path / "shp"
     shp_dir.mkdir()
+    # Fixture only: DuckDB 2.0 refuses a GDAL write with an SRS unless the axis order is explicit.
+    con.execute("SET geometry_always_xy = true")
     con.execute(
         "COPY (SELECT * EXCLUDE (OGC_FID) FROM ST_Read($p)) "
         "TO $o (FORMAT GDAL, DRIVER 'ESRI Shapefile')",
