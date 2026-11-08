@@ -140,6 +140,8 @@ gcloud run deploy "${SERVICE}" \
   --image="${IMAGE}" \
   --ingress=all \
   --allow-unauthenticated \
+  --no-cpu-throttling \
+  --min-instances=1 \
   --service-account="${SERVICE_ACCOUNT}" \
   --add-volume="name=warehouse,type=cloud-storage,bucket=${BUCKET},readonly=true" \
   --add-volume-mount="volume=warehouse,mount-path=${MOUNT_PATH}" \

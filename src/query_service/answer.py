@@ -10,6 +10,7 @@ contract module; tests bridge the two (CL11-F).
 import json
 import math
 import re
+import threading
 import time
 from collections.abc import Callable, Mapping
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -26,8 +27,8 @@ from .tools import CORRELATION_CAVEATS, ToolArgumentError, WarehouseTools
 
 PROJECT_ENV: Final = "GOOGLE_CLOUD_PROJECT"
 LOCATION_ENV: Final = "GOOGLE_CLOUD_LOCATION"
-MAX_TOOL_ROUNDS: Final = 12
-ANSWER_DEADLINE_SECONDS: Final = 45.0
+MAX_TOOL_ROUNDS: Final = 4
+ANSWER_DEADLINE_SECONDS: Final = 30.0
 MAX_DESCRIBE_TABLES: Final = 10
 GLOSSARY_PAGE_TERMS: Final = 200
 TAXONOMY_PATH: Final = "docs/taxonomy.md"
@@ -40,6 +41,10 @@ SYSTEM_PREAMBLE: Final = (
 CORRECTION_TEMPLATE: Final = (
     "These numbers in your answer came from no tool result: {numbers}. Answer again using only "
     "numbers from tool results, or say that the data does not hold them."
+)
+FINAL_ANSWER_PROMPT: Final = (
+    "Answer the question now from the tool results above. Do not call any tool. If they do not "
+    "hold the answer, say so."
 )
 NUMBER_PATTERN: Final = re.compile(r"(?<![\w.])-?\d[\d,]*(?:\.\d+)?(?![\w])")
 TRACT_PREFIX: Final = "1400000US"
@@ -83,10 +88,11 @@ def vertex_client(
     )
 
 
-def system_instruction(taxonomy_text: str, applied: AppliedThresholds) -> str:
-    """The instruction sent with every question: preamble, taxonomy and current settings."""
+def system_instruction(taxonomy_text: str, applied: AppliedThresholds, index_json: str) -> str:
+    """The instruction sent with every question: preamble, taxonomy, table index, settings."""
     return (
         f"{SYSTEM_PREAMBLE}\n\n## Core taxonomy ({TAXONOMY_PATH})\n{taxonomy_text.strip()}\n\n"
+        f"## Warehouse table index (schema_describe without table_names)\n{index_json}\n\n"
         + settings_text(applied)
     )
 
@@ -266,6 +272,17 @@ class Answerer:
         self._tools = tools
         self._taxonomy = taxonomy_text
         self._clock = clock
+        self._index_cache: str | None = None
+        # Answer cache (Ketema: "Cache cache cache"): the warehouse is read-only for the life of
+        # the process, so a successful answer to the same question and settings stays correct.
+        self._answers: dict[tuple[object, ...], AskReply] = {}
+        self._answers_lock = threading.Lock()
+
+    def _index_json(self) -> str:
+        """The table index for the instruction (Z-31), built once from the open engine."""
+        if self._index_cache is None:
+            self._index_cache = json.dumps(self._schema_payload({}), separators=(",", ":"))
+        return self._index_cache
 
     def _schema_payload(self, args: Mapping[str, object]) -> list[dict[str, object]]:
         """The schema_describe payload: an index, or detail with the glossary paged (POST-TOOL-3).
@@ -377,7 +394,26 @@ class Answerer:
             )
         return types.Content(role="user", parts=parts)
 
+    @staticmethod
+    def cache_key(request: AskRequest) -> tuple[object, ...]:
+        """The question, case and spacing folded, with the settings it was answered under."""
+        t = request.thresholds
+        question = " ".join(request.question.lower().split()).rstrip("?.! ")
+        return (question, t.reach_miles, t.poverty, t.no_vehicle, t.sba_rate_per_1000)
+
     def answer(self, request: AskRequest) -> AskReply:
+        """A cached answer for the same question and settings, or a fresh one (then cached)."""
+        key = self.cache_key(request)
+        with self._answers_lock:
+            hit = self._answers.get(key)
+        if hit is not None:
+            return hit
+        reply = self._answer_fresh(request)
+        with self._answers_lock:
+            self._answers[key] = reply
+        return reply
+
+    def _answer_fresh(self, request: AskRequest) -> AskReply:
         """Answer one question under its thresholds.
 
         Raises:
@@ -386,10 +422,22 @@ class Answerer:
             AnswerNotGroundedError: ERRORS-ASK-3, an ungrounded number survived one correction.
         """
         start = self._clock()
+        instruction = system_instruction(self._taxonomy, request.thresholds, self._index_json())
         config = types.GenerateContentConfig(
-            system_instruction=system_instruction(self._taxonomy, request.thresholds),
+            system_instruction=instruction,
             tools=[TOOL_DECLARATIONS],
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+        )
+        # Z-31: the last allowed model call answers from the results it has (POST-ANS-4).
+        final_config = types.GenerateContentConfig(
+            system_instruction=instruction,
+            tools=[TOOL_DECLARATIONS],
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+            tool_config=types.ToolConfig(
+                function_calling_config=types.FunctionCallingConfig(
+                    mode=types.FunctionCallingConfigMode.NONE
+                )
+            ),
         )
         contents: list[types.Content] = [
             types.Content(role="user", parts=[types.Part(text=request.question)])
@@ -397,27 +445,34 @@ class Answerer:
         allowed = (request.question, settings_text(request.thresholds))
         payloads: list[object] = []
         results: list[SqlQueryResult] = []
-        rounds = 0
+        requests_made = 0
         corrected = False
+        prompted = False
         while True:
             if self._clock() - start > ANSWER_DEADLINE_SECONDS:
                 raise ModelUnavailableError(
                     f"ERRORS-ASK-2 violation: no answer within {ANSWER_DEADLINE_SECONDS} s"
                 )
+            final = requests_made >= MAX_TOOL_ROUNDS - 1
+            if final and not prompted:
+                prompted = True
+                contents.append(
+                    types.Content(role="user", parts=[types.Part(text=FINAL_ANSWER_PROMPT)])
+                )
             try:
                 response = self._client.models.generate_content(
-                    model=self._model, contents=contents, config=config
+                    model=self._model, contents=contents, config=final_config if final else config
                 )
             except (errors.APIError, httpx2.HTTPError) as exc:
                 raise ModelUnavailableError(
                     f"ERRORS-ASK-2 violation: Vertex AI failed: {exc}"
                 ) from exc
+            requests_made += 1
             calls = response.function_calls or []
             if calls:
-                rounds += 1
-                if rounds > MAX_TOOL_ROUNDS:
+                if final:
                     raise ModelUnavailableError(
-                        f"ERRORS-ASK-2 violation: more than {MAX_TOOL_ROUNDS} tool rounds"
+                        "ERRORS-ASK-2 violation: the model gave no final answer"
                     )
                 if response.candidates and response.candidates[0].content:
                     contents.append(response.candidates[0].content)
