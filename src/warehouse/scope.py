@@ -25,8 +25,22 @@ EXCLUDE_DUPLICATE_FORMAT: Final = "duplicate_format"
 # FORBIDDEN-SCOPE-1: the only reasons, in precedence order.
 EXCLUSION_REASONS: Final = (EXCLUDE_TIME_SCOPE, EXCLUDE_DUPLICATE_CONTENT, EXCLUDE_DUPLICATE_FORMAT)
 
-# POST-SCOPE-5: the lowest rank of a release wins; the others are duplicate_format.
-FORMAT_RANK: Final[Mapping[str, int]] = {"csv": 0, "xlsx": 1, "sas": 2}
+# POST-SCOPE-5: the lowest rank of a release wins; the others are duplicate_format. Covers every
+# content format among the retained sources (batch 6b).
+FORMAT_RANK: Final[Mapping[str, int]] = {
+    "csv": 0,
+    "tsv": 0,
+    "dat": 0,
+    "pl": 0,
+    "xlsx": 1,
+    "xls": 1,
+    "sas": 2,
+    "json": 3,
+    "geojson": 3,
+    "shapefile": 3,
+    "pdf": 4,
+    "text": 4,
+}
 
 
 class WarehouseError(Exception):
