@@ -86,6 +86,21 @@ export const APP_TEST_IDS = {
 } as const
 export const DISTANCE_SLIDER_NAME = 'Distance limit in miles'
 
+// SLICE-4 batch 2 (Z-26): the App side of the ask call. The server side is
+// contracts/query_service_contract.py (PRE-ASK-1, POST-ASK-1, ERRORS-ASK-1, ERRORS-ASK-2).
+export const ASK_PATH = '/api/ask'
+export const ASK_TIMEOUT_MS = 20_000
+export const AI_UNAVAILABLE_TEXT = 'AI unavailable. Using built-in filters.'
+export const SESSION_ENDED_TEXT = 'Your session ended. Sign in again.'
+export const SIGN_IN_PATH = '/login' // served by the Gateway (SLICE-5)
+export const NOT_RECORDED = 'not recorded'
+export const QUESTION_BOX_NAME = 'Ask a question about Central Florida neighborhoods'
+export const ASK_TEST_IDS = {
+  aiAnswer: 'ai-answer',
+  aiNotice: 'ai-notice',
+  citationChip: (tableName: string) => `citation-chip-${tableName}`,
+} as const
+
 // --- 2. Domain exception classes (every message cites its clause ID) -----------------------
 
 export class AppContractError extends Error {
@@ -358,6 +373,94 @@ export function expectedEmphasisStates(
   )
 }
 
+export interface AskRequestShape {
+  readonly question: string
+  readonly reach_miles: number
+  readonly percentiles: Readonly<Record<CutName, number>>
+}
+
+export interface AskCitationShape {
+  readonly table_name: string
+  readonly dataset_id: string
+  readonly origin_url: string
+  readonly publisher: string
+  readonly as_of: string
+  readonly applied_filter: string
+}
+
+export interface AskResultShape {
+  readonly columns: readonly string[]
+  readonly rows: readonly Readonly<Record<string, string | number | boolean | null>>[]
+  readonly row_count: number
+  readonly truncated: boolean
+  readonly referenced_tables: readonly string[]
+}
+
+export interface AskAnswerShape {
+  readonly answer: string
+  readonly model: string
+  readonly results: readonly AskResultShape[]
+  readonly citations: readonly AskCitationShape[]
+  readonly tracts: readonly string[]
+  readonly applied: { readonly reach_miles: number; readonly percentiles: Readonly<Record<CutName, number>> }
+}
+
+export type AskOutcomeShape =
+  | { readonly ok: true; readonly answer: AskAnswerShape }
+  | { readonly ok: false; readonly sessionEnded: boolean; readonly reason: string }
+
+/** Never rejects: every failure is an outcome with ok: false (POST-APP-12). */
+export type AskServiceShape = (request: AskRequestShape, signal: AbortSignal) => Promise<AskOutcomeShape>
+
+const CITATION_KEYS = ['table_name', 'dataset_id', 'origin_url', 'publisher', 'as_of', 'applied_filter'] as const
+
+type Unchecked<T> = { readonly [K in keyof T]?: unknown }
+
+/** POST-APP-12 oracle: true when a 200 body has the ask reply shape. */
+export function isAskAnswerShape(body: unknown): body is AskAnswerShape {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return false
+  const { answer, model, results, citations, tracts, applied } = body as Unchecked<AskAnswerShape>
+  if (typeof applied !== 'object' || applied === null) return false
+  const { reach_miles, percentiles } = applied as Unchecked<AskAnswerShape['applied']>
+  return (
+    typeof answer === 'string' &&
+    answer.trim() !== '' &&
+    typeof model === 'string' &&
+    Array.isArray(results) &&
+    results.every((r: unknown) => {
+      if (typeof r !== 'object' || r === null) return false
+      const { columns, rows } = r as Unchecked<AskResultShape>
+      return Array.isArray(columns) && Array.isArray(rows)
+    }) &&
+    Array.isArray(citations) &&
+    citations.every((c: unknown) => {
+      if (typeof c !== 'object' || c === null) return false
+      const fields = c as Unchecked<AskCitationShape>
+      return CITATION_KEYS.every((k) => typeof fields[k] === 'string')
+    }) &&
+    Array.isArray(tracts) &&
+    tracts.every((t: unknown) => typeof t === 'string') &&
+    typeof reach_miles === 'number' &&
+    typeof percentiles === 'object' &&
+    percentiles !== null
+  )
+}
+
+/** POST-APP-12 oracle: how a reply maps to an outcome. */
+export function expectedOutcomeKind(
+  reply: { readonly status: number; readonly body: unknown } | 'network-error' | 'timeout',
+): 'ok' | 'session_ended' | 'unavailable' {
+  if (reply === 'network-error' || reply === 'timeout') return 'unavailable'
+  if (reply.status === 401) return 'session_ended'
+  if (reply.status === 200 && isAskAnswerShape(reply.body)) return 'ok'
+  return 'unavailable'
+}
+
+/** POST-APP-13 oracle: the link a citation chip carries, or null when the origin is not a web address. */
+export function expectedChipHref(citation: AskCitationShape): string | null {
+  return /^https?:\/\//.test(citation.origin_url) ? citation.origin_url : null
+}
+
 // --- 5. Traceability map -------------------------------------------------------------------
 
 export const CONTRACT_PLANNER_MAP_APP: Readonly<Record<string, Clause>> = {
@@ -420,5 +523,30 @@ export const CONTRACT_PLANNER_MAP_APP: Readonly<Record<string, Clause>> = {
     verification: 'test',
     text: 'src/map/emphasis.ts exports emphasisStates(records, focusedGeoids, emphasizeGaps), equal to expectedEmphasisStates; the map applies it as feature states, the outline layers drawing "emphasized" tracts and the fills fading "muted" ones. While emphasis is on, the context line states "<n> on map" and, when some have no shape, "; <m> without a map shape" for the chosen group; turning emphasis off clears both.',
     requirements: ['REQ-63'],
+  },
+  'POST-APP-11': {
+    verification: 'test',
+    text: 'src/ai/askClient.ts exports createHttpAskService({ url?, timeoutMs?, fetchImpl? }) returning an AskServiceShape that POSTs to ASK_PATH with a JSON body equal to the AskRequestShape and same-origin credentials. The App (prop askService) sends each question with the distance and the three cut percentiles currently set.',
+    requirements: ['REQ-60'],
+  },
+  'POST-APP-12': {
+    verification: 'test',
+    text: 'The ask service never rejects and maps each reply by expectedOutcomeKind: a 200 with an ask-shaped body is ok; a 401 is session ended; any other status, a network error, a body that is not ask-shaped, or no reply within timeoutMs (ASK_TIMEOUT_MS by default) is unavailable. On unavailable the App shows AI_UNAVAILABLE_TEXT (ASK_TEST_IDS.aiNotice) and answers the question with the built-in wizard.',
+    requirements: ['REQ-39'],
+  },
+  'POST-APP-13': {
+    verification: 'test',
+    text: 'Beside an AI answer (ASK_TEST_IDS.aiAnswer) the App shows one chip per citation (ASK_TEST_IDS.citationChip(table_name)) with its dataset_id, publisher and as_of, linked to expectedChipHref(citation) when that is not null and with no link otherwise (for example NOT_RECORDED).',
+    requirements: ['REQ-40'],
+  },
+  'POST-APP-14': {
+    verification: 'test',
+    text: 'On session ended the App shows SESSION_ENDED_TEXT with a link to SIGN_IN_PATH, does not show AI_UNAVAILABLE_TEXT, and answers the question with the built-in wizard.',
+    requirements: ['REQ-66'],
+  },
+  'POST-APP-15': {
+    verification: 'test',
+    text: 'On an ok answer the question shortlist holds exactly the tracts in answer.tracts, however many there are (Z-26: not limited by SQL row limits).',
+    requirements: ['REQ-60'],
   },
 } as const

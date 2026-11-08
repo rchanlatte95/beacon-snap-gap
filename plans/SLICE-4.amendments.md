@@ -1,0 +1,7 @@
+# SLICE-4 amendment ledger (QS6)
+
+| Date | Clause(s) | Requirement IDs | Kind | Rationale |
+|---|---|---|---|---|
+| 2026-11-08 | PRE-ASK-1, ERRORS-ASK-1, POST-ASK-1, ERRORS-ASK-2 (QueryService) | REQ-60, REQ-32, REQ-40, REQ-39, REQ-37 | new clauses, Decided By: User (Z-26, jev at Ketema's direction) | The ask interface for PR #19: the request carries the question and the thresholds set in the App; the reply carries a tracts field and echoes the thresholds applied; an outage is a 503. |
+| 2026-11-08 | POST-APP-11 to POST-APP-15 (App) | REQ-60, REQ-39, REQ-40, REQ-66 | new clauses, Decided By: User (Z-26) | The App side: the HTTP client, the outcome mapping with a 20-second limit, citation chips, the session-ended notice, and the question shortlist from answer.tracts. SIGN_IN_PATH '/login' is to be served by the Gateway in SLICE-5. |
+| 2026-11-08 | (typing only) planner_map_contract QUANTILE_METHOD and expected_classification | none changed | thin, typing | mypy --strict on the QueryService contract follows its import of the Build contract; QUANTILE_METHOD is now a Literal and a None check was made explicit. No behaviour changes. |

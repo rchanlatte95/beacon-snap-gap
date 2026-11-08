@@ -2,7 +2,7 @@
   "schema_version": "1.1",
   "feature_name": "beacon-snap-cliff-planner-map",
   "manifest_path": "requirements/REQUIREMENT_MANIFEST.md",
-  "manifest_hash": "sha256:0fc64c901bd5a5bf04c73815d0afc5c7d60d2b380a9168a3d228258ab29488a6",
+  "manifest_hash": "sha256:96dc81a064052e31099e1aee752e8c51bc394767cfba033af9ef489868806f1f",
   "created": "2026-11-07",
   "last_updated": "2026-11-08",
   "status": "ACTIVE",
@@ -237,7 +237,8 @@
         "REQ-49",
         "REQ-50",
         "REQ-52",
-        "REQ-60"
+        "REQ-60",
+        "REQ-66"
       ],
       "clauses_in_scope": [
         "SEQ-6",
@@ -245,7 +246,16 @@
         "POST-SQL-1",
         "SEQ-7",
         "FORBIDDEN-SQL-1",
-        "ERRORS-SQL-1"
+        "ERRORS-SQL-1",
+        "PRE-ASK-1",
+        "ERRORS-ASK-1",
+        "POST-ASK-1",
+        "ERRORS-ASK-2",
+        "POST-APP-11",
+        "POST-APP-12",
+        "POST-APP-13",
+        "POST-APP-14",
+        "POST-APP-15"
       ],
       "clauses_deferred": [],
       "negative_constraints": [

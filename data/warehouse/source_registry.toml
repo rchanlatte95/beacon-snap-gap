@@ -2392,6 +2392,12 @@ group = "docs"
 file_format = "text"
 
 [[source]]
+path = "repo:docs/hackathon/3-Minute Hackathon Pitch Skeleton (DevFest Florida Teams).md"
+ds = "REPO-DOC"
+group = "docs"
+file_format = "text"
+
+[[source]]
 path = "repo:docs/hackathon/blocked-pages-text.md"
 ds = "DS-X10b/X11b/X9c/X23b/X22b/X3c"
 group = "docs"
