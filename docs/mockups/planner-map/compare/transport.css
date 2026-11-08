@@ -1,0 +1,100 @@
+/* "Families without a car" Compare-with layer (task T3). Selectors are prefixed tr-. */
+.tr-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+.tr-headline {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+}
+.tr-legend .tr-ramp-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+.tr-ramp {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  height: 14px;
+  border: 1px solid rgba(30, 52, 63, 0.25);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.tr-ticks {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  font-size: 13px;
+  color: var(--gray-700);
+  font-variant-numeric: tabular-nums;
+}
+.tr-swatch-stripes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+}
+.tr-caveat {
+  margin: 0;
+}
+.tr-list-h {
+  font-size: 14px;
+  margin: 0 0 6px;
+  color: var(--primary-900);
+}
+.tr-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--gray-300);
+  border-radius: 8px;
+}
+.tr-list button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--gray-100);
+  background: #fff;
+  padding: 7px 10px;
+  cursor: pointer;
+  font: inherit;
+}
+.tr-list button:hover,
+.tr-list button:focus-visible {
+  background: var(--gray-100);
+}
+.tr-name {
+  font-size: 14px;
+  color: var(--primary-900);
+}
+.tr-num {
+  font-size: 14px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.tr-meta {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--gray-700);
+}
+.tr-hint {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+.tr-detail {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--gray-700);
+}
+.tr-detail p {
+  margin: 8px 0 0;
+}
+.tr-sources {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}

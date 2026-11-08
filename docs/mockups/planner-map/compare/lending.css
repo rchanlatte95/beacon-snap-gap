@@ -1,0 +1,46 @@
+/* Compare-with layer "Where small business loans went" (task T5). Panel selectors only. */
+.lending-panel {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.lending-panel p {
+  margin: 0;
+}
+.lending-headline {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--primary-900);
+}
+.lending-h {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-900);
+  margin: 6px 0 0;
+}
+.lending-list {
+  margin: 0;
+  padding-left: 22px;
+  font-size: 14px;
+  display: grid;
+  gap: 3px;
+}
+.lending-more {
+  justify-self: start;
+  font-size: 14px;
+}
+.lending-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  margin: 6px 0;
+  width: 100%;
+}
+.lending-table th,
+.lending-table td {
+  border: 1px solid var(--gray-300);
+  padding: 3px 5px;
+  text-align: left;
+  vertical-align: top;
+  font-variant-numeric: tabular-nums;
+}

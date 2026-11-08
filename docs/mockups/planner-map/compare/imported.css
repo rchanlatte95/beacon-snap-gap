@@ -1,0 +1,129 @@
+/* "Your own data" Compare-with panel (compare/imported.tsx). Owner: T6. Scoped to .imp. */
+.imp {
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+}
+.imp p {
+  margin: 0;
+}
+.imp-private {
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.imp-pick {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+}
+.imp-pick input {
+  font: inherit;
+  font-weight: 400;
+}
+.imp-samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.imp-samples .secondary {
+  flex-basis: 100%;
+}
+.imp-error {
+  color: var(--error);
+  border: 1px solid var(--error);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+}
+.imp-result {
+  display: grid;
+  gap: 10px;
+}
+.imp-file {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+.imp-col {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+.imp-col select {
+  font: inherit;
+  max-width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--gray-300);
+  border-radius: 6px;
+  background: #fff;
+}
+.imp-headline {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary-900);
+}
+.imp-legend-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
+}
+.imp-ramp,
+.imp-keys,
+.imp-status {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.imp-ramp {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  gap: 4px;
+  font-size: 12px;
+  color: var(--gray-700);
+}
+.imp-ramp li {
+  display: grid;
+  gap: 2px;
+}
+.imp-ramp .imp-swatch {
+  width: 100%;
+}
+.imp-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 6px;
+  font-size: 13px;
+}
+.imp-keys li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.imp-swatch {
+  display: inline-block;
+  width: 22px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(30, 52, 63, 0.25);
+}
+.imp-swatch.imp-outline {
+  background: #fff;
+  border-width: 2px;
+}
+.imp-status {
+  display: grid;
+  gap: 4px;
+  color: var(--gray-700);
+}
+.imp-status li::before {
+  content: '• ';
+}
+.imp .how-we-know p,
+.imp .how-we-know ul {
+  margin: 6px 0;
+}

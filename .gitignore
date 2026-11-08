@@ -77,3 +77,4 @@ __pycache__/
 .venv/
 .ipynb_checkpoints/
 /handoffs
+/tasks

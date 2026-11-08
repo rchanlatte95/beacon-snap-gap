@@ -2,7 +2,7 @@
   "schema_version": "1.1",
   "feature_name": "beacon-snap-cliff-planner-map",
   "manifest_path": "requirements/REQUIREMENT_MANIFEST.md",
-  "manifest_hash": "sha256:f71100be5f22b60e2ce166ad7e76e1e6ddf948ca6b5dff083f5d6f38b011c2d2",
+  "manifest_hash": "sha256:fa135eb74ced7e42a71464c338a559997ed822c86c3f9863a56c6383598de0c8",
   "created": "2026-11-07",
   "last_updated": "2026-11-07",
   "status": "ACTIVE",
@@ -24,14 +24,35 @@
         "REQ-14",
         "REQ-15",
         "REQ-16",
-        "REQ-17"
+        "REQ-17",
+        "REQ-18",
+        "REQ-19",
+        "REQ-20",
+        "REQ-21",
+        "REQ-22",
+        "REQ-23",
+        "REQ-24"
       ],
       "clauses_in_scope": [
         "PRE-CLS-1",
         "POST-CLS-1",
         "POST-CLS-2",
         "POST-CLS-3",
-        "ERRORS-CLS-1"
+        "ERRORS-CLS-1",
+        "POST-ALN-1",
+        "POST-ALN-2",
+        "POST-ALN-3",
+        "POST-ALN-4",
+        "POST-GEO-1",
+        "FORBIDDEN-PRIV-1",
+        "ERRORS-BLD-1",
+        "POST-APP-1",
+        "POST-APP-2",
+        "POST-APP-3",
+        "POST-APP-4",
+        "POST-APP-5",
+        "FORBIDDEN-APP-1",
+        "ERRORS-APP-1"
       ],
       "clauses_deferred": [],
       "negative_constraints": [
@@ -47,9 +68,9 @@
       "pivot_note": "If work stops after SLICE-1, a Viewer can open the deployed Cloud Run URL, see the 489 drawn Central Florida tracts coloured by flag status, and read a card for each flagged tract; the slider is absent by the human's decision.",
       "deliverable": {
         "surface": "ui",
-        "capability": "A food bank planner can see which high-need Central Florida tracts have no nearby pantry, and why each tract was flagged.",
+        "capability": "A Food Bank Planner or SBA/CDFI Officer opens the Cloud Run URL, sees the top KPI cohort strip (97 Classic Food Deserts, 50 Dual-Gap Food + SBA tracts, 53 Mobile-Priority Transport Gap tracts, 29 Triple-Gap Opportunities to Serve, and 2 Insufficient Data tracts), switches across the three persona lenses, views 489 Central Florida tracts with a pinned on-canvas legend and clean exterior county borders, uses the AI Insight and Coordinated Action Wizard to filter cohorts or inspect a tract's evidence (SBA lending, no-vehicle %, median household income + 90% MOE, confidence badge and sources), and generates a Coordinated Action Brief.",
         "use": "Open the Cloud Run URL, look at the tract map, and click a flagged tract to open its card.",
-        "observe": "The map shows 489 tracts coloured by flag status; the card shows the tract's evidence, a confidence label, any missing indicator and the limit on pantry coverage; the flagged set equals the 97-tract rule recomputed from the source tables.",
+        "observe": "The top KPI strip and recomputed test assertions show 97 Classic Food Deserts, 50 Dual-Gap tracts (<=10 SBA loans), 53 High No-Vehicle tracts (>=6.90%), 29 Triple-Gap tracts, and 2 Insufficient Data tracts; clicking a tract or running the AI wizard displays matching source values, confidence level, and a Coordinated Action Brief.",
         "attested_by": null,
         "attested_at": null
       }
