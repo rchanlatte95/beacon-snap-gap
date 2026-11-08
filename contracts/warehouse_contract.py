@@ -143,6 +143,12 @@ GEO_EXTENSION = "spatial"  # DuckDB's GDAL reader (ST_Read); loaded, never insta
 GEO_ROW_ID_COLUMN = "OGC_FID"  # a row id GDAL adds; not in the source, so not loaded
 GEO_GEOMETRY_COLUMN = "geom"
 
+# Batch 6c-iv: spreadsheets and slide decks through LibreOffice (Q-1, Q-2, Q-3; REQ-25, REQ-28).
+OFFICE_CONVERT_COMMAND: tuple[str, ...] = ("soffice", "--headless", "--norestore", "--convert-to")
+SHEET_TARGET = "fods"  # flat OpenDocument spreadsheet: every cell carries its value type
+SLIDES_TARGET = "pdf"  # a deck becomes a PDF, one page per slide, read by read_pdf_pages
+NUMERIC_VALUE_TYPES: tuple[str, ...] = ("float", "percentage", "currency")
+
 # --- 2. Domain exceptions (every message names its clause) --------------------------------
 
 
@@ -371,6 +377,14 @@ class JsonTable:
 
     key: str
     columns: tuple[str, ...]
+    rows: tuple[tuple[str | None, ...], ...]
+
+
+@dataclass(frozen=True)
+class SheetTable:
+    """Batch 6c-iv: one worksheet, its rows in order, every cell text or None."""
+
+    sheet: str
     rows: tuple[tuple[str | None, ...], ...]
 
 
@@ -1070,6 +1084,40 @@ def validate_geo_columns(columns: Sequence[str], types: Sequence[str]) -> None:
             )
 
 
+def expected_sheet_cell(
+    value_type: str | None,
+    *,
+    value: str | None = None,
+    date_value: str | None = None,
+    boolean_value: str | None = None,
+    text: str = "",
+) -> str | None:
+    """POST-READ-6 / ERRORS-READ-5 oracle: the stored text of one typed spreadsheet cell."""
+    if value_type is None:
+        return text or None
+    if value_type in NUMERIC_VALUE_TYPES:
+        return value
+    if value_type == "date" and date_value is not None:
+        day, _, clock = date_value.partition("T")
+        if clock.strip("0:.") != "":  # midnight is all zeros: 00:00, 00:00:00, 00:00:00.000
+            raise SourceReadError(
+                f"ERRORS-READ-5 violation: date cell {date_value!r} has a time of day; "
+                "the one date format is YYYY-MM-DD"
+            )
+        if not DATE_PATTERN.match(day):
+            raise SourceReadError(
+                f"ERRORS-READ-5 violation: date cell {date_value!r} is not a date"
+            )
+        return day
+    if value_type == "boolean" and boolean_value is not None:
+        return boolean_value
+    if value_type == "string":
+        return text
+    raise SourceReadError(
+        f"ERRORS-READ-5 violation: cell type {value_type!r} has no contracted text form"
+    )
+
+
 # --- 5. Traceability map (every clause declares its verification method) -----------------------
 
 CONTRACT_SCOPE: Mapping[str, Clause] = {
@@ -1488,6 +1536,36 @@ CONTRACT_DOCUMENTS: Mapping[str, Clause] = {
         "test",
         "read_geo raises SourceReadError naming the source when GEO_EXTENSION cannot be loaded or "
         "GDAL cannot open the source; it never returns an empty relation for an unreadable source.",
+        ("REQ-25",),
+    ),
+    "POST-READ-6": Clause(
+        "test",
+        "read_sheets(path) converts a .xls or .xlsx workbook with OFFICE_CONVERT_COMMAND to "
+        "SHEET_TARGET and returns one SheetTable per worksheet, in workbook order and named as in "
+        "the workbook (chart data tables are not worksheets), each cell as expected_sheet_cell "
+        "gives it: a date as YYYY-MM-DD, a number from its stored value, text as written, an empty "
+        "cell as None; repeated cells and rows expanded, trailing empty rows and columns "
+        "dropped, and every row padded with None to the sheet's width.",
+        ("REQ-25", "REQ-28"),
+    ),
+    "ERRORS-READ-5": Clause(
+        "test",
+        "read_sheets raises SourceReadError naming the file and, for a cell, its sheet, row and "
+        "column, when the file is missing, LibreOffice is missing or fails, a date cell has a time "
+        "of day other than midnight, or a cell's type has no contracted text form (Q-2: one date "
+        "format, always).",
+        ("REQ-25", "REQ-53"),
+    ),
+    "POST-READ-7": Clause(
+        "test",
+        "read_slides(path) converts a .pptx deck with OFFICE_CONVERT_COMMAND to SLIDES_TARGET and "
+        "returns read_pdf_pages of that PDF: one DocumentPage per slide, numbered from 1.",
+        ("REQ-25", "REQ-28"),
+    ),
+    "ERRORS-READ-6": Clause(
+        "test",
+        "read_slides raises SourceReadError naming the file when it is missing or LibreOffice is "
+        "missing, fails, or writes no PDF; PDF reading errors propagate as ERRORS-READ-2.",
         ("REQ-25",),
     ),
 }

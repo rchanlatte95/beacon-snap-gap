@@ -5,6 +5,7 @@ Only Ketema unparks an entry. Decision-model support (jev-1.14, 2026-11-08) is a
 ## Q-1: spreadsheet reader (batch 6c-iv)
 
 - **Decided By: User** (Ketema, 2026-11-08): A.
+- **Revised, Decided By: User** (Ketema, 2026-11-08): "A is approved for the date conversion." The CSV export carries no cell types, so Q-2 (one date format) could not be met; LibreOffice converts each workbook to flat ODS instead, and each cell is read by its type (dates YYYY-MM-DD from the stored ISO date). Decision model, advisory: 84%.
 
 - **Depends:** the spreadsheet reader clauses (not yet written) and their tests.
 - **Options:**
