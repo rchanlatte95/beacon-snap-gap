@@ -149,6 +149,28 @@ SHEET_TARGET = "fods"  # flat OpenDocument spreadsheet: every cell carries its v
 SLIDES_TARGET = "pdf"  # a deck becomes a PDF, one page per slide, read by read_pdf_pages
 NUMERIC_VALUE_TYPES: tuple[str, ...] = ("float", "percentage", "currency")
 
+# Batch 6c-v: archive members (REQ-25, REQ-26, REQ-28).
+# An unlisted member's format comes from its extension (lower case).
+MEMBER_FORMAT_BY_EXTENSION: Mapping[str, str] = {
+    ".csv": "csv",
+    ".tsv": "tsv",
+    ".dat": "dat",
+    ".pl": "pl",
+    ".txt": "text",
+    ".md": "text",
+    ".xlsx": "xlsx",
+    ".xls": "xls",
+    ".json": "json",
+    ".geojson": "geojson",
+    ".pdf": "pdf",
+    ".pptx": "pptx",
+    ".shp": "shapefile",
+    ".sas7bdat": "sas",
+}
+# Companion files of a shapefile <stem>.shp: <stem> plus one of these, or <stem>.shp...xml metadata.
+SHAPEFILE_PART_EXTENSIONS: tuple[str, ...] = (".cpg", ".dbf", ".prj", ".shx", ".sbn", ".sbx")
+VSIZIP_PREFIX = "/vsizip/"  # GDAL's path into an archive; shapefile members are read through it
+
 # --- 2. Domain exceptions (every message names its clause) --------------------------------
 
 
@@ -210,6 +232,10 @@ class SourceReadError(WarehouseContractError):
 
 class ManifestError(WarehouseContractError):
     """ERRORS-RET-1: a download manifest record does not name a cache-relative file."""
+
+
+class ArchiveMemberError(WarehouseContractError):
+    """ERRORS-ARCH-1..2: an archive member has no contracted format or cannot be opened."""
 
 
 # --- 3. Immutable typed records ------------------------------------------------------------
@@ -386,6 +412,15 @@ class SheetTable:
 
     sheet: str
     rows: tuple[tuple[str | None, ...], ...]
+
+
+@dataclass(frozen=True)
+class ArchiveMember:
+    """Batch 6c-v: one source member of a retained archive, with its format and reference end."""
+
+    name: str
+    file_format: str
+    reference_end: str | None
 
 
 # --- 4. Callable validators ----------------------------------------------------------------
@@ -917,11 +952,18 @@ def expected_registry_entry(entries: Sequence[RegistryEntry], path: str) -> Regi
 def expected_member_scope(entry: RegistryEntry, member: str) -> tuple[str, str | None]:
     """POST-REG-2 / ERRORS-REG-2 oracle: (file_format, reference_end) for an archive member.
 
-    An entry without listed members passes its own facts to every member; an entry with listed
-    members requires an exact listing for each member.
+    An entry that lists members requires an exact listing for each member. An entry without
+    listed members gives every member the entry's reference end and the format of the member's
+    extension (MEMBER_FORMAT_BY_EXTENSION); an unknown extension is ERRORS-ARCH-1.
     """
     if not entry.members:
-        return entry.file_format, entry.reference_end
+        ext = PurePosixPath(member).suffix.lower()
+        if ext not in MEMBER_FORMAT_BY_EXTENSION:
+            raise ArchiveMemberError(
+                f"ERRORS-ARCH-1 violation: member {member!r} of {entry.path!r} has extension "
+                f"{ext!r}, which has no contracted format"
+            )
+        return MEMBER_FORMAT_BY_EXTENSION[ext], entry.reference_end
     for m in entry.members:
         if m.name == member:
             return m.file_format, m.reference_end
@@ -929,6 +971,35 @@ def expected_member_scope(entry: RegistryEntry, member: str) -> tuple[str, str |
         f"ERRORS-REG-2 violation: member {member!r} of {entry.path!r} has no exact entry in "
         f"{REGISTRY_FILE}"
     )
+
+
+def _is_skipped_member(name: str) -> bool:
+    parts = PurePosixPath(name).parts
+    return name.endswith("/") or any(p == "__MACOSX" or p.startswith(".") for p in parts)
+
+
+def _is_shapefile_part(name: str, shapefiles: set[str]) -> bool:
+    path = PurePosixPath(name)
+    stem = str(path.with_suffix(""))
+    if path.suffix.lower() in SHAPEFILE_PART_EXTENSIONS and f"{stem}.shp".lower() in shapefiles:
+        return True
+    lowered = name.lower()
+    return lowered.endswith(".xml") and any(lowered.startswith(f"{s}.") for s in shapefiles)
+
+
+def expected_archive_members(
+    names: Sequence[str], entry: RegistryEntry
+) -> tuple[ArchiveMember, ...]:
+    """POST-ARCH-1 / ERRORS-ARCH-1 oracle over an archive's member names, in archive order."""
+    kept = [n for n in names if not _is_skipped_member(n)]
+    shapefiles = {n.lower() for n in kept if n.lower().endswith(".shp")}
+    out: list[ArchiveMember] = []
+    for name in kept:
+        if _is_shapefile_part(name, shapefiles):
+            continue
+        fmt, end = expected_member_scope(entry, name)
+        out.append(ArchiveMember(name=name, file_format=fmt, reference_end=end))
+    return tuple(out)
 
 
 def expected_cache_key(record: Mapping[str, object]) -> str:
@@ -1408,7 +1479,8 @@ CONTRACT_REGISTRY: Mapping[str, Clause] = {
         "test",
         "registry_entry(entries, path) returns the entry whose path equals the retained file's "
         "path; member_scope(entry, member) returns the member's own facts when the entry lists "
-        "members, and the entry's facts otherwise.",
+        "members, and otherwise the entry's reference end with the format of the member's "
+        "extension (MEMBER_FORMAT_BY_EXTENSION).",
         ("REQ-25", "REQ-26"),
     ),
     "ERRORS-REG-2": Clause(
@@ -1566,6 +1638,34 @@ CONTRACT_DOCUMENTS: Mapping[str, Clause] = {
         "test",
         "read_slides raises SourceReadError naming the file when it is missing or LibreOffice is "
         "missing, fails, or writes no PDF; PDF reading errors propagate as ERRORS-READ-2.",
+        ("REQ-25",),
+    ),
+    "POST-ARCH-1": Clause(
+        "test",
+        "archive_members(path, entry) returns one ArchiveMember per source member of a retained "
+        "zip archive, in archive order, with member_scope's format and reference end; "
+        "directories, __MACOSX and hidden entries are skipped, and a shapefile's companion files "
+        "(SHAPEFILE_PART_EXTENSIONS and its .xml metadata) belong to its .shp, not listed alone.",
+        ("REQ-25", "REQ-26"),
+    ),
+    "ERRORS-ARCH-1": Clause(
+        "test",
+        "archive_members raises ArchiveMemberError naming the archive and member when an "
+        "unlisted member's extension is not in MEMBER_FORMAT_BY_EXTENSION, and SourceReadError "
+        "naming the archive when it is missing or not a zip archive.",
+        ("REQ-25",),
+    ),
+    "POST-ARCH-2": Clause(
+        "test",
+        "member_source(path, member, workdir) returns the reader's source for a member: for a "
+        "shapefile, VSIZIP_PREFIX + the archive path + '/' + the member name, read in place; for "
+        "any other format, a file in workdir whose bytes equal the member's bytes (REQ-28).",
+        ("REQ-25", "REQ-28"),
+    ),
+    "ERRORS-ARCH-2": Clause(
+        "test",
+        "member_source raises ArchiveMemberError naming the archive and member when the member "
+        "is not in the archive or cannot be extracted.",
         ("REQ-25",),
     ),
 }

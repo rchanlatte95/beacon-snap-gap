@@ -179,7 +179,11 @@
         "POST-READ-6",
         "ERRORS-READ-5",
         "POST-READ-7",
-        "ERRORS-READ-6"
+        "ERRORS-READ-6",
+        "POST-ARCH-1",
+        "ERRORS-ARCH-1",
+        "POST-ARCH-2",
+        "ERRORS-ARCH-2"
       ],
       "clauses_deferred": [],
       "negative_constraints": [
