@@ -78,10 +78,39 @@ The base map loads from OpenFreeMap (`src/map/mapConstants.ts`). When the tiles 
 | `uv run ruff check .` | Python lint |
 | `uv run ruff format --check .` | Python format check |
 | `uv run mypy` | Type-check `src/warehouse/` and the warehouse contract |
-| `uv run pytest -q` | Python tests (fails at collection until SLICE-4 lands) |
+| `uv run pytest -q` | Python tests (the Vertex AI tests skip without credentials) |
 | `docker build -t beacon-snap-cliff .` | Cloud Run image: Node 26 build, nginx on port 8080 |
 
 Deploy only after a human approves.
+
+### Run the real ask call (Gemini) locally
+
+`npm run dev` answers questions from a mock by default (`MOCK_ASK`, in `vite.config.ts`). To use
+the real QueryService:
+
+1. Terminal 1, the QueryService. It needs Google credentials with Vertex AI access in the project
+   (for example `gcloud auth application-default login`) and a folder that holds
+   `warehouse.duckdb`.
+
+   ```sh
+   WAREHOUSE_LOCATION=/absolute/path/to/warehouse-folder \
+   QUERY_SERVICE_MODEL=<Gemini model id> \
+   GOOGLE_CLOUD_PROJECT=<gcp-project> GOOGLE_CLOUD_LOCATION=us-east1 PORT=8080 \
+   uv run python -m src.query_service.server
+   ```
+
+2. Terminal 2, the App with the mock off. The dev server then sends `/api/ask` to
+   `QUERY_SERVICE_URL` (default `http://127.0.0.1:8080`).
+
+   ```sh
+   python -m src.data_prep.alignment_bundle
+   MOCK_ASK=off npm run dev
+   ```
+
+   You can put `MOCK_ASK=off` and `QUERY_SERVICE_URL` in `.env.local` instead (git-ignored).
+
+3. Ask a question. A real answer ends with "Answered by" and the model name. "AI unavailable.
+   Using built-in filters." means the call failed: read the log in terminal 1.
 
 ## Repository layout
 
