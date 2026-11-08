@@ -616,6 +616,31 @@ CORRELATION_CAVEATS: tuple[str, ...] = (
 # query in pages of MAX_ROW_LIMIT through execute_sql, in a total order, until a short page.
 PAGE_TEMPLATE = "SELECT * FROM ({sql}) AS page_source ORDER BY ALL LIMIT {limit} OFFSET {offset}"
 
+# schema_describe tool payload (POST-TOOL-3, jev at Ketema's direction 0.87): with no table_names
+# the model gets an index of every table; with table_names, full descriptions, glossary paged.
+SCHEMA_INDEX_KEYS: tuple[str, ...] = (
+    "table_name",
+    "dataset_id",
+    "grain",
+    "as_of",
+    "column_count",
+    "glossary_term_count",
+)
+SCHEMA_DETAIL_KEYS: tuple[str, ...] = (
+    "table_name",
+    "dataset_id",
+    "columns",
+    "grain",
+    "join_keys",
+    "as_of",
+    "applied_filter",
+    "glossary_terms",
+    "glossary_term_count",
+    "glossary_next_offset",
+)
+MAX_DESCRIBE_TABLES = 10
+GLOSSARY_PAGE_TERMS = 200
+
 TOOL_NAMES: tuple[str, ...] = ("schema_describe", "sql_query", "sites_near", "stats_correlate")
 MAX_TOOL_ROUNDS = 8
 ANSWER_DEADLINE_SECONDS = 18.0  # below the App's 20-second limit (Z-26)
@@ -744,6 +769,52 @@ def expected_correlation(pairs: tuple[tuple[object, object], ...]) -> Correlatio
     )
 
 
+def expected_schema_payload(
+    descriptions: tuple[TableSchemaDescription, ...],
+    *,
+    detailed: bool,
+    glossary_offset: int = 0,
+) -> list[dict[str, object]]:
+    """POST-TOOL-3 oracle: the schema_describe payload the model receives (REQ-33).
+
+    descriptions are the engine's describe_schema output (POST-SCHEMA-1) for the requested
+    tables. Not detailed (no table_names): one SCHEMA_INDEX_KEYS entry per table. Detailed: one
+    SCHEMA_DETAIL_KEYS entry per table whose glossary_terms are the [term, definition] pairs from
+    glossary_offset, at most GLOSSARY_PAGE_TERMS of them; glossary_next_offset is the offset of
+    the next page, or None when no terms remain.
+    """
+    if not detailed:
+        return [
+            {
+                "table_name": d.table_name,
+                "dataset_id": d.dataset_id,
+                "grain": d.grain,
+                "as_of": d.as_of,
+                "column_count": len(d.columns),
+                "glossary_term_count": len(d.glossary_terms),
+            }
+            for d in descriptions
+        ]
+    out: list[dict[str, object]] = []
+    for d in descriptions:
+        end = glossary_offset + GLOSSARY_PAGE_TERMS
+        out.append(
+            {
+                "table_name": d.table_name,
+                "dataset_id": d.dataset_id,
+                "columns": list(d.columns),
+                "grain": d.grain,
+                "join_keys": list(d.join_keys),
+                "as_of": d.as_of,
+                "applied_filter": d.applied_filter,
+                "glossary_terms": [list(t) for t in d.glossary_terms[glossary_offset:end]],
+                "glossary_term_count": len(d.glossary_terms),
+                "glossary_next_offset": end if end < len(d.glossary_terms) else None,
+            }
+        )
+    return out
+
+
 def expected_system_instruction(taxonomy_text: str, applied: AppliedThresholds) -> str:
     """POST-ANS-1 oracle: the system instruction sent with every question (REQ-36, REQ-60)."""
     return (
@@ -862,15 +933,25 @@ CONTRACT_QUERY_TOOLS: Mapping[str, Clause] = {
         "caveats CORRELATION_CAVEATS go to the model with the result.",
         ("REQ-35", "REQ-32"),
     ),
+    "POST-TOOL-3": Clause(
+        "test",
+        "The schema_describe tool call sends the model expected_schema_payload of the engine's "
+        "describe_schema for the requested tables: with no table_names, the index of every catalog "
+        "table (detailed False); with table_names (1 to MAX_DESCRIBE_TABLES names), their full "
+        "descriptions with glossary terms paged from glossary_offset (default 0), "
+        "GLOSSARY_PAGE_TERMS at a time, so the whole schema stays reachable one page at a time.",
+        ("REQ-33",),
+    ),
     "ERRORS-TOOL-1": Clause(
         "test",
         "sites_near raises ToolArgumentError naming ERRORS-TOOL-1 unless exactly one of geoid or "
         "(lat, lon) is given, miles is in (0, MAX_NEAR_MILES], lat is in [-90, 90], lon is in "
         "[-180, 180] and a geoid is a known tract; stats_correlate raises it when the query does "
-        "not return exactly two columns. Tool errors reach the "
-        "model as an error result, never as a "
-        "crash.",
-        ("REQ-35",),
+        "not return exactly two columns; schema_describe raises it when table_names is empty or "
+        "holds more than MAX_DESCRIBE_TABLES names, or glossary_offset is not a non-negative "
+        "integer or is given without table_names. Tool errors reach the model as an error result, "
+        "never as a crash.",
+        ("REQ-35", "REQ-33"),
     ),
 }
 

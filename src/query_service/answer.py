@@ -28,6 +28,8 @@ PROJECT_ENV: Final = "GOOGLE_CLOUD_PROJECT"
 LOCATION_ENV: Final = "GOOGLE_CLOUD_LOCATION"
 MAX_TOOL_ROUNDS: Final = 8
 ANSWER_DEADLINE_SECONDS: Final = 18.0
+MAX_DESCRIBE_TABLES: Final = 10
+GLOSSARY_PAGE_TERMS: Final = 200
 TAXONOMY_PATH: Final = "docs/taxonomy.md"
 SYSTEM_PREAMBLE: Final = (
     "You answer questions about Central Florida public data for food bank planners and small "
@@ -206,10 +208,17 @@ TOOL_DECLARATIONS: Final = types.Tool(
     function_declarations=[
         types.FunctionDeclaration(
             name="schema_describe",
-            description="Describe warehouse tables: columns, grain, join keys, as-of dates and "
-            "glossary terms. Omit table_names to describe every table.",
+            description="Describe warehouse tables. With no table_names: an index of every table "
+            "(name, dataset, grain, as-of date, column and glossary-term counts). With "
+            f"table_names (1 to {MAX_DESCRIBE_TABLES}): their columns, grain, join keys, as-of "
+            f"dates and glossary terms, {GLOSSARY_PAGE_TERMS} terms at a time from "
+            "glossary_offset; glossary_next_offset gives the next page.",
             parameters=_schema(
-                {"table_names": types.Schema(type=types.Type.ARRAY, items=_STRING)}, []
+                {
+                    "table_names": types.Schema(type=types.Type.ARRAY, items=_STRING),
+                    "glossary_offset": types.Schema(type=types.Type.INTEGER),
+                },
+                [],
             ),
         ),
         types.FunctionDeclaration(
@@ -258,25 +267,67 @@ class Answerer:
         self._taxonomy = taxonomy_text
         self._clock = clock
 
-    def _run(self, name: str, args: Mapping[str, object]) -> tuple[object, SqlQueryResult | None]:
-        """Run one tool call; return its payload for the model and its result for the reply."""
-        if name == "schema_describe":
-            raw = args.get("table_names")
-            names = tuple(str(n) for n in raw) if isinstance(raw, list) else None
-            described = self._engine.describe_schema(table_names=names)
+    def _schema_payload(self, args: Mapping[str, object]) -> list[dict[str, object]]:
+        """The schema_describe payload: an index, or detail with the glossary paged (POST-TOOL-3).
+
+        Raises:
+            ToolArgumentError: ERRORS-TOOL-1, table_names or glossary_offset out of range.
+            RejectedSqlError: ERRORS-SQL-1, an unknown table name (from the engine).
+        """
+        raw = args.get("table_names")
+        offset_arg = args.get("glossary_offset")
+        if raw is None:
+            if offset_arg is not None:
+                raise ToolArgumentError(
+                    "ERRORS-TOOL-1 violation: glossary_offset needs table_names"
+                )
             return [
                 {
                     "table_name": d.table_name,
                     "dataset_id": d.dataset_id,
-                    "columns": list(d.columns),
                     "grain": d.grain,
-                    "join_keys": list(d.join_keys),
                     "as_of": d.as_of,
-                    "applied_filter": d.applied_filter,
-                    "glossary_terms": [list(t) for t in d.glossary_terms],
+                    "column_count": len(d.columns),
+                    "glossary_term_count": len(d.glossary_terms),
                 }
-                for d in described
-            ], None
+                for d in self._engine.describe_schema()
+            ]
+        if not isinstance(raw, list) or not 1 <= len(raw) <= MAX_DESCRIBE_TABLES:
+            raise ToolArgumentError(
+                f"ERRORS-TOOL-1 violation: table_names must list 1 to {MAX_DESCRIBE_TABLES} tables"
+            )
+        offset = 0 if offset_arg is None else offset_arg
+        if (
+            isinstance(offset, bool)
+            or not isinstance(offset, int | float)
+            or offset < 0
+            or offset != int(offset)
+        ):
+            raise ToolArgumentError(
+                f"ERRORS-TOOL-1 violation: glossary_offset {offset!r} is not a non-negative integer"
+            )
+        start = int(offset)
+        end = start + GLOSSARY_PAGE_TERMS
+        return [
+            {
+                "table_name": d.table_name,
+                "dataset_id": d.dataset_id,
+                "columns": list(d.columns),
+                "grain": d.grain,
+                "join_keys": list(d.join_keys),
+                "as_of": d.as_of,
+                "applied_filter": d.applied_filter,
+                "glossary_terms": [list(t) for t in d.glossary_terms[start:end]],
+                "glossary_term_count": len(d.glossary_terms),
+                "glossary_next_offset": end if end < len(d.glossary_terms) else None,
+            }
+            for d in self._engine.describe_schema(table_names=tuple(str(n) for n in raw))
+        ]
+
+    def _run(self, name: str, args: Mapping[str, object]) -> tuple[object, SqlQueryResult | None]:
+        """Run one tool call; return its payload for the model and its result for the reply."""
+        if name == "schema_describe":
+            return self._schema_payload(args), None
         if name == "sql_query":
             limit = args.get("row_limit")
             result = self._engine.execute_sql(

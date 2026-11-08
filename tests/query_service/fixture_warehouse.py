@@ -77,8 +77,11 @@ def _rel(
     return con.table(name)
 
 
-def build_warehouse(root: Path) -> Path:
-    """Write the fixture warehouse at root and return root."""
+def build_warehouse(root: Path, glossary_terms: int = 0) -> Path:
+    """Write the fixture warehouse at root and return root.
+
+    glossary_terms adds that many (term, definition) rows for sba_loans, in order: TERM-0001 ...
+    """
     loc = adapter.warehouse_location({contract.ENGINE_LOCATION_ENV: str(root)})
     con = duckdb.connect()
     writer = WarehouseWriter(loc)
@@ -109,7 +112,10 @@ def build_warehouse(root: Path) -> Path:
         "columns": [
             (n, c, i, "VARCHAR", "") for n, t in TABLES.items() for i, c in enumerate(t[2], 1)
         ],
-        "glossary": [],
+        "glossary": [
+            ("sba_loans", "DS-X5", f"TERM-{i:04d}", f"Definition {i}")
+            for i in range(1, glossary_terms + 1)
+        ],
         "files": [],
         "documents": [],
         "ingest_log": [],

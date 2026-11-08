@@ -16,5 +16,9 @@ COPY --from=build /app/dist /usr/share/nginx/html
 COPY scripts/cache-drive-times.ts ./scripts/cache-drive-times.ts
 COPY src/map/driveTimes.ts src/map/proximity.ts ./src/map/
 RUN ln -s /usr/share/nginx/html public
+# A Windows checkout can give the script CRLF line ends; sh needs LF.
+COPY nginx/start.sh ./start.sh
+RUN sed -i 's/\r$//' start.sh
 EXPOSE 8080
-CMD ["sh", "-c", "node scripts/cache-drive-times.ts --watch & exec nginx -g 'daemon off;'"]
+# QUERY_SERVICE_URL (Cloud Run environment) names the QueryService for /api/ask.
+CMD ["sh", "start.sh"]

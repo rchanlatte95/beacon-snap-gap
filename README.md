@@ -85,14 +85,15 @@ slider still updates the map. See [setup, refresh and deployment details](docs/d
 | `uv run ruff format --check .` | Python format check |
 | `uv run mypy` | Type-check `src/warehouse/` and the warehouse contract |
 | `uv run pytest -q` | Python tests (the Vertex AI tests skip without credentials) |
-| `docker build -t beacon-snap-cliff .` | Cloud Run image: Node 26 build, nginx on port 8080 |
+| `docker build -t beacon-snap-cliff .` | Cloud Run image: Node 26 build, nginx on port 8080. Set `QUERY_SERVICE_URL` (for example `https://<query-service>.run.app`) on the service so `/api/ask` reaches the QueryService; without it, questions use the built-in filters. |
 
 Deploy only after a human approves.
 
 ### Run the real ask call (Gemini) locally
 
-`npm run dev` answers questions from a mock by default (`MOCK_ASK`, in `vite.config.ts`). To use
-the real QueryService:
+`npm run dev` sends questions to the real QueryService by default. With no QueryService running,
+the App shows "AI unavailable. Using built-in filters." To use the mock instead, run
+`MOCK_ASK=ok npm run dev` (`MOCK_ASK`, in `vite.config.ts`). To use the real QueryService:
 
 1. Terminal 1, the QueryService. It needs Google credentials with Vertex AI access in the project
    (for example `gcloud auth application-default login`) and a folder that holds
@@ -100,20 +101,20 @@ the real QueryService:
 
    ```sh
    WAREHOUSE_LOCATION=/absolute/path/to/warehouse-folder \
-   QUERY_SERVICE_MODEL=<Gemini model id> \
-   GOOGLE_CLOUD_PROJECT=<gcp-project> GOOGLE_CLOUD_LOCATION=us-east1 PORT=8080 \
+   QUERY_SERVICE_MODEL=gemini-3.8-flash \
+   GOOGLE_CLOUD_PROJECT=<gcp-project> GOOGLE_CLOUD_LOCATION=global PORT=8080 \
    uv run python -m src.query_service.server
    ```
 
-2. Terminal 2, the App with the mock off. The dev server then sends `/api/ask` to
-   `QUERY_SERVICE_URL` (default `http://127.0.0.1:8080`).
+2. Terminal 2, the App. The dev server sends `/api/ask` to `QUERY_SERVICE_URL` (default
+   `http://127.0.0.1:8080`).
 
    ```sh
    python -m src.data_prep.alignment_bundle
-   MOCK_ASK=off npm run dev
+   npm run dev
    ```
 
-   You can put `MOCK_ASK=off` and `QUERY_SERVICE_URL` in `.env.local` instead (git-ignored).
+   You can put `QUERY_SERVICE_URL` (and `MOCK_ASK`) in `.env.local` (git-ignored).
 
 3. Ask a question. A real answer ends with "Answered by" and the model name. "AI unavailable.
    Using built-in filters." means the call failed: read the log in terminal 1.

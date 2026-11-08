@@ -37,7 +37,7 @@ function driveTimesPlugin(): Plugin {
 
 /**
  * Dev-server mock of the QueryService `ask` endpoint (`ASK_PATH` in src/ai/askClient.ts).
- * MOCK_ASK=ok (default) | unavailable | slow | off. With off, the dev server sends `/api/ask` to
+ * MOCK_ASK=off (default) | ok | unavailable | slow. With off, the dev server sends `/api/ask` to
  * the real QueryService at QUERY_SERVICE_URL (default http://127.0.0.1:8080). Both can be set in
  * the shell or in `.env.local`. `vite preview` and the production image have no mock.
  */
@@ -63,7 +63,7 @@ function mockAskPlugin(mode: string): Plugin {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const mockAsk = env.MOCK_ASK ?? 'ok'
+  const mockAsk = env.MOCK_ASK ?? 'off'
   return {
     plugins: [react(), mockAskPlugin(mockAsk), driveTimesPlugin()],
     server:

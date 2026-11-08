@@ -26,6 +26,10 @@ SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-query-service-sa@${PROJECT}.iam.gserviceacco
 # No default: the Operator sets the exact Vertex model ID after checking it answers in the project.
 MODEL="${MODEL:-}"
 
+# Vertex AI location for the model. gemini-3.8-flash answers only at "global" in <gcp-project>
+# (probe 2026-11-08: global OK; us-central1 404), not at the Cloud Run region.
+VERTEX_LOCATION="${VERTEX_LOCATION:-global}"
+
 # Google Cloud Storage bucket holding canonical warehouse (Z-14, REQ-46: <warehouse-bucket>)
 BUCKET="${BUCKET:-<warehouse-bucket>}"
 
@@ -108,25 +112,37 @@ echo "Mount Path:      ${MOUNT_PATH}"
 echo "Repository Root: ${REPO_ROOT}"
 echo "=========================================="
 
-# Build and submit the container image to Google Cloud Artifact Registry
+# Build and submit the container image to Google Cloud Artifact Registry.
+# gcloud builds submit has no --file flag and --tag needs a Dockerfile at the root of the uploaded
+# source, so only what the Dockerfile copies is staged (the working tree holds about 12 GB of data).
+echo "--> Staging the build context..."
+STAGE="$(mktemp -d)"
+cp "${REPO_ROOT}/pyproject.toml" "${REPO_ROOT}/uv.lock" "${STAGE}/"
+cp -R "${REPO_ROOT}/src" "${STAGE}/src"
+mkdir -p "${STAGE}/docs"
+cp "${REPO_ROOT}/docs/taxonomy.md" "${STAGE}/docs/taxonomy.md"
+cp "${SCRIPT_DIR}/Dockerfile" "${STAGE}/Dockerfile"
+cp "${SCRIPT_DIR}/Dockerfile.dockerignore" "${STAGE}/.dockerignore"
+echo "Build context:   ${STAGE}"
 echo "--> Building container image via Google Cloud Build..."
-gcloud builds submit "${REPO_ROOT}" \
+gcloud builds submit "${STAGE}" \
   --project="${PROJECT}" \
-  --config=/dev/null \
-  --tag="${IMAGE}" \
-  --file="${SCRIPT_DIR}/Dockerfile"
+  --tag="${IMAGE}"
 
-# Deploy container image to Cloud Run with internal-only ingress and read-only GCS volume mount
+# Deploy container image to Cloud Run with a read-only GCS volume mount.
+# Open access for this release (Ketema, 2026-11-08: "ignore login logout. defer that. open
+# access"): public ingress, no Cloud Run sign-in. The App's nginx proxies /api/ask here.
+# SLICE-5 (the login Gateway and internal-only ingress, REQ-41 to REQ-45, REQ-52) is deferred.
 echo "--> Deploying service to Cloud Run..."
 gcloud run deploy "${SERVICE}" \
   --project="${PROJECT}" \
   --region="${REGION}" \
   --image="${IMAGE}" \
-  --ingress=internal \
-  --no-allow-unauthenticated \
+  --ingress=all \
+  --allow-unauthenticated \
   --service-account="${SERVICE_ACCOUNT}" \
   --add-volume="name=warehouse,type=cloud-storage,bucket=${BUCKET},readonly=true" \
   --add-volume-mount="volume=warehouse,mount-path=${MOUNT_PATH}" \
-  --set-env-vars="WAREHOUSE_LOCATION=${MOUNT_PATH},QUERY_SERVICE_MODEL=${MODEL},GOOGLE_CLOUD_PROJECT=${PROJECT},GOOGLE_CLOUD_LOCATION=${REGION}"
+  --set-env-vars="WAREHOUSE_LOCATION=${MOUNT_PATH},QUERY_SERVICE_MODEL=${MODEL},GOOGLE_CLOUD_PROJECT=${PROJECT},GOOGLE_CLOUD_LOCATION=${VERTEX_LOCATION}"
 
 echo "=== QueryService deployment completed successfully ==="
