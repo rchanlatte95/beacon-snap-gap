@@ -19,6 +19,9 @@ Batches:
   locations, base tables only and no views in warehouse.duckdb (REQ-48, REQ-51).
 - Batch 6b: the committed source registry (exact-path matching, reference end with its basis,
   "not recorded" for unstated facts) and fail-fast reading (REQ-25, REQ-26, REQ-29).
+- Batch 6c: the retained-source rule: candidate files on disk, every candidate registered as a
+  source or listed as not a source with a reason, no stale entries, and cache-relative paths in
+  the download manifest (REQ-25, REQ-26, REQ-48).
 
 The implementation MUST NOT import this module (CL11-F). Tests import both and compare.
 """
@@ -79,6 +82,7 @@ FORMAT_RANK: Mapping[str, int] = {
     "shapefile": 3,
     "pdf": 4,
     "text": 4,
+    "pptx": 4,
 }
 
 # Batch 3: table provenance and local-disk-only sources (REQ-28, REQ-29).
@@ -113,6 +117,14 @@ CATALOG_REQUIRED_COLUMNS: tuple[str, ...] = ("table_name", "parquet", "status")
 # Batch 6b: source registry and reading (REQ-25, REQ-26, REQ-29).
 REGISTRY_FILE = "data/warehouse/source_registry.toml"  # relative to the repository root
 READ_ENCODINGS: tuple[str, ...] = ("utf-8", "latin-1")  # tried in this order
+
+# Batch 6c: retained-source rule (REQ-25, REQ-26, REQ-48).
+MANIFEST_FILE = "data/cache/MANIFEST.jsonl"  # relative to the repository root
+CACHE_DIR = "data/cache"
+CANDIDATE_ROOTS: tuple[str, ...] = ("data", "docs")
+EXCLUDED_DIRS: tuple[str, ...] = ("data/cache", "data/warehouse", "docs/mockups")
+CACHE_PREFIX = "cache:"
+REPO_PREFIX = "repo:"
 
 # --- 2. Domain exceptions (every message names its clause) --------------------------------
 
@@ -171,6 +183,10 @@ class UnregisteredSourceError(RegistryError):
 
 class SourceReadError(WarehouseContractError):
     """ERRORS-READ-1: a retained source file cannot be read."""
+
+
+class ManifestError(WarehouseContractError):
+    """ERRORS-RET-1: a download manifest record does not name a cache-relative file."""
 
 
 # --- 3. Immutable typed records ------------------------------------------------------------
@@ -297,6 +313,22 @@ class RegistryEntry:
     license: str
     as_of: str
     members: tuple[RegistryMember, ...]
+
+
+@dataclass(frozen=True)
+class NotASource:
+    """Batch 6c: a candidate file the registry lists as not a source, with the reason."""
+
+    path: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class RetainedSources:
+    """Batch 6c: candidates split into registered sources and listed non-sources."""
+
+    sources: tuple[str, ...]
+    not_sources: tuple[NotASource, ...]
 
 
 # --- 4. Callable validators ----------------------------------------------------------------
@@ -842,6 +874,70 @@ def expected_member_scope(entry: RegistryEntry, member: str) -> tuple[str, str |
     )
 
 
+def expected_cache_key(record: Mapping[str, object]) -> str:
+    """POST-RET-1 / ERRORS-RET-1 oracle: the candidate key of an 'ok' manifest record."""
+    path = record.get("path")
+    if not isinstance(path, str) or not path:
+        raise ManifestError(f"ERRORS-RET-1 violation: manifest record {record!r} has no path")
+    rel = PurePosixPath(path)
+    if rel.is_absolute() or ".." in rel.parts:
+        raise ManifestError(
+            f"ERRORS-RET-1 violation: manifest path {path!r} is not relative to {CACHE_DIR}"
+        )
+    return f"{CACHE_PREFIX}{rel}"
+
+
+def validate_not_sources(
+    data: Mapping[str, object], entries: Sequence[RegistryEntry]
+) -> tuple[NotASource, ...]:
+    """POST-REG-3 / ERRORS-REG-3 oracle over a parsed registry's [[not_a_source]] listings."""
+    listed = data.get("not_a_source", [])
+    if not isinstance(listed, list):
+        raise RegistryError("ERRORS-REG-3 violation: not_a_source is not a list")
+    sources = {e.path for e in entries}
+    seen: set[str] = set()
+    out: list[NotASource] = []
+    for raw in listed:
+        path = raw.get("path") if isinstance(raw, dict) else None
+        reason = raw.get("reason") if isinstance(raw, dict) else None
+        if not isinstance(path, str) or not path.strip():
+            raise RegistryError(f"ERRORS-REG-3 violation: not_a_source {raw!r} has no path")
+        if not isinstance(reason, str) or not reason.strip():
+            raise RegistryError(f"ERRORS-REG-3 violation: not_a_source {path!r} has no reason")
+        if path in seen or path in sources:
+            raise RegistryError(
+                f"ERRORS-REG-3 violation: {path!r} is listed twice or also registered as a source"
+            )
+        seen.add(path)
+        out.append(NotASource(path, reason.strip()))
+    return tuple(out)
+
+
+def expected_retained(
+    candidates: Sequence[str],
+    entries: Sequence[RegistryEntry],
+    not_sources: Sequence[NotASource],
+) -> RetainedSources:
+    """POST-RET-2 / ERRORS-RET-2 oracle: every candidate is registered or listed; none is stale."""
+    registered = {e.path for e in entries}
+    listed = {n.path: n for n in not_sources}
+    cand = set(candidates)
+    for path in sorted(cand):
+        if path not in registered and path not in listed:
+            raise UnregisteredSourceError(
+                f"ERRORS-RET-2 violation: candidate {path!r} is neither a registered source nor "
+                f"listed as not a source in {REGISTRY_FILE}"
+            )
+    for path in sorted((registered | set(listed)) - cand):
+        raise RegistryError(
+            f"ERRORS-RET-2 violation: {REGISTRY_FILE} names {path!r}, which is not a candidate file"
+        )
+    return RetainedSources(
+        sources=tuple(sorted(cand & registered)),
+        not_sources=tuple(listed[p] for p in sorted(cand & set(listed))),
+    )
+
+
 # --- 5. Traceability map (every clause declares its verification method) -----------------------
 
 CONTRACT_SCOPE: Mapping[str, Clause] = {
@@ -1161,5 +1257,48 @@ CONTRACT_REGISTRY: Mapping[str, Clause] = {
         "file is missing or cannot be read with any of READ_ENCODINGS; it never returns an empty "
         "relation for an unreadable file.",
         ("REQ-25",),
+    ),
+}
+
+
+CONTRACT_RETAINED: Mapping[str, Clause] = {
+    "POST-RET-1": Clause(
+        "test",
+        "candidate_sources(repo_root) returns, sorted and without duplicates, 'cache:<path>' for "
+        "every MANIFEST_FILE path whose latest record has status 'ok', and 'repo:<path>' for every "
+        "file under CANDIDATE_ROOTS except files under EXCLUDED_DIRS, hidden files and files "
+        "under hidden or __pycache__ directories.",
+        ("REQ-25",),
+    ),
+    "ERRORS-RET-1": Clause(
+        "test",
+        "candidate_sources raises ManifestError naming the record when an 'ok' manifest record "
+        "has no path, an absolute path, or a path containing '..'.",
+        ("REQ-25", "REQ-48"),
+    ),
+    "POST-REG-3": Clause(
+        "test",
+        "load_not_sources returns one NotASource per [[not_a_source]] listing in the registry, "
+        "with its path and reason.",
+        ("REQ-25", "REQ-26"),
+    ),
+    "ERRORS-REG-3": Clause(
+        "test",
+        "load_not_sources raises RegistryError naming the listing when it has no path or no "
+        "reason, repeats a path, or names a path also registered as a source.",
+        ("REQ-25", "REQ-26"),
+    ),
+    "POST-RET-2": Clause(
+        "test",
+        "retained_sources(candidates, entries, not_sources) returns the candidates with an exact "
+        "registry entry as sources and the candidates listed as not a source with their reasons.",
+        ("REQ-25", "REQ-26"),
+    ),
+    "ERRORS-RET-2": Clause(
+        "test",
+        "retained_sources raises UnregisteredSourceError naming a candidate that is neither "
+        "registered nor listed, and RegistryError naming a registry entry or listing that names "
+        "no candidate; the Ingest stops in both cases.",
+        ("REQ-25", "REQ-26"),
     ),
 }
