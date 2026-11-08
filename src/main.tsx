@@ -1,7 +1,13 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
+import { OpportunitiesApp } from './App'
+
 const root = document.getElementById('root')
 if (!root) throw new Error('index.html has no #root element')
 
-createRoot(root).render(<StrictMode />)
+createRoot(root).render(
+  <StrictMode>
+    <OpportunitiesApp />
+  </StrictMode>,
+)
