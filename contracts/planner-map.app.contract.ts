@@ -56,8 +56,12 @@ export const OPENFREEMAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/posit
 export const REACH_STEP_MILES = 0.5
 export const MAX_REACH_MILES = 20
 export const DEFAULT_REACH_MILES = 10
-// REQ-57 (Z-25 A): the reach controls and the tract card's reach facts never show a travel time.
-export const FORBIDDEN_TIME_PATTERN = /\b(minutes?|mins?|travel time|drive time|time limit)\b/i
+// REQ-57 (Z-25 A, amended by Z-28): the reach controls, and the tract card outside its drive-time
+// estimate, never state a travel time (a duration in minutes or hours).
+export const FORBIDDEN_TIME_PATTERN = /\b\d+(?:\.\d+)?\s*(?:minutes?|mins?|hours?|hrs?)\b/i
+// REQ-67 (Z-28, Ryan's design): a drive time appears only in a labeled drive-time estimate.
+export const DRIVE_TIME_HEADLINE = 'Estimated drive to a Second Harvest site:'
+export const DRIVE_TIME_HEURISTIC_MARK = '(heuristic)'
 // REQ-59, REQ-65 (Z-24 A): the three cuts, chosen from the Build's named percentiles.
 export const CUT_PERCENTILES = {
   poverty: [50, 75, 90],
@@ -345,6 +349,25 @@ export function validateNoTravelTime(renderedText: string): string {
   return renderedText
 }
 
+/**
+ * POST-APP-16 validator: a drive-time estimate names itself and states its basis. A heuristic
+ * estimate carries DRIVE_TIME_HEURISTIC_MARK; a road-network (routed) one does not.
+ */
+export function validateDriveTimeLabel(estimateText: string, routed: boolean): string {
+  const text = estimateText.trim()
+  if (!text.startsWith(DRIVE_TIME_HEADLINE)) {
+    throw new HonestyContractError(
+      `POST-APP-16 violation: a drive time is not inside a drive-time estimate: ${JSON.stringify(text.slice(0, 120))}`,
+    )
+  }
+  if (text.includes(DRIVE_TIME_HEURISTIC_MARK) !== !routed) {
+    throw new HonestyContractError(
+      `POST-APP-16 violation: the estimate must ${routed ? 'not ' : ''}carry ${DRIVE_TIME_HEURISTIC_MARK}: ${JSON.stringify(text.slice(0, 120))}`,
+    )
+  }
+  return estimateText
+}
+
 export interface EmphasisState {
   readonly dimmed: boolean
   readonly emphasized: boolean
@@ -506,8 +529,13 @@ export const CONTRACT_PLANNER_MAP_APP: Readonly<Record<string, Clause>> = {
   },
   'FORBIDDEN-APP-2': {
     verification: 'test',
-    text: 'The reach controls and the tract card reach facts show distances in straight-line miles and never a travel time (validateNoTravelTime); there is no time slider.',
+    text: 'The reach controls show distances in straight-line miles and never a travel time (validateNoTravelTime over their text); there is no time slider; the tract card states no travel time outside its drive-time estimate (POST-APP-16).',
     requirements: ['REQ-57'],
+  },
+  'POST-APP-16': {
+    verification: 'test',
+    text: "Each drive-time estimate the App shows is one role='status' element whose text passes validateDriveTimeLabel: it starts with DRIVE_TIME_HEADLINE, and it carries DRIVE_TIME_HEURISTIC_MARK exactly when the estimate is not a road-network route (Z-28).",
+    requirements: ['REQ-67'],
   },
   'POST-APP-8': {
     verification: 'test',
