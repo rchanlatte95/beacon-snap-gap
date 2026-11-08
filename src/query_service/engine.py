@@ -109,6 +109,7 @@ class WarehouseQueryEngine:
         self._lock = threading.Lock()
         self._tables: tuple[str, ...] = ()
         self._catalog: dict[str, str] = {}
+        self._by_source: dict[str, str] = {}
         self._columns: dict[str, tuple[str, ...]] = {}
         self._citations: dict[str, SourceCitation] = {}
         self._glossary: dict[str, tuple[tuple[str, str], ...]] = {}
@@ -122,15 +123,16 @@ class WarehouseQueryEngine:
         location = adapter.require_warehouse(adapter.warehouse_location(self._env))
         con = duckdb.connect(str(Path(location.root) / adapter.WAREHOUSE_DB_FILE), read_only=True)
         catalog = con.execute(
-            "SELECT table_name, parquet, dataset_id FROM catalog ORDER BY rowid"
+            "SELECT table_name, parquet, dataset_id, source_file FROM catalog ORDER BY rowid"
         ).fetchall()
-        for name, relative, _ in catalog:
+        for name, relative, _, _ in catalog:
             path = adapter.table_path(location, name, relative)
             # name passed the adapter's table-name pattern; the path is quoted as a literal.
             con.execute(
                 f'CREATE TEMP VIEW "{name}" AS SELECT * FROM read_parquet({_sql_text(path)})'  # noqa: S608
             )
         self._tables = tuple(str(r[0]) for r in catalog)
+        self._by_source = {str(r[3]): str(r[0]) for r in catalog}
         self._catalog = {str(r[0]): str(r[2]) for r in catalog}
         columns: dict[str, list[tuple[int, str]]] = {}
         for table, column, ordinal in con.execute(
@@ -167,6 +169,21 @@ class WarehouseQueryEngine:
         """The catalog's tables, in catalog order."""
         self._connection()
         return self._tables
+
+    def table_for_source(self, source_file: str) -> str:
+        """The catalog table loaded from a registry path (POST-BASE-1 source_file).
+
+        Raises:
+            UnconnectedWarehouseError: SEQ-6, before open().
+            RejectedSqlError: ERRORS-SQL-1, no catalog table came from that file.
+        """
+        self._connection()
+        name = self._by_source.get(source_file)
+        if name is None:
+            raise RejectedSqlError(
+                f"ERRORS-SQL-1 violation: no warehouse table from {source_file!r}"
+            )
+        return name
 
     def describe_schema(
         self, table_names: tuple[str, ...] | None = None
