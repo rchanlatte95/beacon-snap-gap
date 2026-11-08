@@ -29,7 +29,8 @@ export interface PlannerBundle {
   readonly thresholds: {
     readonly poverty_cut_q75: number
     readonly poverty_cut_method: string
-    readonly sba_loans_median: number
+    readonly sba_rate_cut_per_1000: number
+    readonly sba_min_population: number
     readonly no_vehicle_q75: number
     readonly drive_time_minutes: number
   }
@@ -718,8 +719,12 @@ function TractEvidence({
         <dl className="facts">
           <Fact
             label="SBA loans since 2010"
-            note={`The middle value here is ${thresholds.sba_loans_median}`}
-            value={`${t.sba_loans_total} · ${money.format(t.sba_gross_usd_total)}`}
+            note={`Few means ${thresholds.sba_rate_cut_per_1000.toFixed(2)} or fewer per 1,000 people, in places with ${nf.format(thresholds.sba_min_population)} or more people`}
+            value={
+              t.pop2020 > 0
+                ? `${t.sba_loans_total} (${((t.sba_loans_total / t.pop2020) * 1000).toFixed(2)} per 1,000 people) · ${money.format(t.sba_gross_usd_total)}`
+                : `${t.sba_loans_total} · ${money.format(t.sba_gross_usd_total)}`
+            }
             tag={t.is_dual_gap ? { good: false, text: 'few' } : null}
           />
           <Fact
