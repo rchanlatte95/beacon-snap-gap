@@ -28,12 +28,13 @@ Batches:
 The implementation MUST NOT import this module (CL11-F). Tests import both and compare.
 """
 
+import json
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from pathlib import PurePosixPath
-from typing import Literal
+from typing import Any, Literal
 
 # --- 1. Importable constants (specification values) --------------------------------------
 
@@ -133,6 +134,14 @@ PDF_TEXT_COMMAND: tuple[str, ...] = ("pdftotext", "-layout", "-enc", "UTF-8")  #
 PDF_INFO_COMMAND: tuple[str, ...] = ("pdfinfo",)  # then <file>; its "Pages:" line is the count
 PAGE_BREAK = "\f"  # pdftotext ends every page with a form feed
 TEXT_PAGE = 1  # a text file is one page, numbered 1
+
+# Batch 6c-iii: JSON and geographic files (REQ-25, REQ-28).
+# JSON_ROOT_KEY names the table of a top-level array, or of the other top-level entries.
+JSON_ROOT_KEY = ""
+JSON_BLOB_COLUMN = "json"  # the one column of a file whose top level is neither object nor array
+GEO_EXTENSION = "spatial"  # DuckDB's GDAL reader (ST_Read); loaded, never installed by the Ingest
+GEO_ROW_ID_COLUMN = "OGC_FID"  # a row id GDAL adds; not in the source, so not loaded
+GEO_GEOMETRY_COLUMN = "geom"
 
 # --- 2. Domain exceptions (every message names its clause) --------------------------------
 
@@ -354,6 +363,15 @@ class RejectedRow:
     line: int
     error_type: str
     raw: str
+
+
+@dataclass(frozen=True)
+class JsonTable:
+    """Batch 6c-iii: one table read from a JSON file; every cell is text or None."""
+
+    key: str
+    columns: tuple[str, ...]
+    rows: tuple[tuple[str | None, ...], ...]
 
 
 # --- 4. Callable validators ----------------------------------------------------------------
@@ -985,6 +1003,73 @@ def expected_text_pages(raw: bytes) -> tuple[tuple[DocumentPage, ...], str]:
     raise SourceReadError("ERRORS-READ-1 violation: text file is not decodable")
 
 
+def _json_cell(raw: object, std: object) -> str | None:
+    """A scalar as written in the file; a nested value as compact JSON text; null as None."""
+    if raw is None:
+        return None
+    if isinstance(raw, bool):
+        return "true" if raw else "false"
+    if isinstance(raw, str):
+        return raw
+    return json.dumps(std, ensure_ascii=False, separators=(",", ":"))
+
+
+def _is_table(value: object) -> bool:
+    return isinstance(value, list) and bool(value) and all(isinstance(v, dict) for v in value)
+
+
+def _json_table(key: str, raw_rows: list[Any], std_rows: list[Any]) -> JsonTable:
+    columns: list[str] = []
+    for row in raw_rows:
+        columns.extend(k for k in row if k not in columns)
+    rows = tuple(
+        tuple(_json_cell(r.get(c), s.get(c)) for c in columns)
+        for r, s in zip(raw_rows, std_rows, strict=True)
+    )
+    return JsonTable(key=key, columns=tuple(columns), rows=rows)
+
+
+def expected_json_tables(text: str) -> tuple[JsonTable, ...]:
+    """POST-READ-4 / ERRORS-READ-3 oracle over a JSON file's text."""
+    try:
+        raw = json.loads(text, parse_float=str, parse_int=str, parse_constant=str)
+        std = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise SourceReadError(f"ERRORS-READ-3 violation: not valid JSON: {exc}") from exc
+    if _is_table(raw):
+        return (_json_table(JSON_ROOT_KEY, raw, std),)
+    if isinstance(raw, dict):
+        tables = [_json_table(k, raw[k], std[k]) for k in raw if _is_table(raw[k])]
+        rest = [k for k in raw if not _is_table(raw[k])]
+        if rest:
+            tables.append(
+                JsonTable(
+                    key=JSON_ROOT_KEY,
+                    columns=tuple(rest),
+                    rows=(tuple(_json_cell(raw[k], std[k]) for k in rest),),
+                )
+            )
+        return tuple(tables)
+    return (JsonTable(key=JSON_ROOT_KEY, columns=(JSON_BLOB_COLUMN,), rows=((text,),)),)
+
+
+def validate_geo_columns(columns: Sequence[str], types: Sequence[str]) -> None:
+    """POST-READ-5 oracle: attribute columns VARCHAR, one GEOMETRY column, no GDAL row id."""
+    if GEO_ROW_ID_COLUMN in columns:
+        raise SourceReadError(
+            f"POST-READ-5 violation: {GEO_ROW_ID_COLUMN} is a GDAL row id, not a source column"
+        )
+    for name, kind in zip(columns, types, strict=True):
+        wanted_geometry = name == GEO_GEOMETRY_COLUMN
+        if wanted_geometry != kind.startswith("GEOMETRY") or (
+            not wanted_geometry and kind != "VARCHAR"
+        ):
+            raise SourceReadError(
+                f"POST-READ-5 violation: column {name!r} has type {kind!r}; attributes are "
+                f"VARCHAR and {GEO_GEOMETRY_COLUMN!r} is the only GEOMETRY column"
+            )
+
+
 # --- 5. Traceability map (every clause declares its verification method) -----------------------
 
 CONTRACT_SCOPE: Mapping[str, Clause] = {
@@ -1374,5 +1459,35 @@ CONTRACT_DOCUMENTS: Mapping[str, Clause] = {
         "no byte is replaced or dropped, and the reported encoding is what the Ingest logs for the "
         "file (Z-22). An undecodable or missing file raises SourceReadError (ERRORS-READ-1).",
         ("REQ-25", "REQ-28", "REQ-53", "REQ-54"),
+    ),
+    "POST-READ-4": Clause(
+        "test",
+        "read_json_tables(path) returns, in file order, one JsonTable per top-level array of "
+        "objects (keyed by its name, or JSON_ROOT_KEY for a top-level array), with one column per "
+        "object key in first-seen order; and, when the top level is an object with other entries, "
+        "one JSON_ROOT_KEY table holding those entries as one row, so no entry is dropped. A "
+        "scalar keeps its text as written in the file, a nested value is compact JSON text, null "
+        "is None; any other top level is one JSON_BLOB_COLUMN row with the file's text.",
+        ("REQ-25", "REQ-28"),
+    ),
+    "ERRORS-READ-3": Clause(
+        "test",
+        "read_json_tables raises SourceReadError naming the file when it is missing, cannot be "
+        "decoded with READ_ENCODINGS, or is not valid JSON.",
+        ("REQ-25",),
+    ),
+    "POST-READ-5": Clause(
+        "test",
+        "read_geo(con, source) returns a DuckDB relation of every feature that ST_Read (the "
+        "GEO_EXTENSION reader) returns for source, a file path or a GDAL /vsizip/ member path, "
+        "with every attribute column VARCHAR, the geometry as GEO_GEOMETRY_COLUMN of type "
+        "GEOMETRY, and without GEO_ROW_ID_COLUMN.",
+        ("REQ-25", "REQ-28"),
+    ),
+    "ERRORS-READ-4": Clause(
+        "test",
+        "read_geo raises SourceReadError naming the source when GEO_EXTENSION cannot be loaded or "
+        "GDAL cannot open the source; it never returns an empty relation for an unreadable source.",
+        ("REQ-25",),
     ),
 }
