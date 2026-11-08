@@ -225,7 +225,7 @@ def main() -> None:
             "needRule": "Z-1 option B: poverty rate at or above the 75th percentile of the 488 Central Florida neighborhoods (census areas) with a value (ACS 2024 5-year, S1701) AND the USDA driving-distance low-income low-access flag (DD_SRAM_LILATracts_halfAnd10). Taken as is from docs/analysis/tract_gap_types.csv.",
             "reachRule": "A Second Harvest partner site inside the neighborhood (Z-2 option A). The decided 30-minute drive rule (Z-2 option C) needs a routing step that is not in the repo.",
             "noVehicleCut": nv_cut,
-            "sources": ["DS-H1", "DS-H2", "DS-H6", "DS-X7b", "DS-X12", "DS-X24", "DS-X15"],
+            "sources": ["DS-H1", "DS-H2", "DS-H6", "DS-X7b", "DS-X12", "DS-X24", "DS-X15b"],
         },
         "counties": sorted(COUNTY_NAMES.values()),
         "towns": [{"name": n, "lat": la, "lng": lo} for n, la, lo in TOWNS],
