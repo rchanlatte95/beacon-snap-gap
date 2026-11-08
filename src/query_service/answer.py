@@ -41,6 +41,10 @@ CORRECTION_TEMPLATE: Final = (
     "These numbers in your answer came from no tool result: {numbers}. Answer again using only "
     "numbers from tool results, or say that the data does not hold them."
 )
+FINAL_ANSWER_PROMPT: Final = (
+    "Answer the question now from the tool results above. Do not call any tool. If they do not "
+    "hold the answer, say so."
+)
 NUMBER_PATTERN: Final = re.compile(r"(?<![\w.])-?\d[\d,]*(?:\.\d+)?(?![\w])")
 TRACT_PREFIX: Final = "1400000US"
 _TRACT_IN_TEXT: Final = re.compile(r"\d{11}")
@@ -419,12 +423,18 @@ class Answerer:
         results: list[SqlQueryResult] = []
         requests_made = 0
         corrected = False
+        prompted = False
         while True:
             if self._clock() - start > ANSWER_DEADLINE_SECONDS:
                 raise ModelUnavailableError(
                     f"ERRORS-ASK-2 violation: no answer within {ANSWER_DEADLINE_SECONDS} s"
                 )
             final = requests_made >= MAX_TOOL_ROUNDS - 1
+            if final and not prompted:
+                prompted = True
+                contents.append(
+                    types.Content(role="user", parts=[types.Part(text=FINAL_ANSWER_PROMPT)])
+                )
             try:
                 response = self._client.models.generate_content(
                     model=self._model, contents=contents, config=final_config if final else config
