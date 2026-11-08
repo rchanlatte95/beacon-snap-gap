@@ -172,7 +172,14 @@
         "REQ-40",
         "REQ-46"
       ],
-      "clauses_in_scope": [],
+      "clauses_in_scope": [
+        "SEQ-6",
+        "POST-SCHEMA-1",
+        "POST-SQL-1",
+        "SEQ-7",
+        "FORBIDDEN-SQL-1",
+        "ERRORS-SQL-1"
+      ],
       "clauses_deferred": [],
       "negative_constraints": [
         "INV-32"
@@ -182,7 +189,7 @@
         "SLICE-1",
         "SLICE-3"
       ],
-      "issue": "TODO",
+      "issue": "ketema/beacon-snap-cliff#14",
       "pivot_note": "No open zone remains. If work stops after SLICE-4, a Viewer on a private address can ask plain-language and free-form questions and get cited answers built from the warehouse; the shared login is SLICE-5. REQ-39 (the outage fallback) is flagged by Ketema: it may change the UI, and he wants to see the rendered result before accepting it.",
       "deliverable": {
         "surface": "ui",
