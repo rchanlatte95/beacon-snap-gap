@@ -202,7 +202,8 @@
         "POST-ARCH-1",
         "ERRORS-ARCH-1",
         "POST-ARCH-2",
-        "ERRORS-ARCH-2"
+        "ERRORS-ARCH-2",
+        "POST-BASE-1"
       ],
       "clauses_deferred": [],
       "negative_constraints": [
@@ -255,7 +256,8 @@
         "POST-APP-12",
         "POST-APP-13",
         "POST-APP-14",
-        "POST-APP-15"
+        "POST-APP-15",
+        "ERRORS-SQL-2"
       ],
       "clauses_deferred": [],
       "negative_constraints": [
