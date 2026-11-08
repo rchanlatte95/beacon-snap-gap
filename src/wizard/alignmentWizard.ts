@@ -55,7 +55,7 @@ export const COHORT_CARDS: ReadonlyArray<{
   },
   {
     id: 'high_need',
-    label: 'Food deserts',
+    label: 'Classic Food Deserts',
     expectedCount: 97,
     hint: 'High poverty and far from a grocery store',
   },
@@ -73,7 +73,7 @@ export const COHORT_CARDS: ReadonlyArray<{
   },
   {
     id: 'insufficient',
-    label: 'Missing data',
+    label: 'Insufficient data',
     expectedCount: 2,
     hint: 'Key numbers are blank, so we cannot sort them',
   },
@@ -193,15 +193,15 @@ export function answerWizardQuery(tracts: readonly TractRecord[], query: string)
   const wantsHighNeed = /high[- ]need|food desert|classic food desert|flagged|high poverty/.test(q)
   if (wantsInsufficient) {
     result = result.filter((t) => t.tract_class === CLASS_INSUFFICIENT)
-    filters.push('Missing data')
+    filters.push('Insufficient data')
   } else if (wantsHighNeed) {
     result = result.filter((t) => t.tract_class === CLASS_HIGH_NEED)
-    filters.push('Food deserts')
+    filters.push('Classic Food Deserts')
   }
 
   if (/zero pantr|no pantr|no site|without (a )?pantr|no second harvest/.test(q)) {
     result = result.filter((t) => t.sites_in_tract === 0)
-    filters.push('No Second Harvest pantry inside')
+    filters.push('No Second Harvest site inside')
   }
 
   if (/low sba|few sba|low lending|under[- ]?lent|lending gap|sba gap|without sba|no sba/.test(q)) {
@@ -228,7 +228,7 @@ export function answerWizardQuery(tracts: readonly TractRecord[], query: string)
     result.length === 0
       ? `No neighborhoods match. Try another county or fewer words.`
       : `${nf.format(result.length)} neighborhood${result.length === 1 ? '' : 's'} match, with ${nf.format(residents)} people. ` +
-        `${noSite} have no Second Harvest pantry inside. ` +
+        `${noSite} have no Second Harvest site inside. ` +
         `In ${mobile}, many homes have no car. ` +
         `${dual} got ${SBA_MEDIAN_LOANS} or fewer SBA loans since 2010.`
 
@@ -278,7 +278,7 @@ export function generateCoordinatedActionBrief(input: {
   const narrativeSummary =
     `${cohortLabel}: ${plural(target.length, 'neighborhood')} with ${nf.format(totalResidents)} people. ` +
     `Counties: ${counties.join(', ')}. ` +
-    `Today ${noSite} of them (${safeBaseline}%) have no Second Harvest pantry inside. ` +
+    `Today ${noSite} of them (${safeBaseline}%) have no Second Harvest site inside. ` +
     `Suppose the food bank serves the ${mobile} with many homes that have no car, and lenders help the ${dual} with few loans. ` +
     (unaddressed === 0
       ? `Then every one of them would have a plan.`

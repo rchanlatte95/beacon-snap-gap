@@ -354,7 +354,7 @@ code {
   background: #f79122;
 }
 .swatch--nogap {
-  background: #fff;
+  background: #dfe6e9;
   border: 1px solid oklch(0.78 0.01 240);
 }
 .swatch--insufficient {

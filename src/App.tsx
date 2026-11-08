@@ -593,7 +593,7 @@ function BriefCard({ brief }: { brief: CoordinatedActionBrief }) {
         <div>
           <span className="cf-label">Today</span>
           <span className="cf-value cf-value--bad">{brief.withoutCoordinationGapPct}%</span>
-          <span className="cf-sub">have no pantry inside</span>
+          <span className="cf-sub">have no Second Harvest site inside</span>
         </div>
         <div>
           <span className="cf-label">If both partners act</span>
@@ -613,7 +613,7 @@ function BriefCard({ brief }: { brief: CoordinatedActionBrief }) {
       </dl>
       <h4>Food bank</h4>
       <p>{brief.foodBankAction}</p>
-      <h4>Small business lender</h4>
+      <h4>Small business lender (SBA, CDFI)</h4>
       <p>{brief.sbaOfficerAction}</p>
       <h4>In short</h4>
       <p>{brief.narrativeSummary}</p>
@@ -706,8 +706,8 @@ function TractEvidence({
             }
           />
           <Fact
-            label="Far from a grocery store"
-            note="USDA, by car"
+            label="Low income and far from a store"
+            note="USDA test: over 1/2 mile in town or 10 miles in the country, by road"
             value={t.lila_flag === null ? 'No data' : lilaMet ? 'Yes' : 'No'}
           />
         </dl>
@@ -742,7 +742,11 @@ function TractEvidence({
       <section>
         <h3>The people</h3>
         <dl className="facts">
-          <Fact label="Typical home income" note="Median, ± error range" value={incomeText(t)} />
+          <Fact
+            label="Typical home income"
+            note="Median, ± 90% margin of error"
+            value={incomeText(t)}
+          />
           <Fact
             label="Homes on SNAP"
             value={`${pct(t.pct_hh_snap)} (${num(t.snap_households)} of ${num(t.households)})`}
