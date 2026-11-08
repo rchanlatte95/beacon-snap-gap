@@ -28,7 +28,7 @@ from .tools import CORRELATION_CAVEATS, ToolArgumentError, WarehouseTools
 PROJECT_ENV: Final = "GOOGLE_CLOUD_PROJECT"
 LOCATION_ENV: Final = "GOOGLE_CLOUD_LOCATION"
 MAX_TOOL_ROUNDS: Final = 4
-ANSWER_DEADLINE_SECONDS: Final = 30.0
+ANSWER_DEADLINE_SECONDS: Final = 45.0
 MAX_DESCRIBE_TABLES: Final = 10
 GLOSSARY_PAGE_TERMS: Final = 200
 TAXONOMY_PATH: Final = "docs/taxonomy.md"
@@ -36,7 +36,10 @@ SYSTEM_PREAMBLE: Final = (
     "You answer questions about Central Florida public data for food bank planners and small "
     "business lenders. Use only the tools. Every number you state must come from a tool result, "
     "the question or the current settings. If the data does not hold the answer, say so. Name no "
-    "source that a tool did not return."
+    "source that a tool did not return. You have at most 3 tool rounds, so run a sql_query in "
+    "your first round when the table index below names a likely table, and put several "
+    "independent calls in one round. Answer in plain sentences only: no Markdown, backticks, "
+    "asterisks, headings, bullet symbols or table names; name places and figures in words."
 )
 CORRECTION_TEMPLATE: Final = (
     "These numbers in your answer came from no tool result: {numbers}. Answer again using only "
