@@ -28,6 +28,19 @@ function mockAskPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [react(), mockAskPlugin()],
+  // Bundle every browser dependency in one pass when the dev server starts. When some were found
+  // late, a second pass sometimes put a second copy of React inside react-dom/client
+  // ("Invalid hook call", blank page).
+  optimizeDeps: {
+    include: [
+      'react',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+      'react-dom',
+      'react-dom/client',
+      'maplibre-gl',
+    ],
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['tests/setup.ts'],
