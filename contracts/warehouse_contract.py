@@ -1482,12 +1482,12 @@ CONTRACT_WRITER: Mapping[str, Clause] = {
     ),
     "POST-BASE-1": Clause(
         "test",
-        "The Ingest writes each base table with exactly the "
-        "columns of BASE_TABLE_COLUMNS, in order: "
-        "one catalog and one sources row per data table (sources holds the table's provenance with "
-        "its registry ID as dataset_id, NOT_RECORDED for an "
-        "unstated field), one columns row per data "
-        "table column (ordinal from 1), and glossary rows as GLOSSARY_COLUMNS.",
+        "The Ingest writes each base table with exactly the columns of BASE_TABLE_COLUMNS, in "
+        "order: one catalog and one sources row per data table, whose source_file is the "
+        "registry path of the file it came from (for example 'repo:data/external/...'); sources "
+        "holds the table's provenance with its registry ID as dataset_id and NOT_RECORDED for an "
+        "unstated field; one columns row per data table column (ordinal from 1); and glossary "
+        "rows as GLOSSARY_COLUMNS.",
         ("REQ-29", "REQ-30", "REQ-48"),
     ),
 }

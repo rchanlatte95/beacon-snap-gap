@@ -8,7 +8,10 @@ description = "DevFest Florida 2026, Beacon track: SNAP-cliff planner map, wareh
 requires-python = ">=3.12"
 # DuckDB is the warehouse engine (REQ-49): the Ingest writes with it and the QueryService reads
 # with it. Pinned to the version that built the warehouse and passed the mount observation.
-dependencies = ["duckdb==2.0.0"]
+dependencies = [
+    "duckdb==2.0.0",
+    "google-genai==3.0.0",
+]
 
 [dependency-groups]
 dev = [
