@@ -72,7 +72,8 @@
         "FORBIDDEN-APP-2",
         "POST-APP-8",
         "POST-APP-9",
-        "POST-APP-10"
+        "POST-APP-10",
+        "POST-APP-16"
       ],
       "clauses_deferred": [],
       "negative_constraints": [
