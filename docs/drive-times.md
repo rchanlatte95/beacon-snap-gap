@@ -21,18 +21,19 @@ These are road-network estimates, without live traffic.
 the frontend build. Both require the normal data files. No API key is required to run the app:
 without one it shows the explicit heuristic fallback.
 
-## Static deployment
+## Server deployment
 
-The existing production server is static nginx. Prepare `public/data/drive-times.json` with
-`npm run routes:refresh` in the data preparation environment, then build the image. This file is
-generated and git-ignored. Never pass the private key as a Docker build argument or a browser
-variable. `.env*` files are excluded from the image build context.
+The container serves the app through nginx and runs the Node cache builder with `--watch`.
+It checks every five minutes and refreshes expired or failed entries. Successful results last
+24 hours. The server-side builder contains the supplied PoC key; `ORS_API_KEY` can override it,
+and an empty `ORS_API_KEY` disables provider calls. The key is excluded from browser assets and
+cache responses. `.env*` files stay excluded from the image build context.
 
-A deployed static image cannot call the provider or update its own data. Refresh and redeploy
-through the existing data/deployment process at least every 24 hours if continued cached
-coverage is needed. No scheduled job or deployment is created by this change. If the published
-file expires or cannot be read, the app uses the labeled heuristic fallback instead of showing
-old API data as current. This is the smallest change that keeps the existing deployment model.
+Run the normal data Build before building the image. Image builds make no provider requests;
+the running container refreshes the cache. During initial preparation or provider failure,
+the app shows its labeled heuristic fallback. Each instance has its own cache. No external
+scheduled job is needed. Refresh runs while the instance has CPU available. No deployment is
+performed by this code change.
 
 ## Meaning and failure behavior
 

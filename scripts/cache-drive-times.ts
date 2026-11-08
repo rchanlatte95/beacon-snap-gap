@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import type * as GeoJSON from 'geojson'
 import {
   DRIVE_TIME_TTL_MS,
+  DRIVE_TIME_REFRESH_MS,
   parseDriveTimeCache,
   routingInputs,
   type DriveTimeCache,
@@ -13,6 +14,8 @@ import type { TractRecord } from '../src/wizard/alignmentWizard.ts'
 import { isLocation } from '../src/map/proximity.ts'
 
 const MATRIX_URL = 'https://api.heigit.org/openrouteservice/v2/matrix/driving-car'
+const DEFAULT_API_KEY =
+  ''
 const MAX_CELLS = 3500
 const REQUEST_INTERVAL_MS = 1700 // Below the hosted Standard limit of 40 requests/minute.
 
@@ -90,7 +93,7 @@ export async function refreshDriveTimes(
   )
   if (previous) Object.assign(results, previous.results)
   const pending = origins.filter((origin) => results[origin.geoid]?.status === 'unavailable')
-  const apiKey = options.apiKey ?? process.env.ORS_API_KEY
+  const apiKey = options.apiKey ?? process.env.ORS_API_KEY ?? DEFAULT_API_KEY
   if (!apiKey) console.warn('Drive times: ORS_API_KEY not set. Using labeled heuristic fallback.')
   if (apiKey && destinations.length > 0) {
     const batchSize = Math.max(1, Math.floor(MAX_CELLS / destinations.length))
@@ -157,11 +160,23 @@ export async function refreshDriveTimes(
 }
 
 if (import.meta.main) {
-  refreshDriveTimes().catch((error: unknown) => {
-    console.error(
-      'Drive-time cache preparation failed:',
-      error instanceof Error ? error.message : error,
-    )
-    process.exitCode = 1
-  })
+  const watch = process.argv.includes('--watch')
+  const run = async () => {
+    do {
+      try {
+        await refreshDriveTimes()
+      } catch (error: unknown) {
+        console.error(
+          'Drive-time cache preparation failed:',
+          error instanceof Error ? error.message : error,
+        )
+        if (!watch) {
+          process.exitCode = 1
+          return
+        }
+      }
+      if (watch) await delay(DRIVE_TIME_REFRESH_MS)
+    } while (watch)
+  }
+  void run()
 }
