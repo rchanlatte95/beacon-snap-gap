@@ -2,7 +2,7 @@
   "schema_version": "1.1",
   "feature_name": "beacon-snap-cliff-planner-map",
   "manifest_path": "requirements/REQUIREMENT_MANIFEST.md",
-  "manifest_hash": "sha256:6f7827423c116493df593ad814b0adfb074d85f28a62bf52ae45cb83356ecfb8",
+  "manifest_hash": "sha256:b25698000a157a001f5aeadfdd4130723d56e636f70c2595d95752a8e5f5a13f",
   "created": "2026-11-07",
   "last_updated": "2026-11-08",
   "status": "ACTIVE",

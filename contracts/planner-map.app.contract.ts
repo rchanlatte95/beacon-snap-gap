@@ -93,7 +93,7 @@ export const DISTANCE_SLIDER_NAME = 'Distance limit in miles'
 // SLICE-4 batch 2 (Z-26): the App side of the ask call. The server side is
 // contracts/query_service_contract.py (PRE-ASK-1, POST-ASK-1, ERRORS-ASK-1, ERRORS-ASK-2).
 export const ASK_PATH = '/api/ask'
-export const ASK_TIMEOUT_MS = 20_000
+export const ASK_TIMEOUT_MS = 50_000 // Z-30 (was 20 s, Z-26)
 export const AI_UNAVAILABLE_TEXT = 'AI unavailable. Using built-in filters.'
 export const SESSION_ENDED_TEXT = 'Your session ended. Sign in again.'
 export const SIGN_IN_PATH = '/login' // served by the Gateway (SLICE-5)

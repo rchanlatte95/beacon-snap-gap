@@ -642,8 +642,8 @@ MAX_DESCRIBE_TABLES = 10
 GLOSSARY_PAGE_TERMS = 200
 
 TOOL_NAMES: tuple[str, ...] = ("schema_describe", "sql_query", "sites_near", "stats_correlate")
-MAX_TOOL_ROUNDS = 8
-ANSWER_DEADLINE_SECONDS = 18.0  # below the App's 20-second limit (Z-26)
+MAX_TOOL_ROUNDS = 12  # Z-30 (was 8, Z-26)
+ANSWER_DEADLINE_SECONDS = 45.0  # Z-30: below the App's 50-second limit (was 18 s, Z-26)
 MODEL_ENV = "QUERY_SERVICE_MODEL"
 PROJECT_ENV = "GOOGLE_CLOUD_PROJECT"
 LOCATION_ENV = "GOOGLE_CLOUD_LOCATION"
