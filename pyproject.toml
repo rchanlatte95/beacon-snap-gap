@@ -1,0 +1,59 @@
+# Python side of the repo (the Build, the warehouse Ingest, their contracts and tests).
+# The App is TypeScript (package.json). This file configures the four python-mastery gates:
+#   uv run ruff check .  |  uv run ruff format --check .  |  uv run mypy  |  uv run pytest -q
+[project]
+name = "beacon-snap-cliff"
+version = "0.0.0"
+description = "DevFest Florida 2026, Beacon track: SNAP-cliff planner map, warehouse and query service."
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "hypothesis>=6",
+    "ruff>=0.14",
+    "mypy>=1.19",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests", "contracts"]
+# Pre-SLICE-3 Python (Build, its contract and tests) predates these gates. Ratchet it in later; never loosen.
+extend-exclude = [
+    "src/data_prep",
+    "contracts/planner_map_contract.py",
+    "tests/data_prep",
+    "data/external/census-acs/extract_median_income.py",
+    "docs",
+    "node_modules",
+]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "UP", "B", "A", "C4", "DTZ", "T20", "G", "LOG", "PIE", "PT", "PTH",
+    "RET", "RUF", "S", "SIM", "TRY", "FBT", "ANN", "ASYNC", "BLE", "N", "PL",
+]
+ignore = [
+    "TRY003",   # long messages in raise: clause-bearing messages are the point (CL11-E)
+    "PLR0913", # too-many-args: validators mirror record fields
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "ANN", "FBT", "PLR2004", "PT011"]
+"contracts/**" = ["FBT001", "FBT002"]  # validators mirror record fields, including booleans
+"src/warehouse/**" = ["FBT001", "FBT002"]  # make_source_file mirrors the contract validator signature
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+files = ["src/warehouse", "contracts/warehouse_contract.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+xfail_strict = true
