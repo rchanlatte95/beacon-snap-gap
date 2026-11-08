@@ -22,6 +22,7 @@ Batches:
 The implementation MUST NOT import this module (CL11-F). Tests import both and compare.
 """
 
+import json
 import math
 import re
 import statistics
@@ -642,8 +643,13 @@ MAX_DESCRIBE_TABLES = 10
 GLOSSARY_PAGE_TERMS = 200
 
 TOOL_NAMES: tuple[str, ...] = ("schema_describe", "sql_query", "sites_near", "stats_correlate")
-MAX_TOOL_ROUNDS = 12  # Z-30 (was 8, Z-26)
-ANSWER_DEADLINE_SECONDS = 45.0  # Z-30: below the App's 50-second limit (was 18 s, Z-26)
+MAX_TOOL_ROUNDS = 4  # Z-31: model calls per question; the last one answers without tools
+ANSWER_DEADLINE_SECONDS = 30.0  # Z-31: below the App's 50-second limit (Z-30)
+FINAL_CALL_MODE = "NONE"  # Z-31: function calling mode of the last model call
+FINAL_ANSWER_PROMPT = (
+    "Answer the question now from the tool results above. Do not call any tool. If they do not "
+    "hold the answer, say so."
+)
 MODEL_ENV = "QUERY_SERVICE_MODEL"
 PROJECT_ENV = "GOOGLE_CLOUD_PROJECT"
 LOCATION_ENV = "GOOGLE_CLOUD_LOCATION"
@@ -815,10 +821,19 @@ def expected_schema_payload(
     return out
 
 
-def expected_system_instruction(taxonomy_text: str, applied: AppliedThresholds) -> str:
-    """POST-ANS-1 oracle: the system instruction sent with every question (REQ-36, REQ-60)."""
+def expected_system_instruction(
+    taxonomy_text: str,
+    applied: AppliedThresholds,
+    schema_index: list[dict[str, object]],
+) -> str:
+    """POST-ANS-1 oracle: the system instruction sent with every question (REQ-36, REQ-60, Z-31).
+
+    schema_index is expected_schema_payload of every catalog table, detailed False (POST-TOOL-3).
+    """
     return (
         f"{SYSTEM_PREAMBLE}\n\n## Core taxonomy ({TAXONOMY_PATH})\n{taxonomy_text.strip()}\n\n"
+        "## Warehouse table index (schema_describe without table_names)\n"
+        f"{json.dumps(schema_index, separators=(',', ':'))}\n\n"
         "## Current settings\n"
         f"Reach distance: {applied.reach_miles:g} miles, straight-line.\n"
         f"Poverty cut: the {applied.poverty}th percentile.\n"
@@ -959,10 +974,18 @@ CONTRACT_QUERY_ANSWER: Mapping[str, Clause] = {
     "POST-ANS-1": Clause(
         "test",
         "Every model request names the model from MODEL_ENV, carries the system instruction "
-        "expected_system_instruction(taxonomy at TAXONOMY_PATH, applied thresholds), declares "
-        "exactly TOOL_NAMES, and disables automatic function calling, so the service runs every "
-        "tool call itself and records each result (REQ-36, REQ-38, REQ-60).",
+        "expected_system_instruction(taxonomy at TAXONOMY_PATH, applied thresholds, the table "
+        "index), declares exactly TOOL_NAMES, and disables automatic function calling, so the "
+        "service runs every tool call itself and records each result (REQ-36, REQ-38, REQ-60).",
         ("REQ-36", "REQ-38", "REQ-60"),
+    ),
+    "POST-ANS-4": Clause(
+        "test",
+        "The MAX_TOOL_ROUNDS-th model request of a question sets function calling mode "
+        "FINAL_CALL_MODE and ends with a user turn whose text is FINAL_ANSWER_PROMPT, so the model "
+        "answers from the tool results it has; reaching that request is never an error (Z-31). "
+        "Its answer goes through POST-ANS-2 and POST-ANS-3.",
+        ("REQ-37", "REQ-39"),
     ),
     "POST-ANS-2": Clause(
         "test",
@@ -982,9 +1005,9 @@ CONTRACT_QUERY_ANSWER: Mapping[str, Clause] = {
     ),
     "ERRORS-ANS-1": Clause(
         "test",
-        "A Vertex AI error (google.genai errors.APIError), a transport timeout, more than "
-        "MAX_TOOL_ROUNDS tool rounds, or no final answer within ANSWER_DEADLINE_SECONDS raises "
-        "ModelUnavailableError naming ERRORS-ASK-2; no partial answer is returned.",
+        "A Vertex AI error (google.genai errors.APIError), a transport timeout, or no final "
+        "answer within ANSWER_DEADLINE_SECONDS raises ModelUnavailableError naming ERRORS-ASK-2; "
+        "no partial answer is returned.",
         ("REQ-39", "REQ-37"),
     ),
 }
