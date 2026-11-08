@@ -10,7 +10,8 @@ The implementation is src/warehouse/archive.py (not yet created). It does not im
 the contract (CL11-F); these tests import both to bridge specification and implementation.
 
 Expected public callable surface for src/warehouse/archive (mirroring contract oracles):
-- archive_members(entry: RegistryEntry, zip_path: Path) -> tuple[ArchiveMember, ...]
+- archive_members(zip_path: Path, entry: RegistryEntry) -> tuple[ArchiveMember, ...]
+  (argument order as in POST-ARCH-1)
 - member_source(zip_path: Path, member: str, workdir: Path) -> str
 - ArchiveMember(name: str, file_format: str, reference_end: str | None)
 - ArchiveMemberError: the same class as src.warehouse.registry.ArchiveMemberError (defined in the
@@ -60,7 +61,7 @@ def _make_registry_entry(
     tmp_path: Path,
     *,
     path: str,
-    file_format: str = "zip",
+    file_format: str = "csv",
     reference_end: str | None = "2026-09-30",
     members: Sequence[Mapping[str, str | None]] | None = None,
 ) -> reg_impl.RegistryEntry:
@@ -255,7 +256,7 @@ def test_archive_members_skips_internal_and_groups_shapefile(tmp_path: Path) -> 
         zip_names = zf.namelist()
 
     oracle_members = contract.expected_archive_members(zip_names, contract_entry)
-    actual_members = impl.archive_members(entry, zip_path)
+    actual_members = impl.archive_members(zip_path, entry)
 
     # Validate against contract oracle
     expected_member_tuples = [(m.name, m.file_format, m.reference_end) for m in oracle_members]
@@ -312,7 +313,7 @@ def test_archive_members_raises_on_unknown_extension_or_corrupt_zip(
         zf.writestr("payload.bin", b"\x00\x01\x02\x03")
 
     with pytest.raises(impl.ArchiveMemberError) as exc_arch:
-        impl.archive_members(entry, unknown_ext_zip)
+        impl.archive_members(unknown_ext_zip, entry)
     assert "ERRORS-ARCH-1" in str(exc_arch.value), (
         "WHAT: test_archive_members_raises_on_unknown_extension_or_corrupt_zip FAILED\n"
         "WHY: ERRORS-ARCH-1 violation - unknown extension must raise ArchiveMemberError\n"
@@ -331,7 +332,7 @@ def test_archive_members_raises_on_unknown_extension_or_corrupt_zip(
     # 2. Missing zip archive
     missing_zip = tmp_path / "non_existent.zip"
     with pytest.raises(read_impl.SourceReadError) as exc_missing:
-        impl.archive_members(entry, missing_zip)
+        impl.archive_members(missing_zip, entry)
     assert "ERRORS-ARCH-1" in str(exc_missing.value), (
         "WHAT: test_archive_members_raises_on_unknown_extension_or_corrupt_zip FAILED\n"
         "WHY: ERRORS-ARCH-1 violation - missing archive must raise SourceReadError\n"
@@ -344,7 +345,7 @@ def test_archive_members_raises_on_unknown_extension_or_corrupt_zip(
     not_a_zip = tmp_path / "not_a_zip.zip"
     not_a_zip.write_text("plain text, definitely not a PK zip archive", encoding="utf-8")
     with pytest.raises(read_impl.SourceReadError) as exc_corrupt:
-        impl.archive_members(entry, not_a_zip)
+        impl.archive_members(not_a_zip, entry)
     assert "ERRORS-ARCH-1" in str(exc_corrupt.value), (
         "WHAT: test_archive_members_raises_on_unknown_extension_or_corrupt_zip FAILED\n"
         "WHY: ERRORS-ARCH-1 violation - non-zip file must raise SourceReadError\n"
