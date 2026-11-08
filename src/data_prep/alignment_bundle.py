@@ -32,6 +32,11 @@ CONFIDENCE_MODERATE = "Moderate"
 CONFIDENCE_MIN_HOUSEHOLDS = 500
 CONFIDENCE_MAX_GROUP_QUARTERS_PCT = 20.0
 
+# POST-ALN-1 (REQ-19, Z-23): SBA loans per 1,000 residents in the bottom quartile, for tracts of
+# at least 1,200 residents.
+SBA_RATE_PER_RESIDENTS = 1000
+SBA_MIN_POPULATION = 1200
+
 ACTION_MOBILE_AND_SBA = "Mobile Pantry Deployment + Joint SBA/CDFI Micro-Lending Outreach"
 ACTION_MOBILE_PANTRY = "Mobile Pantry / Transit-Accessible Food Deployment"
 ACTION_FIXED_AND_SBA = "Partner Pantry Expansion + SBA/SBDC Small-Business Outreach"
@@ -283,7 +288,10 @@ def build_alignment_bundle(repo_root: Path) -> dict[str, Any]:
     cut_poverty = poverty_cut(poverty_vals)
 
     sba_counts = [_parse_int(sba_by_id.get(r["geoid"], {}).get("loans_total")) or 0 for r in sorted_cov]
-    sba_median = float(statistics.median(sba_counts))
+    pops = [int(pop_agg.get(r["geoid"], {"pop": 0})["pop"]) for r in sorted_cov]
+    # POST-ALN-1: inclusive bottom-quartile loans per 1,000 residents over the populated tracts.
+    sba_rates = [n / p * SBA_RATE_PER_RESIDENTS for n, p in zip(sba_counts, pops, strict=True) if p > 0]
+    sba_rate_cut = statistics.quantiles(sba_rates, n=4, method="inclusive")[0]
 
     nv_vals = [
         v for r in sorted_cov if (v := _parse_float(nv_by_id.get(r["geoid"], {}).get("pct_no_vehicle"))) is not None
@@ -332,7 +340,13 @@ def build_alignment_bundle(repo_root: Path) -> dict[str, Any]:
         )
 
         is_high = cls_res.tract_class == CLASS_HIGH_NEED
-        is_dual = is_high and loans_total <= sba_median
+        sba_rate = loans_total / pop2020 * SBA_RATE_PER_RESIDENTS if pop2020 > 0 else None
+        is_dual = (
+            is_high
+            and pop2020 >= SBA_MIN_POPULATION
+            and sba_rate is not None
+            and sba_rate <= sba_rate_cut
+        )
         is_trans = is_high and pct_nv is not None and pct_nv >= nv_q75
         is_triple = is_dual and is_trans
 
@@ -455,7 +469,8 @@ def build_alignment_bundle(repo_root: Path) -> dict[str, Any]:
         "thresholds": {
             "poverty_cut_q75": round(cut_poverty, 4),
             "poverty_cut_method": "inclusive",
-            "sba_loans_median": sba_median,
+            "sba_rate_cut_per_1000": sba_rate_cut,
+            "sba_min_population": SBA_MIN_POPULATION,
             "no_vehicle_q75": round(nv_q75, 4),
             "drive_time_minutes": 30,
         },
