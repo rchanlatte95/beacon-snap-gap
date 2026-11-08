@@ -85,7 +85,7 @@ slider still updates the map. See [setup, refresh and deployment details](docs/d
 | `uv run ruff format --check .` | Python format check |
 | `uv run mypy` | Type-check `src/warehouse/` and the warehouse contract |
 | `uv run pytest -q` | Python tests (the Vertex AI tests skip without credentials) |
-| `docker build -t beacon-snap-cliff .` | Cloud Run image: Node 26 build, nginx on port 8080 |
+| `docker build -t beacon-snap-cliff .` | Cloud Run image: Node 26 build, nginx on port 8080. Set `QUERY_SERVICE_URL` (for example `https://<query-service>.run.app`) on the service so `/api/ask` reaches the QueryService; without it, questions use the built-in filters. |
 
 Deploy only after a human approves.
 
@@ -100,8 +100,8 @@ the real QueryService:
 
    ```sh
    WAREHOUSE_LOCATION=/absolute/path/to/warehouse-folder \
-   QUERY_SERVICE_MODEL=<Gemini model id> \
-   GOOGLE_CLOUD_PROJECT=<gcp-project> GOOGLE_CLOUD_LOCATION=us-east1 PORT=8080 \
+   QUERY_SERVICE_MODEL=gemini-3.8-flash \
+   GOOGLE_CLOUD_PROJECT=<gcp-project> GOOGLE_CLOUD_LOCATION=global PORT=8080 \
    uv run python -m src.query_service.server
    ```
 
