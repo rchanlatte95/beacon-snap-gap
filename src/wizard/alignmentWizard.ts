@@ -13,25 +13,31 @@ export const CLASS_HIGH_NEED = 'Classic Food Desert'
 export const CLASS_NO_GAP = 'No gap flagged'
 export const CLASS_INSUFFICIENT = 'Insufficient data'
 
+// The lens labels are pinned by contracts/planner-map.app.contract.ts (POST-APP-1).
 export const PERSONA_LENSES: ReadonlyArray<{
   readonly id: PersonaLensId
   readonly label: string
+  readonly headline: string
   readonly tagline: string
 }> = [
   {
     id: 'alignment',
     label: 'Shared Alignment: Opportunities to Serve',
-    tagline: 'Where food insecurity, missing SBA capital, and no-vehicle households overlap.',
+    headline: 'Where food banks and lenders can help together',
+    tagline: 'Red areas have all three gaps. Orange areas are other food deserts.',
   },
   {
     id: 'planner',
     label: 'Food Bank Planner (SNAP & Pantries)',
-    tagline: 'Classic Food Desert tracts and where mobile pantries beat fixed sites.',
+    headline: 'Where food banks are needed most',
+    tagline:
+      'Food deserts, and the places where a mobile pantry may reach more people than a fixed one.',
   },
   {
     id: 'officer',
     label: 'SBA / CDFI Lending Officer',
-    tagline: 'High-need tracts where 7(a) and 504 lending has not reached local food retail.',
+    headline: 'Where small business loans could help most',
+    tagline: 'Food deserts that got 10 or fewer SBA loans since 2010.',
   },
 ]
 
@@ -43,33 +49,33 @@ export const COHORT_CARDS: ReadonlyArray<{
 }> = [
   {
     id: 'triple',
-    label: 'Opportunities to Serve (Triple Gap)',
+    label: 'All three gaps',
     expectedCount: 29,
-    hint: 'Food desert + ≤10 SBA loans + ≥6.9% no-vehicle households',
+    hint: 'Food desert, few business loans, many homes with no car',
   },
   {
     id: 'high_need',
-    label: 'Classic Food Deserts (High Need)',
+    label: 'Food deserts',
     expectedCount: 97,
-    hint: 'Top-quartile poverty + USDA driving-distance low access',
+    hint: 'High poverty and far from a grocery store',
   },
   {
     id: 'dual',
-    label: 'Food + SBA Lending Gap (≤10 Loans)',
+    label: 'Few business loans',
     expectedCount: 50,
-    hint: '75% of SBA dollars went to tracts without high need',
+    hint: 'Food deserts with 10 or fewer SBA loans since 2010',
   },
   {
     id: 'transport',
-    label: 'Mobile Priority (No-Vehicle ≥6.9%)',
+    label: 'Many with no car',
     expectedCount: 53,
-    hint: 'Residents cannot drive to a fixed pantry',
+    hint: 'Food deserts where 6.9% or more of homes have no car',
   },
   {
     id: 'insufficient',
-    label: 'Insufficient Data / Blind Spots',
+    label: 'Missing data',
     expectedCount: 2,
-    hint: 'Core indicators blank in the source tables',
+    hint: 'Key numbers are blank, so we cannot sort them',
   },
 ]
 
@@ -180,37 +186,37 @@ export function answerWizardQuery(tracts: readonly TractRecord[], query: string)
   const county = COUNTIES.find((c) => q.includes(c))
   if (county) {
     result = result.filter((t) => t.county.toLowerCase() === county)
-    filters.push(`County = ${county.charAt(0).toUpperCase()}${county.slice(1)}`)
+    filters.push(`${county.charAt(0).toUpperCase()}${county.slice(1)} County`)
   }
 
   const wantsInsufficient = /insufficient|blind spot|missing data|no data/.test(q)
   const wantsHighNeed = /high[- ]need|food desert|classic food desert|flagged|high poverty/.test(q)
   if (wantsInsufficient) {
     result = result.filter((t) => t.tract_class === CLASS_INSUFFICIENT)
-    filters.push('Class = Insufficient data')
+    filters.push('Missing data')
   } else if (wantsHighNeed) {
     result = result.filter((t) => t.tract_class === CLASS_HIGH_NEED)
-    filters.push('Class = Classic Food Desert')
+    filters.push('Food deserts')
   }
 
   if (/zero pantr|no pantr|no site|without (a )?pantr|no second harvest/.test(q)) {
     result = result.filter((t) => t.sites_in_tract === 0)
-    filters.push('Second Harvest sites inside tract = 0')
+    filters.push('No Second Harvest pantry inside')
   }
 
   if (/low sba|few sba|low lending|under[- ]?lent|lending gap|sba gap|without sba|no sba/.test(q)) {
     result = result.filter((t) => t.sba_loans_total <= SBA_MEDIAN_LOANS)
-    filters.push(`SBA 7(a)/504 loans ≤ ${SBA_MEDIAN_LOANS} (regional median)`)
+    filters.push(`${SBA_MEDIAN_LOANS} or fewer SBA loans since 2010`)
   }
 
   if (/no[- ]vehicle|without (a )?car|transport|transit|mobile/.test(q)) {
     result = result.filter((t) => t.is_transport_gap)
-    filters.push('No-vehicle households ≥ 6.9% (top quartile)')
+    filters.push('Food desert where 6.9% or more of homes have no car')
   }
 
   if (/triple|opportunit|overlap|all three|align/.test(q)) {
     result = result.filter((t) => t.is_triple_gap)
-    filters.push('Triple gap: food + SBA + transport')
+    filters.push('All three gaps')
   }
 
   const residents = result.reduce((s, t) => s + t.pop2020, 0)
@@ -220,11 +226,11 @@ export function answerWizardQuery(tracts: readonly TractRecord[], query: string)
 
   const answerText =
     result.length === 0
-      ? `No tracts match that combination. Try widening the county or removing a filter.`
-      : `${nf.format(result.length)} tract${result.length === 1 ? '' : 's'} match (${nf.format(residents)} residents). ` +
-        `${noSite} have no Second Harvest site inside the tract, ${mobile} are mobile-pantry priorities because ` +
-        `households without a vehicle exceed 6.9%, and ${dual} received ten or fewer SBA loans since 2010. ` +
-        `Each is an opportunity for a food bank and an SBDC/CDFI to serve the same residents together.`
+      ? `No neighborhoods match. Try another county or fewer words.`
+      : `${nf.format(result.length)} neighborhood${result.length === 1 ? '' : 's'} match, with ${nf.format(residents)} people. ` +
+        `${noSite} have no Second Harvest pantry inside. ` +
+        `In ${mobile}, many homes have no car. ` +
+        `${dual} got ${SBA_MEDIAN_LOANS} or fewer SBA loans since 2010.`
 
   return { matchedTracts: result, answerText, appliedFilters: filters }
 }
@@ -254,27 +260,32 @@ export function generateCoordinatedActionBrief(input: {
   const reduction = Math.round((safeBaseline - safeWith) * 10) / 10
 
   const cohortLabel =
-    COHORT_CARDS.find((c) => c.id === input.cohortId)?.label ?? 'All Central Florida tracts'
+    COHORT_CARDS.find((c) => c.id === input.cohortId)?.label ?? 'All neighborhoods'
   const counties = Array.from(new Set(target.map((t) => t.county))).sort()
+  const rest = target.length - mobile
+  const plural = (n: number, word: string) => `${nf.format(n)} ${word}${n === 1 ? '' : 's'}`
 
   const foodBankAction =
     mobile > 0
-      ? `Route mobile pantry stops through the ${mobile} tracts where ≥6.9% of households have no vehicle; add partner pantry hours in the remaining ${target.length - mobile}.`
-      : `Expand partner pantry capacity and hours in all ${target.length} target tracts.`
+      ? `Send mobile pantry stops to the ${plural(mobile, 'neighborhood')} where many homes have no car.` +
+        (rest > 0 ? ` Add pantry hours in the other ${nf.format(rest)}.` : '')
+      : `Add pantry space and hours in all ${plural(target.length, 'neighborhood')}.`
   const sbaOfficerAction =
     dual > 0
-      ? `Open SBDC/CDFI micro-lending and technical-assistance clinics in the ${dual} tracts that received ten or fewer SBA 7(a)/504 loans, prioritizing corner stores, mobile markets, and food entrepreneurs.`
-      : `Coordinate SBA outreach alongside pantry expansion so new food retail follows the food bank footprint.`
+      ? `Hold small business loan and coaching clinics in the ${plural(dual, 'neighborhood')} that got 10 or fewer SBA loans. Start with corner stores, mobile markets and food businesses.`
+      : `Plan small business help next to new pantry sites, so new food stores can follow.`
 
   const narrativeSummary =
-    `${cohortLabel}: ${nf.format(target.length)} tracts across ${counties.join(', ')} hold ${nf.format(totalResidents)} residents. ` +
-    `Today ${noSite} of these tracts have no Second Harvest site inside their boundary (${safeBaseline}% of the cohort). ` +
-    `A joint food bank + SBA/CDFI deployment reaches the ${mobile} mobile-priority tracts and seeds food retail capital in the ${dual} lending-gap tracts, ` +
-    `leaving ${unaddressed} tract${unaddressed === 1 ? '' : 's'} (${safeWith}%) outside a planned intervention — a ${reduction}-point reduction. ` +
-    `Evidence: ACS poverty and SNAP tables, USDA SRAM driving-distance low access, SBA FOIA 7(a)/504 loans, ACS B08201 vehicles, Second Harvest sites, and 2020 block population.`
+    `${cohortLabel}: ${plural(target.length, 'neighborhood')} with ${nf.format(totalResidents)} people. ` +
+    `Counties: ${counties.join(', ')}. ` +
+    `Today ${noSite} of them (${safeBaseline}%) have no Second Harvest pantry inside. ` +
+    `Suppose the food bank serves the ${mobile} with many homes that have no car, and lenders help the ${dual} with few loans. ` +
+    (unaddressed === 0
+      ? `Then every one of them would have a plan.`
+      : `Then ${plural(unaddressed, 'neighborhood')} (${safeWith}%) would still have no plan. That is ${reduction} points lower than today.`)
 
   return {
-    title: `Coordinated Action Brief — ${cohortLabel}`,
+    title: `Action plan: ${cohortLabel}`,
     cohortId: input.cohortId,
     personaId: input.personaId,
     targetTractCount: target.length,
@@ -291,20 +302,114 @@ export function generateCoordinatedActionBrief(input: {
   }
 }
 
-/** Executive briefing for the AI panel header. */
-export function buildExecutiveBriefing(tracts: readonly TractRecord[]): readonly string[] {
+export interface Insight {
+  readonly figure: string
+  readonly text: string
+  /** Matches the map color: triple = red, high = orange. */
+  readonly tone: 'plain' | 'high' | 'triple'
+}
+
+export interface BriefingContext {
+  readonly snapTrend?: readonly { readonly month: string; readonly participants: number | null }[]
+  readonly mealGap?: readonly {
+    readonly county: string
+    readonly rate: string
+    readonly people: number | null
+  }[]
+}
+
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const
+
+function monthName(ym: string): string {
+  const [y, m] = ym.split('-')
+  return `${MONTHS[Number(m) - 1] ?? m} ${y}`
+}
+
+/** Household-weighted share of homes with no car, in percent. */
+function noCarShare(tracts: readonly TractRecord[]): number | null {
+  let homes = 0
+  let noCar = 0
+  for (const t of tracts) {
+    if (t.pct_no_vehicle === null || !t.households) continue
+    homes += t.households
+    noCar += (t.pct_no_vehicle / 100) * t.households
+  }
+  return homes > 0 ? (noCar / homes) * 100 : null
+}
+
+/** Plain-language findings for the side panel. Each one is computed from the bundle. */
+export function buildExecutiveBriefing(
+  tracts: readonly TractRecord[],
+  context: BriefingContext = {},
+): readonly Insight[] {
+  const out: Insight[] = []
+
+  // CBPP SNAP Tracker (DS-X3b): Florida, the latest month against the same month a year before.
+  const trend = (context.snapTrend ?? []).filter((r) => r.participants !== null)
+  const last = trend.at(-1)
+  if (last && last.participants !== null) {
+    const [y, m] = last.month.split('-')
+    const before = trend.find((r) => r.month === `${Number(y) - 1}-${m}`)
+    if (before && before.participants) {
+      const change = (last.participants - before.participants) / before.participants
+      out.push({
+        figure: `${Math.abs(Math.round(change * 100))}%`,
+        tone: 'plain',
+        text: `${change < 0 ? 'fewer' : 'more'} Floridians got SNAP in ${monthName(last.month)} than a year before. ${change < 0 ? 'More families may turn to food banks.' : ''}`.trim(),
+      })
+    }
+  }
+
+  // Feeding America Map the Meal Gap 2024 (DS-X9b): the four counties.
+  const meal = (context.mealGap ?? []).filter((r) => r.people !== null)
+  const top = [...meal].sort((a, b) => parseFloat(b.rate) - parseFloat(a.rate))[0]
+  if (top) {
+    const people = meal.reduce((s, r) => s + (r.people ?? 0), 0)
+    const name = top.county.charAt(0).toUpperCase() + top.county.slice(1)
+    out.push({
+      figure: nf.format(Math.round(people / 1000) * 1000),
+      tone: 'plain',
+      text: `people in these four counties may not have enough to eat (2024). ${name} County has the highest rate: ${top.rate}.`,
+    })
+  }
+
   const high = tracts.filter((t) => t.tract_class === CLASS_HIGH_NEED)
-  const dual = tracts.filter((t) => t.is_dual_gap)
-  const transport = tracts.filter((t) => t.is_transport_gap)
+  const others = tracts.filter((t) => t.tract_class === CLASS_NO_GAP)
+  const pop = tracts.reduce((s, t) => s + t.pop2020, 0)
+  const highPop = high.reduce((s, t) => s + t.pop2020, 0)
+  const carHigh = noCarShare(high)
+  const carOther = noCarShare(others)
+  if (highPop > 0) {
+    out.push({
+      figure: `1 in ${Math.round(pop / highPop)}`,
+      tone: 'high',
+      text:
+        `people here live in a food desert. ` +
+        (carHigh !== null && carOther !== null
+          ? `There, ${carHigh.toFixed(1)}% of homes have no car. Elsewhere, ${carOther.toFixed(1)}% do.`
+          : ''),
+    })
+  }
+
   const triple = tracts.filter((t) => t.is_triple_gap)
-  const totalSba = tracts.reduce((s, t) => s + t.sba_gross_usd_total, 0)
-  const highSba = high.reduce((s, t) => s + t.sba_gross_usd_total, 0)
-  const sharePct = totalSba > 0 ? Math.round((1 - highSba / totalSba) * 1000) / 10 : 0
   const tripleResidents = triple.reduce((s, t) => s + t.pop2020, 0)
-  return [
-    `${high.length} of ${tracts.length} Central Florida tracts are Classic Food Deserts: top-quartile poverty and USDA driving-distance low access.`,
-    `${sharePct}% of SBA 7(a) and 504 loan dollars since 2010 went to tracts that are not high need. ${dual.length} food deserts received ten or fewer loans.`,
-    `${transport.length} food deserts sit in the top quartile for households without a vehicle, so a fixed pantry 15 minutes away is still out of reach.`,
-    `${triple.length} tracts carry all three gaps at once — ${nf.format(tripleResidents)} residents a food bank and an SBDC/CDFI could serve together.`,
-  ]
+  out.push({
+    figure: nf.format(triple.length),
+    tone: 'triple',
+    text: `neighborhoods have all three gaps. ${nf.format(tripleResidents)} people live there. They are a good place to start.`,
+  })
+  return out
 }

@@ -23,6 +23,101 @@ const CENTRAL_FL_BOUNDS: LngLatBoundsLike = [
   [-80.84, 29.3],
 ]
 
+type Ring = GeoJSON.Position[]
+
+function outerRings(fc: GeoJSON.FeatureCollection): Ring[] {
+  const rings: Ring[] = []
+  for (const f of fc.features) {
+    const g = f.geometry
+    const polys =
+      g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : []
+    for (const p of polys) if (p[0]) rings.push(p[0])
+  }
+  return rings
+}
+
+/**
+ * The first view: the box around the food-desert tracts, so the color fills the frame.
+ * Falls back to all features, then to the old fixed box.
+ */
+function startBounds(tracts: GeoJSON.FeatureCollection): LngLatBoundsLike {
+  const highNeed = tracts.features.filter((f) => f.properties?.tract_class === CLASS_HIGH_NEED)
+  return featureBounds({ ...tracts, features: highNeed.length ? highNeed : tracts.features })
+}
+
+function featureBounds(fc: GeoJSON.FeatureCollection): LngLatBoundsLike {
+  let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity]
+  for (const ring of outerRings(fc)) {
+    for (const [x = NaN, y = NaN] of ring) {
+      if (Number.isNaN(x) || Number.isNaN(y)) continue
+      w = Math.min(w, x)
+      s = Math.min(s, y)
+      e = Math.max(e, x)
+      n = Math.max(n, y)
+    }
+  }
+  return Number.isFinite(w)
+    ? [
+        [w, s],
+        [e, n],
+      ]
+    : CENTRAL_FL_BOUNDS
+}
+
+function signedArea(ring: Ring): number {
+  let a = 0
+  let prev = ring.at(-1)
+  for (const cur of ring) {
+    if (prev) a += ((prev[0] ?? 0) - (cur[0] ?? 0)) * ((prev[1] ?? 0) + (cur[1] ?? 0))
+    prev = cur
+  }
+  return a
+}
+
+/** A large box with the counties cut out, used to fade the land outside the four counties. */
+function outsideMask(fc: GeoJSON.FeatureCollection): GeoJSON.Feature {
+  const world: Ring = [
+    [-90, 20],
+    [-70, 20],
+    [-70, 36],
+    [-90, 36],
+    [-90, 20],
+  ]
+  // MapLibre treats a ring as a hole only when its winding is opposite to the outer ring.
+  const worldSign = Math.sign(signedArea(world))
+  const holes = outerRings(fc).map((r) =>
+    Math.sign(signedArea(r)) === worldSign ? [...r].reverse() : r,
+  )
+  return {
+    type: 'Feature',
+    properties: {},
+    geometry: { type: 'Polygon', coordinates: [world, ...holes] },
+  }
+}
+
+/** Basemap layers that add noise at the region scale. Place names and major roads stay. */
+function quietBasemap(map: MapLibre) {
+  const keepSymbols = new Set(['label_city', 'label_city_capital', 'label_town'])
+  for (const layer of map.getStyle().layers ?? []) {
+    const id = layer.id
+    const src = 'source-layer' in layer ? layer['source-layer'] : undefined
+    if (layer.type === 'symbol' && !keepSymbols.has(id)) {
+      map.setLayoutProperty(id, 'visibility', 'none')
+    } else if (
+      src === 'building' ||
+      src === 'aeroway' ||
+      src === 'boundary' ||
+      id === 'landuse_residential' ||
+      id === 'landcover_wood' ||
+      (src === 'transportation' && !/motorway|major/.test(id))
+    ) {
+      map.setLayoutProperty(id, 'visibility', 'none')
+    } else if (src === 'transportation' && layer.type === 'line') {
+      map.setPaintProperty(id, 'line-opacity', 0.45)
+    }
+  }
+}
+
 function hatchImage() {
   const size = 8
   const data = new Uint8Array(size * size * 4)
@@ -97,8 +192,8 @@ export function OpportunityMap(props: OpportunityMapProps) {
     const map = new MapLibre({
       container: el.current,
       style: OPENFREEMAP_STYLE_URL,
-      bounds: CENTRAL_FL_BOUNDS,
-      fitBoundsOptions: { padding: 28 },
+      bounds: startBounds(tractsGeojson),
+      fitBoundsOptions: { padding: { top: 56, bottom: 28, left: 36, right: 36 } },
       attributionControl: { compact: true },
       dragRotate: false,
     })
@@ -123,12 +218,17 @@ export function OpportunityMap(props: OpportunityMapProps) {
 
     const addLayers = () => {
       if (map.getSource('tracts')) return
+      quietBasemap(map)
       if (!map.hasImage('hatch')) map.addImage('hatch', hatchImage(), { pixelRatio: 2 })
       map.addSource('tracts', { type: 'geojson', data: tractsGeojson })
       map.addSource('counties', { type: 'geojson', data: countiesGeojson })
       map.addSource('sites', { type: 'geojson', data: sitesGeojson })
+      map.addSource('outside', { type: 'geojson', data: outsideMask(countiesGeojson) })
       const firstSymbol = map.getStyle().layers?.find((l) => l.type === 'symbol')?.id
 
+      // Only the food deserts carry color. Tracts with no gap stay clear, so the basemap shows
+      // through, but they still take a hover tint and a click.
+      const isHighNeed: ExpressionSpecification = ['==', ['get', 'tract_class'], CLASS_HIGH_NEED]
       map.addLayer(
         {
           id: 'tract-fill',
@@ -140,17 +240,19 @@ export function OpportunityMap(props: OpportunityMapProps) {
               'case',
               ['==', ['get', 'is_triple_gap'], true],
               COLORS.triple,
-              ['==', ['get', 'tract_class'], CLASS_HIGH_NEED],
+              isHighNeed,
               COLORS.highNeed,
-              COLORS.noGap,
+              COLORS.mid,
             ],
             'fill-opacity': [
               'case',
-              ['boolean', ['feature-state', 'dimmed'], false],
-              0.18,
               ['boolean', ['feature-state', 'hover'], false],
-              0.95,
-              0.82,
+              ['case', isHighNeed, 0.95, 0.14],
+              ['!', isHighNeed],
+              0,
+              ['boolean', ['feature-state', 'dimmed'], false],
+              0.28,
+              0.88,
             ],
           },
         },
@@ -171,7 +273,8 @@ export function OpportunityMap(props: OpportunityMapProps) {
           id: 'tract-line',
           type: 'line',
           source: 'tracts',
-          paint: { 'line-color': '#FFFFFF', 'line-width': 0.5, 'line-opacity': 0.9 },
+          filter: isHighNeed,
+          paint: { 'line-color': '#FFFFFF', 'line-width': 0.6, 'line-opacity': 0.9 },
         },
         firstSymbol,
       )
@@ -182,7 +285,7 @@ export function OpportunityMap(props: OpportunityMapProps) {
           source: 'tracts',
           filter: ['==', ['get', 'is_dual_gap'], true],
           layout: { visibility: 'none' },
-          paint: { 'line-color': COLORS.ink, 'line-width': 1.6, 'line-dasharray': [1.5, 1] },
+          paint: { 'line-color': COLORS.ink, 'line-width': 1.4, 'line-dasharray': [2, 1.2] },
         },
         firstSymbol,
       )
@@ -202,7 +305,7 @@ export function OpportunityMap(props: OpportunityMapProps) {
           id: 'county-line',
           type: 'line',
           source: 'counties',
-          paint: { 'line-color': COLORS.ink, 'line-width': 2, 'line-opacity': 0.85 },
+          paint: { 'line-color': COLORS.ink, 'line-width': 1.2, 'line-opacity': 0.55 },
         },
         firstSymbol,
       )
@@ -213,7 +316,7 @@ export function OpportunityMap(props: OpportunityMapProps) {
           source: 'tracts',
           paint: {
             'line-color': COLORS.ink,
-            'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 3.2, 0],
+            'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 2.6, 0],
           },
         },
         firstSymbol,
@@ -230,6 +333,13 @@ export function OpportunityMap(props: OpportunityMapProps) {
           'circle-stroke-color': COLORS.mid,
           'circle-stroke-width': 1.4,
         },
+      })
+      // On top of everything, place names too, so the land outside the four counties fades back.
+      map.addLayer({
+        id: 'outside-mask',
+        type: 'fill',
+        source: 'outside',
+        paint: { 'fill-color': COLORS.paper, 'fill-opacity': 0.7 },
       })
 
       let hovered: number | null = null
@@ -340,7 +450,7 @@ export function OpportunityMap(props: OpportunityMapProps) {
 
   return (
     <div className="map-wrap">
-      <div ref={el} className="map-canvas" aria-label="Map of Central Florida census tracts" />
+      <div ref={el} className="map-canvas" aria-label="Map of Central Florida neighborhoods" />
       {tilesFailed && <div className="map-badge">{BASE_MAP_UNAVAILABLE_TEXT}</div>}
     </div>
   )

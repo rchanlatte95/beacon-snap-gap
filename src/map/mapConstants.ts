@@ -8,4 +8,5 @@ export const COLORS = {
   ink: '#1E343F',
   mid: '#385981',
   soft: '#6B8FA8',
+  paper: '#FBFAF7',
 } as const
