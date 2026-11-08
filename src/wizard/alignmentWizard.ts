@@ -113,6 +113,10 @@ export interface TractRecord {
   readonly recommended_action: string
   readonly missing_indicators: readonly string[]
   readonly centroid: readonly [number, number] | null
+  // REQ-55 (Z-2 2-A): index k is the distance k * 0.5 miles, written by the Build.
+  readonly reach_share: readonly (number | null)[]
+  readonly reach_sites: readonly number[]
+  readonly nearest_block_miles: number | null
 }
 
 export interface WizardAnswer {
@@ -178,8 +182,15 @@ export function filterTractsByCohort(
   }
 }
 
-/** POST-APP-3: deterministic natural-language query interpreter over the 490-tract dataset. */
-export function answerWizardQuery(tracts: readonly TractRecord[], query: string): WizardAnswer {
+/**
+ * POST-APP-3: deterministic natural-language query interpreter over the 490-tract dataset.
+ * `noVehicleCut` is the no-car cut in force (REQ-65), shown in the transport filter.
+ */
+export function answerWizardQuery(
+  tracts: readonly TractRecord[],
+  query: string,
+  noVehicleCut?: number,
+): WizardAnswer {
   const q = query.toLowerCase()
   const filters: string[] = []
   let result: readonly TractRecord[] = tracts
@@ -213,7 +224,11 @@ export function answerWizardQuery(tracts: readonly TractRecord[], query: string)
 
   if (/no[- ]vehicle|without (a )?car|transport|transit|mobile/.test(q)) {
     result = result.filter((t) => t.is_transport_gap)
-    filters.push('Food desert where 6.9% or more of homes have no car')
+    filters.push(
+      noVehicleCut === undefined
+        ? 'Food desert where many homes have no car'
+        : `Food desert where ${Number(noVehicleCut.toFixed(3))}% or more of homes have no car`,
+    )
   }
 
   if (/triple|opportunit|overlap|all three|align/.test(q)) {
