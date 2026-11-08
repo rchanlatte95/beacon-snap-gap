@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import sys
+import threading
 from collections.abc import Callable, Mapping
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -35,6 +36,43 @@ MAX_BODY_BYTES: Final = 16_384
 MODEL_ENV: Final = "QUERY_SERVICE_MODEL"
 REPO_ROOT: Final = Path(__file__).resolve().parents[2]
 LOG: Final = logging.getLogger("query_service")
+# Answered once at startup at the App's default settings, so these replies come from the cache
+# (Ketema: "cache that too"). Every answer still comes from the model and the warehouse.
+WARM_SETTINGS: Final = {
+    "reach_miles": 10,
+    "percentiles": {"poverty": 75, "no_vehicle": 75, "sba_rate_per_1000": 25},
+}
+WARM_QUESTIONS: Final = (
+    # The six baseline questions (requirements section 8, SLICE-4).
+    "How many Classic Food Desert tracts are in Orange County, and how many of them had 10 or "
+    "fewer SBA loans?",
+    "Which five lenders approved the most SBA 7(a) loans in Florida with an approval date in 2024 "
+    "or later?",
+    "Among the Classic Food Desert tracts, which five have the highest FEMA hurricane expected "
+    "annual loss?",
+    "Across the 490 Central Florida tracts, how strongly is poverty rate correlated with SBA loan "
+    "count?",
+    "Where did the median income for tract 12095016510 come from, and how reliable is it?",
+    "How many people lost SNAP in Seminole County?",
+    # The App's quick-question buttons (src/viewContent.ts).
+    "All three gaps in Orange County",
+    "Food deserts with no pantry and few SBA loans",
+    "Places with missing data",
+    "Food deserts with no pantry in Orange County",
+    "Where should a mobile pantry go in Osceola?",
+    "Food deserts with few SBA loans in Orange County",
+    "Food deserts with few SBA loans in Osceola",
+)
+
+
+def warm_cache(answer: Callable[[AskRequest], AskReply]) -> None:
+    """Answer WARM_QUESTIONS once so their replies are cached; a failure is logged, not fatal."""
+    for question in WARM_QUESTIONS:
+        try:
+            answer(parse_ask_request({"question": question, **WARM_SETTINGS}))
+            LOG.info("cache warmed: %s", question)
+        except (ModelUnavailableError, AnswerNotGroundedError) as exc:
+            LOG.warning("cache warm failed for %r: %s", question, exc)
 
 
 def make_server(
@@ -111,6 +149,7 @@ def main(env: Mapping[str, str]) -> int:
         LOG.exception("SEQ-11 violation: the QueryService cannot start")
         return 1
     LOG.info("QueryService listening on port %s", server.server_address[1])
+    threading.Thread(target=warm_cache, args=(answerer.answer,), daemon=True).start()
     server.serve_forever()
     return 0
 

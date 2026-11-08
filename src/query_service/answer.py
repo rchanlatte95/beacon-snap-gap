@@ -10,6 +10,7 @@ contract module; tests bridge the two (CL11-F).
 import json
 import math
 import re
+import threading
 import time
 from collections.abc import Callable, Mapping
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -272,6 +273,10 @@ class Answerer:
         self._taxonomy = taxonomy_text
         self._clock = clock
         self._index_cache: str | None = None
+        # Answer cache (Ketema: "Cache cache cache"): the warehouse is read-only for the life of
+        # the process, so a successful answer to the same question and settings stays correct.
+        self._answers: dict[tuple[object, ...], AskReply] = {}
+        self._answers_lock = threading.Lock()
 
     def _index_json(self) -> str:
         """The table index for the instruction (Z-31), built once from the open engine."""
@@ -389,7 +394,26 @@ class Answerer:
             )
         return types.Content(role="user", parts=parts)
 
+    @staticmethod
+    def cache_key(request: AskRequest) -> tuple[object, ...]:
+        """The question, case and spacing folded, with the settings it was answered under."""
+        t = request.thresholds
+        question = " ".join(request.question.lower().split()).rstrip("?.! ")
+        return (question, t.reach_miles, t.poverty, t.no_vehicle, t.sba_rate_per_1000)
+
     def answer(self, request: AskRequest) -> AskReply:
+        """A cached answer for the same question and settings, or a fresh one (then cached)."""
+        key = self.cache_key(request)
+        with self._answers_lock:
+            hit = self._answers.get(key)
+        if hit is not None:
+            return hit
+        reply = self._answer_fresh(request)
+        with self._answers_lock:
+            self._answers[key] = reply
+        return reply
+
+    def _answer_fresh(self, request: AskRequest) -> AskReply:
         """Answer one question under its thresholds.
 
         Raises:
