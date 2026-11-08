@@ -91,8 +91,9 @@ Deploy only after a human approves.
 
 ### Run the real ask call (Gemini) locally
 
-`npm run dev` answers questions from a mock by default (`MOCK_ASK`, in `vite.config.ts`). To use
-the real QueryService:
+`npm run dev` sends questions to the real QueryService by default. With no QueryService running,
+the App shows "AI unavailable. Using built-in filters." To use the mock instead, run
+`MOCK_ASK=ok npm run dev` (`MOCK_ASK`, in `vite.config.ts`). To use the real QueryService:
 
 1. Terminal 1, the QueryService. It needs Google credentials with Vertex AI access in the project
    (for example `gcloud auth application-default login`) and a folder that holds
@@ -105,15 +106,15 @@ the real QueryService:
    uv run python -m src.query_service.server
    ```
 
-2. Terminal 2, the App with the mock off. The dev server then sends `/api/ask` to
-   `QUERY_SERVICE_URL` (default `http://127.0.0.1:8080`).
+2. Terminal 2, the App. The dev server sends `/api/ask` to `QUERY_SERVICE_URL` (default
+   `http://127.0.0.1:8080`).
 
    ```sh
    python -m src.data_prep.alignment_bundle
-   MOCK_ASK=off npm run dev
+   npm run dev
    ```
 
-   You can put `MOCK_ASK=off` and `QUERY_SERVICE_URL` in `.env.local` instead (git-ignored).
+   You can put `QUERY_SERVICE_URL` (and `MOCK_ASK`) in `.env.local` (git-ignored).
 
 3. Ask a question. A real answer ends with "Answered by" and the model name. "AI unavailable.
    Using built-in filters." means the call failed: read the log in terminal 1.
