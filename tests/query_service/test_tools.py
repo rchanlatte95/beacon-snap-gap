@@ -82,6 +82,15 @@ def test_sites_near_a_point_and_a_tract_match_the_block_based_oracle(
             assert [c.table_name for c in got.citations] == list(got.referenced_tables), (
                 "POST-TOOL-1 / SEQ-7 violation: each referenced table must be cited once, in order"
             )
+    many = fx.populated_blocks(fx.TRACT_C)
+    assert len(many) > contract.MAX_ROW_LIMIT, "ARRANGE: TRACT_C must span more than one page"
+    paged = tools.sites_near(geoid=fx.TRACT_C, miles=1.0)
+    assert _view(paged) == (
+        contract.SITES_NEAR_COLUMNS,
+        contract.expected_sites_near(many, 1.0, sites),
+        False,
+    ), f"POST-TOOL-1 violation: blocks past the first page were left out: {_view(paged)}"
+    assert [r["storeid"] for r in paged.rows] == ["S3"]
     at_edge = tools.sites_near(geoid=fx.TRACT_A, miles=edge)
     assert "S2" in [row["storeid"] for row in at_edge.rows], (
         "POST-TOOL-1 violation: a site exactly at the distance is within it"
@@ -113,6 +122,15 @@ def test_stats_correlate_counts_only_numeric_pairs_and_refuses_bad_arguments(
     ), f"POST-TOOL-2 violation: {row}\nEXPECTED: {want}"
     assert got.referenced_tables == ("tract_coverage",)
     assert [c.dataset_id for c in got.citations] == ["DS-X12"]
+
+    big = tools.stats_correlate("SELECT i AS a, 2 * i + (i % 7) AS b FROM range(2500) t(i)")
+    want_big = contract.expected_correlation(tuple((i, 2 * i + i % 7) for i in range(2500)))
+    big_row = big.rows[0]
+    assert (big_row["n"], big_row["coefficient"], big.truncated) == (
+        want_big.n,
+        want_big.coefficient,
+        False,
+    ), f"POST-TOOL-2 violation: rows past the first page were left out: {big_row}"
 
     bad_calls = [
         lambda: tools.sites_near(miles=5.0),
