@@ -422,6 +422,15 @@ code {
 .proximity-note {
   color: var(--ink-mute);
 }
+/* Drive-time and distance notes inside the map's (i) box; they open and close with its credits. */
+.map-attrib-notes {
+  display: none;
+  max-width: 340px;
+  padding-bottom: 2px;
+}
+.maplibregl-ctrl-attrib.maplibregl-compact-show .map-attrib-notes {
+  display: block;
+}
 .map-wrap,
 .map-canvas,
 .map-placeholder {

@@ -36,6 +36,8 @@ function openTract() {
   fireEvent.click(screen.getByTestId(`tract-row-${focus.geoid}`))
 }
 const controls = () => screen.getByRole('region', { name: 'Distance and gap rules' })
+// The notes and credits sit on the neighborhood card and in the map's (i) box, not under the slider.
+const card = () => screen.getByTestId('tract-evidence-panel')
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -52,16 +54,17 @@ describe('cached drive times in the map controls', () => {
     await screen.findAllByText(/Estimated drive to a Second Harvest site: 21 min/)
     expect(screen.getAllByRole('slider')).toHaveLength(1)
     expect(screen.queryByRole('slider', { name: /time|minute/i })).toBeNull()
-    expect(within(controls()).getByRole('link', { name: 'openrouteservice' })).toHaveAttribute(
+    expect(within(card()).getByRole('link', { name: 'openrouteservice' })).toHaveAttribute(
       'href',
       'https://openrouteservice.org/',
     )
-    expect(within(controls()).getByRole('link', { name: 'CC BY-SA 4.0' })).toHaveAttribute(
+    expect(within(card()).getByRole('link', { name: 'CC BY-SA 4.0' })).toHaveAttribute(
       'href',
       'https://creativecommons.org/licenses/by-sa/4.0/',
     )
-    expect(controls()).toHaveTextContent('Updated')
-    expect(controls()).toHaveTextContent('No live traffic')
+    expect(card()).toHaveTextContent('Updated')
+    expect(card()).toHaveTextContent('No live traffic')
+    expect(controls()).not.toHaveTextContent('No live traffic')
     const slider = screen.getByRole('slider', { name: 'Distance limit in miles' })
     for (const [miles, expectedSites] of [
       [0, 0],
@@ -128,13 +131,14 @@ describe('cached drive times in the map controls', () => {
       render(<OpportunitiesApp initialBundle={bundle} initialSites={sites} enableMap={false} />)
       openTract()
       await act(async () => {})
-      expect(controls()).toHaveTextContent('Heuristic fallback: 10 miles = 30 minutes')
+      expect(card()).toHaveTextContent('Heuristic fallback: 10 miles = 30 minutes')
+      expect(controls()).not.toHaveTextContent('Heuristic fallback')
       expect(controls()).toHaveTextContent(
         'Estimated drive to a Second Harvest site: 9 min (heuristic)',
       )
-      expect(controls()).toHaveTextContent('The other 20% may need longer')
+      expect(card()).toHaveTextContent('The other 20% may need longer')
       expect(controls()).not.toHaveTextContent('Estimated drive to a Second Harvest site: 0 min')
-      expect(within(controls()).queryByRole('link', { name: 'openrouteservice' })).toBeNull()
+      expect(within(card()).queryByRole('link', { name: 'openrouteservice' })).toBeNull()
       fireEvent.change(screen.getByRole('slider'), { target: { value: '20' } })
       expect(document.getElementById('gap-emphasis-context')).toHaveTextContent('Beyond 20 mi')
     },

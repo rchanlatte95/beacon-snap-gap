@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CutControls } from './map/CutControls'
 import { AiAnswerCard, AiUnavailableNotice, AskPending, SessionEndedNotice } from './ai/AiAnswer'
 import { type AskAnswer, type AskService } from './ai/askClient'
-import { DriveTimeEstimate } from './map/DriveTimeEstimate'
+import { DriveTimeEstimate, DriveTimeNotes, type DriveTimeProps } from './map/DriveTimeEstimate'
 import { routingInputs } from './map/driveTimes'
 import { nearestSiteDistances } from './map/proximity'
 import { useDriveTimes } from './map/useDriveTimes'
@@ -313,18 +313,29 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
     [tracts, selected],
   )
   const notDrawn = useMemo(() => tracts.filter((t) => !t.drawn), [tracts])
-  const selectedDriveTime = selectedTract ? (
-    <DriveTimeEstimate
-      geoid={selectedTract.geoid}
-      originLabel={`${selectedTract.name}, ${selectedTract.county} County`}
-      population={selectedTract}
-      miles={siteDistances?.get(selectedTract.geoid)}
-      cache={driveTimes.cache}
-      inputKey={routingKey}
-      now={driveTimes.now}
-    />
+  const driveTimeProps: DriveTimeProps | null = selectedTract && {
+    geoid: selectedTract.geoid,
+    originLabel: `${selectedTract.name}, ${selectedTract.county} County`,
+    population: selectedTract,
+    miles: siteDistances?.get(selectedTract.geoid),
+    cache: driveTimes.cache,
+    inputKey: routingKey,
+    now: driveTimes.now,
+  }
+  // Under the slider: the estimate only. Its notes and the distance rule go in the map's (i) box.
+  const sliderDriveTime = driveTimeProps ? (
+    <DriveTimeEstimate {...driveTimeProps} showNotes={false} />
   ) : (
     <p className="proximity-note">Select a neighborhood to see its estimated drive time.</p>
+  )
+  const mapNotes = (
+    <>
+      {driveTimeProps && <DriveTimeNotes {...driveTimeProps} />}
+      <p className="proximity-note">
+        A neighborhood is within the distance when any of its populated blocks is. Straight-line
+        miles, not road miles.
+      </p>
+    </>
   )
 
   const counts = useMemo(
@@ -534,7 +545,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
               }}
               onMiles={changeProximity}
               onReset={resetRules}
-              driveTime={selectedDriveTime}
+              driveTime={sliderDriveTime}
             >
               <CutControls cuts={cuts} percentiles={percentiles} onChange={changeCut} />
             </ProximityControls>
@@ -550,6 +561,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                   selectedGeoid={selected}
                   onSelect={selectTract}
                   overlays={overlays}
+                  attributionNotes={mapNotes}
                 />
               ) : (
                 <div className="map-placeholder" aria-hidden="true" />
@@ -797,7 +809,7 @@ export function OpportunitiesApp(props: OpportunitiesAppProps) {
                     minPopulation={bundle.thresholds.sba_min_population}
                     cut={cut}
                     reach={reachFacts(selectedTract, proximityMiles)}
-                    driveTime={selectedDriveTime}
+                    driveTime={driveTimeProps && <DriveTimeEstimate {...driveTimeProps} />}
                   />
                 ) : (
                   <p className="muted">Pick a neighborhood on the map or in the list.</p>

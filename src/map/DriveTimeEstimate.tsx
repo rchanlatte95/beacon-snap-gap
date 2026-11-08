@@ -1,16 +1,8 @@
 import { driveTimeEstimate, type DriveTimeCache } from './driveTimes'
-import { populationAccess, populationAccessText } from './populationAccess'
+import { populationAccess, populationAccessText, type PopulationAccess } from './populationAccess'
 import type { TractRecord } from '../wizard/alignmentWizard'
 
-export function DriveTimeEstimate({
-  geoid,
-  originLabel,
-  population,
-  miles,
-  cache,
-  inputKey,
-  now,
-}: {
+export interface DriveTimeProps {
   readonly geoid: string
   readonly originLabel: string
   readonly population: Pick<TractRecord, 'pop2020' | 'reach_share' | 'nearest_block_miles'>
@@ -18,9 +10,21 @@ export function DriveTimeEstimate({
   readonly cache: DriveTimeCache | null
   readonly inputKey: string | null
   readonly now: number
-}) {
-  const estimate = driveTimeEstimate(geoid, miles, cache, inputKey, now)
-  const access = populationAccess(population)
+}
+
+/** The estimate, with its notes unless `showNotes` is false (the notes then go in the map's (i) box). */
+export function DriveTimeEstimate({
+  showNotes = true,
+  ...props
+}: DriveTimeProps & { readonly showNotes?: boolean }) {
+  const estimate = driveTimeEstimate(
+    props.geoid,
+    props.miles,
+    props.cache,
+    props.inputKey,
+    props.now,
+  )
+  const access = populationAccess(props.population)
   return (
     <div className="drive-time" role="status">
       <strong>
@@ -28,6 +32,42 @@ export function DriveTimeEstimate({
         {estimate.routed ? `${Math.round(estimate.minutes!)} min` : populationAccessText(access)}
         {!estimate.routed && ' (heuristic)'}
       </strong>
+      {showNotes && (
+        <NoteLines estimate={estimate} access={access} originLabel={props.originLabel} />
+      )}
+    </div>
+  )
+}
+
+/** The notes of an estimate without its headline. */
+export function DriveTimeNotes(props: DriveTimeProps) {
+  const estimate = driveTimeEstimate(
+    props.geoid,
+    props.miles,
+    props.cache,
+    props.inputKey,
+    props.now,
+  )
+  return (
+    <NoteLines
+      estimate={estimate}
+      access={populationAccess(props.population)}
+      originLabel={props.originLabel}
+    />
+  )
+}
+
+function NoteLines({
+  estimate,
+  access,
+  originLabel,
+}: {
+  readonly estimate: ReturnType<typeof driveTimeEstimate>
+  readonly access: PopulationAccess
+  readonly originLabel: string
+}) {
+  return (
+    <>
       <p className="proximity-note">
         {estimate.routed
           ? `From ${originLabel}’s population-weighted center.`
@@ -66,6 +106,6 @@ export function DriveTimeEstimate({
           .
         </p>
       )}
-    </div>
+    </>
   )
 }

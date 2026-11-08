@@ -63,10 +63,6 @@ export function ProximityControls(props: ProximityControlsProps) {
           ? `Showing the ${props.beyondCount} beyond ${distance}. ${props.withinCount} within; ${props.unknownCount} with no distance data.`
           : `In this group: ${props.withinCount} within ${distance}, ${props.beyondCount} beyond, ${props.unknownCount} with no distance data.`}
       </p>
-      <p className="proximity-note">
-        A neighborhood is within the distance when any of its populated blocks is. Straight-line
-        miles, not road miles.
-      </p>
       <SourceLinks ids={['DS-X12', 'DS-X24']} />
     </section>
   )
