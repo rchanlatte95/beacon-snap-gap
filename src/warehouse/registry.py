@@ -194,3 +194,47 @@ def member_scope(entry: RegistryEntry, member: str) -> tuple[str, str | None]:
         f"ERRORS-REG-2 violation: member {member!r} of {entry.path!r} has no exact entry in "
         f"{REGISTRY_FILE}"
     )
+
+
+@dataclass(frozen=True)
+class NotASource:
+    """A candidate file the registry lists as not a source, with the reason (POST-REG-3)."""
+
+    path: str
+    reason: str
+
+
+def load_not_sources(
+    registry_path: Path, entries: Sequence[RegistryEntry]
+) -> tuple[NotASource, ...]:
+    """Load the registry's [[not_a_source]] listings (POST-REG-3).
+
+    Raises:
+        RegistryError: ERRORS-REG-3, a listing has no path or no reason, repeats a path, or
+            names a path also registered as a source; the message names the listing.
+        OSError, tomllib.TOMLDecodeError: the registry file is missing or not TOML (propagated).
+    """
+    with registry_path.open("rb") as handle:
+        data = tomllib.load(handle)
+    listed = data.get("not_a_source", [])
+    if not isinstance(listed, list):
+        raise RegistryError("ERRORS-REG-3 violation: not_a_source is not a list of tables")
+    registered = {entry.path for entry in entries}
+    seen: set[str] = set()
+    out: list[NotASource] = []
+    for raw in listed:
+        path = raw.get("path") if isinstance(raw, dict) else None
+        reason = raw.get("reason") if isinstance(raw, dict) else None
+        if not isinstance(path, str) or not path.strip():
+            raise RegistryError(f"ERRORS-REG-3 violation: not_a_source {raw!r} has no path")
+        if not isinstance(reason, str) or not reason.strip():
+            raise RegistryError(f"ERRORS-REG-3 violation: not_a_source {path!r} has no reason")
+        if path in seen:
+            raise RegistryError(f"ERRORS-REG-3 violation: not_a_source {path!r} is listed twice")
+        if path in registered:
+            raise RegistryError(
+                f"ERRORS-REG-3 violation: {path!r} is listed as not a source and also registered"
+            )
+        seen.add(path)
+        out.append(NotASource(path=path, reason=reason.strip()))
+    return tuple(out)

@@ -40,6 +40,7 @@ FORMAT_RANK: Final[Mapping[str, int]] = {
     "shapefile": 3,
     "pdf": 4,
     "text": 4,
+    "pptx": 4,
 }
 
 
