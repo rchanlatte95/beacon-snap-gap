@@ -241,7 +241,9 @@ def main() -> None:
     # Report, so the numbers can be checked against the design brief.
     h = [t for t in tracts if t["need"] == "high"]
     none = [t for t in h if t["sitesInside"] == 0]
-    s = lambda L, k: sum(t[k] or 0 for t in L)
+    def s(rows: list[dict], key: str) -> float:
+        return sum(t[key] or 0 for t in rows)
+
     nv = [t for t in none if (t["noVehiclePct"] or 0) >= nv_cut]
     print(f"wrote {OUT} ({OUT.stat().st_size:,} bytes)")
     print(f"tracts {len(tracts)}; high-need {len(h)}; drawn {sum(1 for t in tracts if t['rings'])}")
