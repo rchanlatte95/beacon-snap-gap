@@ -4,7 +4,6 @@ CONTRACT AUTHORITY RECORD:
 - File: contracts/warehouse_contract.py
 - Authority: AUTHORITATIVE for the warehouse (SLICE-3, the Ingest)
 - Clauses covered: POST-GLOSS-1..2, INV-GLOSS-1, FORBIDDEN-GLOSS-1, SEQ-5, ERRORS-GLOSS-1
-  (INV-STORAGE-1 is tool-verified via WAREHOUSE_GCP_PROJECT alignment)
 - Requirements: REQ-28, REQ-29, REQ-30, REQ-31
 
 The implementation is src/warehouse/glossary.py. It does not import the contract (CL11-F);
@@ -140,8 +139,8 @@ def test_invalid_glossary_specs_rejected_and_constants_align():
     """
     CONTRACT TRACEABILITY:
     - Contract: warehouse_contract expected_glossary_entries(), GLOSSARY_COLUMNS,
-      PROVENANCE_TABLES, WAREHOUSE_GCP_PROJECT
-    - Enforces: ERRORS-GLOSS-1, POST-GLOSS-1, SEQ-5, INV-STORAGE-1
+      PROVENANCE_TABLES
+    - Enforces: ERRORS-GLOSS-1, POST-GLOSS-1, SEQ-5
     - Category: error, boundary, invariant
     - Risk tier: HIGH
     - Pyramid level: Unit
@@ -217,25 +216,4 @@ def test_invalid_glossary_specs_rejected_and_constants_align():
         f"EXPECTED: {contract.PROVENANCE_TABLES!r}\n"
         f"ACTUAL: {tuple(impl.PROVENANCE_TABLES)!r}\n"
         "GUIDANCE: provenance table tuple equals the contract's"
-    )
-    assert impl.WAREHOUSE_GCP_PROJECT == contract.WAREHOUSE_GCP_PROJECT, (
-        "test_invalid_glossary_specs_rejected_and_constants_align FAILED\n"
-        "INV-STORAGE-1 violation: WAREHOUSE_GCP_PROJECT differs\n"
-        f"EXPECTED: {contract.WAREHOUSE_GCP_PROJECT!r}\n"
-        f"ACTUAL: {impl.WAREHOUSE_GCP_PROJECT!r}\n"
-        "GUIDANCE: canonical GCS project constant equals the contract's"
-    )
-    assert impl.WAREHOUSE_GCS_BUCKET == contract.WAREHOUSE_GCS_BUCKET, (
-        "test_invalid_glossary_specs_rejected_and_constants_align FAILED\n"
-        "INV-STORAGE-1 violation: WAREHOUSE_GCS_BUCKET differs\n"
-        f"EXPECTED: {contract.WAREHOUSE_GCS_BUCKET!r}\n"
-        f"ACTUAL: {impl.WAREHOUSE_GCS_BUCKET!r}\n"
-        "GUIDANCE: canonical GCS bucket reference constant equals the contract's"
-    )
-    assert impl.WAREHOUSE_GCS_URI == contract.WAREHOUSE_GCS_URI, (
-        "test_invalid_glossary_specs_rejected_and_constants_align FAILED\n"
-        "INV-STORAGE-1 violation: WAREHOUSE_GCS_URI differs\n"
-        f"EXPECTED: {contract.WAREHOUSE_GCS_URI!r}\n"
-        f"ACTUAL: {impl.WAREHOUSE_GCS_URI!r}\n"
-        "GUIDANCE: canonical GCS URI reference constant equals the contract's"
     )

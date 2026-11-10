@@ -12,7 +12,7 @@ Batches:
 - Batch 3: table provenance records with "not recorded" for absent fields (REQ-29) and local-disk
   only / unaltered retained sources (REQ-28).
 - Batch 4: glossary table from loaded data dictionaries and lookup files (REQ-30), provenance
-  table write sequencing (SEQ-5, REQ-29), and canonical GCS bucket storage in <gcp-project> (REQ-31).
+  table write sequencing (SEQ-5, REQ-29), and canonical storage in a private bucket (REQ-31).
 - Batch 5: the data adapter's single configured warehouse location and table locations
   relative to it (REQ-47, REQ-48).
 - Batch 6a: the warehouse writer: tables written through the adapter, relative catalog
@@ -102,9 +102,6 @@ PROVENANCE_TEXT_FIELDS: tuple[str, ...] = (
 # Batch 4: glossary table, provenance write sequencing (SEQ-5), and canonical bucket (REQ-30, 31).
 GLOSSARY_COLUMNS: tuple[str, ...] = ("source_table", "dataset_id", "term", "definition")
 PROVENANCE_TABLES: tuple[str, ...] = ("files", "catalog", "sources")
-WAREHOUSE_GCP_PROJECT = "<gcp-project>"
-WAREHOUSE_GCS_BUCKET = "<warehouse-bucket>"
-WAREHOUSE_GCS_URI = f"gs://{WAREHOUSE_GCS_BUCKET}"
 
 # Batch 5: data adapter (REQ-47, REQ-48).
 WAREHOUSE_LOCATION_ENV = "WAREHOUSE_LOCATION"  # the one configured warehouse location
@@ -1406,9 +1403,8 @@ CONTRACT_GLOSSARY: Mapping[str, Clause] = {
     ),
     "INV-STORAGE-1": Clause(
         "tool",
-        "The Operator builds the warehouse once and keeps the canonical copy in private Google "
-        "Cloud Storage bucket WAREHOUSE_GCS_BUCKET (WAREHOUSE_GCS_URI) in project "
-        "WAREHOUSE_GCP_PROJECT.",
+        "The Operator builds the warehouse once and keeps the canonical copy in a private "
+        "bucket of the Operator's choosing.",
         ("REQ-31",),
     ),
 }

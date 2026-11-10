@@ -1,4 +1,4 @@
-# App and routing cache for Cloud Run (Z-4: project <gcp-project>, region us-east1).
+# App and routing cache for Cloud Run.
 # The Build (data preparation) runs before this image build and writes its output under public/.
 
 FROM node:26-alpine AS build
