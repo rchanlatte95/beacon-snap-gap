@@ -3,9 +3,8 @@
 Authority: requirements/REQUIREMENT_MANIFEST.md (cycle 13, REQ-32 to REQ-40, REQ-46; SEQ-6, SEQ-7,
 SEQ-9, SEQ-10).
 
-Domain: the QueryService and its AI tool/citation boundary over the canonical warehouse in
-gs://<warehouse-bucket>. The Ingest has its own contract (contracts/warehouse_contract.py,
-SLICE-3).
+Domain: the QueryService and its AI tool/citation boundary over the canonical warehouse in a
+private bucket. The Ingest has its own contract (contracts/warehouse_contract.py, SLICE-3).
 
 Batches:
 - Batch 1: connect to the warehouse from the bucket without rebuilding it (REQ-46, SEQ-6),
@@ -43,10 +42,6 @@ from contracts.warehouse_contract import (
 )
 
 # --- 1. Importable constants (specification values) --------------------------------------
-
-WAREHOUSE_GCP_PROJECT = "<gcp-project>"
-WAREHOUSE_GCS_BUCKET = "<warehouse-bucket>"
-WAREHOUSE_GCS_URI = f"gs://{WAREHOUSE_GCS_BUCKET}"
 
 DEFAULT_ROW_LIMIT = 200
 MAX_ROW_LIMIT = 1_000

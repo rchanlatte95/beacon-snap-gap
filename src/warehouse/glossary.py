@@ -11,9 +11,6 @@ from typing import Final
 
 GLOSSARY_COLUMNS: Final[tuple[str, ...]] = ("source_table", "dataset_id", "term", "definition")
 PROVENANCE_TABLES: Final[tuple[str, ...]] = ("files", "catalog", "sources")
-WAREHOUSE_GCP_PROJECT: Final = "<gcp-project>"
-WAREHOUSE_GCS_BUCKET: Final = "<warehouse-bucket>"
-WAREHOUSE_GCS_URI: Final = f"gs://{WAREHOUSE_GCS_BUCKET}"
 
 
 class InvalidGlossarySourceError(Exception):

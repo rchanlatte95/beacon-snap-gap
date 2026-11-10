@@ -156,7 +156,7 @@ them green. The manifest is `requirements/REQUIREMENT_MANIFEST.md`.
 |:------|:-----|:------|
 | 1 | App (React, MapLibre) and Build (Python, writes the static data) | Implemented. Unit tests pass. |
 | 3 | Warehouse Ingest (DuckDB, Parquet, GCS bucket) | Implemented in `src/warehouse/`, with the Ingest command. |
-| 4 | QueryService (warehouse questions through Vertex AI, Gemini) | Implemented in `src/query_service/`, deployed from `deploy/query-service/`. |
+| 4 | QueryService (warehouse questions through Vertex AI, Gemini) | Implemented in `src/query_service/`. |
 | 5 | Gateway (nginx login front door) | Not started. |
 
 The original three feature ideas (SNAP-cliff forecaster, above-the-line need finder, data blind-spot
@@ -218,7 +218,7 @@ the App shows "AI unavailable. Using built-in filters." To use the mock instead,
    ```sh
    WAREHOUSE_LOCATION=/absolute/path/to/warehouse-folder \
    QUERY_SERVICE_MODEL=gemini-3.8-flash \
-   GOOGLE_CLOUD_PROJECT=<gcp-project> GOOGLE_CLOUD_LOCATION=global PORT=8080 \
+   GOOGLE_CLOUD_PROJECT=<your-gcp-project> GOOGLE_CLOUD_LOCATION=global PORT=8080 \
    uv run python -m src.query_service.server
    ```
 
@@ -242,7 +242,6 @@ the App shows "AI unavailable. Using built-in filters." To use the mock instead,
 | `src/` | App (`App.tsx`, `map/`, `ai/`, `wizard/`), Build (`data_prep/`), warehouse Ingest (`warehouse/`), QueryService (`query_service/`) |
 | `tests/` | Vitest and pytest tests |
 | `requirements/`, `contracts/`, `plans/` | CCABDD spec artifacts |
-| `deploy/query-service/` | QueryService container and Cloud Run deploy script |
 | `scripts/analysis/` | One-off analyses that print every number used in the docs |
 | `scripts/data_prep/` | The earlier reach-data build (`reach.json`), kept for reference |
 | `data/hackathon/` | Hackathon Drive files, unmodified (checksums in `docs/hackathon/data-manifest.md`) |
