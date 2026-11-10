@@ -25,9 +25,8 @@ without one it shows the explicit heuristic fallback.
 
 The container serves the app through nginx and runs the Node cache builder with `--watch`.
 It checks every five minutes and refreshes expired or failed entries. Successful results last
-24 hours. The server-side builder contains the supplied PoC key; `ORS_API_KEY` can override it,
-and an empty `ORS_API_KEY` disables provider calls. The key is excluded from browser assets and
-cache responses. `.env*` files stay excluded from the image build context.
+24 hours. The server-side builder reads `ORS_API_KEY` from the environment; without it, the
+builder makes no provider calls. The key is excluded from browser assets and cache responses. `.env*` files stay excluded from the image build context.
 
 Run the normal data Build before building the image. Image builds make no provider requests;
 the running container refreshes the cache. During initial preparation or provider failure,

@@ -1,13 +1,13 @@
 # DISCONNECT MATRIX: warehouse data access (constitutional refactor)
 
 **Date**: 2026-11-08
-**Branch**: data/hackathon-sources (worktree branch of ketema/beacon-snap-cliff)
+**Branch**: data/hackathon-sources
 **Decision**: option A, approved by Ketema 2026-11-08 ("A. implement via constitutional refactor. no shortcuts")
 **Source Prose** (verbatim, Ketema, 2026-11-08):
 
 > "the technology is irrelevant, but the value of duckdb is plain. do not reinvent in python what already exists. if there was a conflict due to where the data lives you should have surfaced that. the requirement intent was to decouple the data from the image build process. if a gcp bucket cannot be mounted say so. but hard coded local file paths is bad architecture. data access should be abstracted. this is a standard data adapter pattern. re-assess and present cohesive options"
 
-> Earlier decision (session line 3520), answering "Store: DuckDB with Parquet in the image (my recommendation), GCS-loaded, or BigQuery?": "1-agreed."
+> Earlier decision, answering "Store: DuckDB with Parquet in the image (my recommendation), GCS-loaded, or BigQuery?": "1-agreed."
 
 > Z-14: "use a gcp bucket" (moved the store from the image to the bucket; the engine was not changed).
 
@@ -46,9 +46,9 @@ Harness: `/tmp/obs/observe_mount.py` in `python:3.12-slim`, DuckDB 2.0.0 (same v
 ```
 duckdb 2.0.0
 O1 object kinds: [('BASE TABLE', 5), ('VIEW', 309)]
-O2 views with absolute /Users/ paths: 309 of 309
+O2 views with absolute build-machine paths: 309 of 309
 O3 catalog ok rows: absolute parquet=309 relative=1 total=355
-O4 query a data view -> ERROR IOException IO Error: No files found that match the pattern "<build-machine>/beacon-snap-cliff/data-hackathon-sources/data/cache/warehouse/parquet/sba_foia_7a_fy2020_present_asof_260930.parquet"
+O4 query a data view -> ERROR IOException IO Error: No files found that match the pattern "<build-machine path>/data/cache/warehouse/parquet/sba_foia_7a_fy2020_present_asof_260930.parquet"
 O5 query base table glossary -> (70196,)
 O6 read parquet by mount-relative path -> (62243,)
 O7 write on read_only connection -> ERROR InvalidInputException Invalid Input Error: Cannot execute statement of type "CREATE" on database "warehouse" which is attached in read-only mode!
