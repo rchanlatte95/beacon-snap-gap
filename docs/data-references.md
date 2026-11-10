@@ -20,7 +20,7 @@ The sections below are the original proposal. Where they disagree with this tabl
 - Each person who wants LFS files needs `git lfs install` on their machine.
 
 ## Two cautions before using LFS
-1. **Pushes need an extra step on Ketema's machine.** His global git hooks (`[hooks dir]`) have no LFS `pre-push` hook, and a repo can have only one hooks directory. A plain `git push` sends only the pointer file, not the content. Until the global hook is fixed, run `git lfs push origin <branch>` before `git push`. Ryan's setup may differ. A pointer pushed without its content breaks checkouts for everyone.
+1. **Pushes may need an extra step.** If your git hooks directory has no LFS `pre-push` hook, a plain `git push` sends only the pointer file, not the content, because a repo can have only one hooks directory. In that case run `git lfs push origin <branch>` before `git push`. A pointer pushed without its content breaks checkouts for everyone.
 2. **Quota.** In a public repo, other people's clones and forks draw LFS bandwidth from the repo owner's quota. Check the current free allowance at github.com/settings/billing before relying on it. A hackathon audience downloading large LFS files can exhaust it.
 
 ## Recommended default: tiers
@@ -67,5 +67,5 @@ Recommendation: a GitHub Release for the frozen submission snapshot. A bucket on
 
 ## Decisions for the humans
 1. Approve the tier scheme, or keep it simpler (tiers 1 and 2 only).
-2. Who fixes the missing LFS `pre-push` hook in Ketema's global hooks. That file is under his governance repo, so it needs a branch and PR there, not an edit from this project.
+2. Who fixes the missing LFS `pre-push` hook. It lives outside this project, so it is not an edit from this repo.
 3. Whether the final submission snapshot goes in a GitHub Release or elsewhere.
